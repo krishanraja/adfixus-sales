@@ -27,7 +27,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
               className="h-8 w-auto"
             />
             <h1 className="text-xl font-bold text-gray-900">
-              Identity ROI Simulator
+              Identity ROI
             </h1>
           </div>
           
