@@ -14,7 +14,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
       {/* Hero Section */}
       <div className="text-center mb-16">
         <div className="mb-8">
-          <BarChart3 className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <BarChart3 className="w-16 h-16 text-cyan-600 mx-auto mb-4" />
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
             AdFixus Identity ROI Simulator
           </h1>
@@ -27,7 +27,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
         <Button 
           onClick={onStartQuiz}
           size="lg"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+          className="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
         >
           Start Your ROI Analysis
         </Button>
@@ -37,7 +37,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
       <div className="grid md:grid-cols-3 gap-8 mb-16">
         <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-200">
           <CardContent className="p-6 text-center">
-            <Shield className="w-12 h-12 text-green-600 mx-auto mb-4" />
+            <Shield className="w-12 h-12 text-teal-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-3">
               Identity Health Quiz
             </h3>
@@ -63,7 +63,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
 
         <Card className="border-0 shadow-md hover:shadow-lg transition-shadow duration-200">
           <CardContent className="p-6 text-center">
-            <TrendingUp className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+            <TrendingUp className="w-12 h-12 text-cyan-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-3">
               Actionable Insights
             </h3>
@@ -94,7 +94,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
             <div className="text-gray-600 text-sm">Typical Match Rate</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-green-600 mb-2">25%</div>
+            <div className="text-3xl font-bold text-teal-600 mb-2">25%</div>
             <div className="text-gray-600 text-sm">Average Revenue Loss</div>
           </div>
         </div>

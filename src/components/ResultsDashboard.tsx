@@ -93,9 +93,9 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
       {/* Identity Health Scorecard */}
       <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardHeader className="bg-gradient-to-r from-cyan-50 to-teal-50">
           <CardTitle className="flex items-center space-x-2">
-            <CheckCircle className="w-6 h-6 text-blue-600" />
+            <CheckCircle className="w-6 h-6 text-cyan-600" />
             <span>Identity Health Scorecard</span>
           </CardTitle>
         </CardHeader>
@@ -173,16 +173,16 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-l-4 border-l-green-500">
+        <Card className="shadow-lg border-l-4 border-l-teal-500">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Monthly Uplift Potential</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-teal-600">
                   {formatCurrency(calculatorResults.uplift.totalMonthlyUplift)}
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
+              <TrendingUp className="w-8 h-8 text-teal-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
               +{calculatorResults.uplift.percentageImprovement.toFixed(1)}% revenue increase
@@ -190,16 +190,16 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-l-4 border-l-blue-500">
+        <Card className="shadow-lg border-l-4 border-l-cyan-500">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Annual Opportunity</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-cyan-600">
                   {formatCurrency(calculatorResults.uplift.totalAnnualUplift)}
                 </p>
               </div>
-              <Calendar className="w-8 h-8 text-blue-500" />
+              <Calendar className="w-8 h-8 text-cyan-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
               12-month projection
@@ -248,7 +248,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatNumber(value)} />
+                <Tooltip formatter={(value: number) => formatNumber(value)} />
               </PieChart>
             </ResponsiveContainer>
             <div className="mt-4 text-center">
@@ -274,8 +274,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <BarChart data={revenueComparisonData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
-                <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <YAxis tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}K`} />
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
                 <Bar dataKey="current" fill="#6b7280" name="Current" />
                 <Bar dataKey="withAdFixus" fill="#22c55e" name="With AdFixus" />
               </BarChart>
@@ -294,8 +294,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <LineChart data={monthlyProjectionData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
-              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <YAxis tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}K`} />
+              <Tooltip formatter={(value: number) => formatCurrency(value)} />
               <Line 
                 type="monotone" 
                 dataKey="current" 
@@ -316,7 +316,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       </Card>
 
       {/* Action Items */}
-      <Card className="shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-0">
+      <Card className="shadow-lg bg-gradient-to-r from-cyan-50 to-teal-50 border-0">
         <CardContent className="p-8 text-center">
           <h3 className="text-2xl font-bold text-gray-900 mb-4">
             Ready to Unlock Your Revenue Potential?
@@ -327,7 +327,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8">
+            <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700 text-white px-8">
               Book a Demo
             </Button>
             <Button size="lg" variant="outline" className="px-8">

@@ -30,7 +30,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50">
       <Navigation currentStep={currentStep} onReset={resetSimulation} />
       
       <div className="container mx-auto px-4 py-8">

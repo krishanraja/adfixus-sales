@@ -20,10 +20,14 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
     <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-2">
-            <BarChart3 className="w-8 h-8 text-blue-600" />
+          <div className="flex items-center space-x-4">
+            <img 
+              src="/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png" 
+              alt="AdFixus Logo" 
+              className="h-8 w-auto"
+            />
             <h1 className="text-xl font-bold text-gray-900">
-              AdFixus Identity ROI Simulator
+              Identity ROI Simulator
             </h1>
           </div>
           
@@ -37,16 +41,16 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
                 <div key={step.id} className="flex items-center space-x-2">
                   <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
                     isActive 
-                      ? 'bg-blue-100 text-blue-700 font-medium' 
+                      ? 'bg-cyan-100 text-cyan-700 font-medium' 
                       : isCompleted 
-                        ? 'text-green-600' 
+                        ? 'text-teal-600' 
                         : 'text-gray-400'
                   }`}>
                     <Icon className="w-4 h-4" />
                     <span>{step.label}</span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`w-8 h-0.5 ${isCompleted ? 'bg-green-400' : 'bg-gray-200'}`} />
+                    <div className={`w-8 h-0.5 ${isCompleted ? 'bg-teal-400' : 'bg-gray-200'}`} />
                   )}
                 </div>
               );
