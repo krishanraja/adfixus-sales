@@ -1,11 +1,58 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import { IdentityHealthQuiz } from '../components/IdentityHealthQuiz';
+import { RevenueCalculator } from '../components/RevenueCalculator';
+import { ResultsDashboard } from '../components/ResultsDashboard';
+import { Navigation } from '../components/Navigation';
+import { Hero } from '../components/Hero';
 
 const Index = () => {
+  const [currentStep, setCurrentStep] = useState('hero'); // hero, quiz, calculator, results
+  const [quizResults, setQuizResults] = useState(null);
+  const [calculatorResults, setCalculatorResults] = useState(null);
+
+  const handleQuizComplete = (results) => {
+    console.log('Quiz completed:', results);
+    setQuizResults(results);
+    setCurrentStep('calculator');
+  };
+
+  const handleCalculatorComplete = (results) => {
+    console.log('Calculator completed:', results);
+    setCalculatorResults(results);
+    setCurrentStep('results');
+  };
+
+  const resetSimulation = () => {
+    setCurrentStep('hero');
+    setQuizResults(null);
+    setCalculatorResults(null);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <Navigation currentStep={currentStep} onReset={resetSimulation} />
+      
+      <div className="container mx-auto px-4 py-8">
+        {currentStep === 'hero' && (
+          <Hero onStartQuiz={() => setCurrentStep('quiz')} />
+        )}
+        
+        {currentStep === 'quiz' && (
+          <IdentityHealthQuiz onComplete={handleQuizComplete} />
+        )}
+        
+        {currentStep === 'calculator' && (
+          <RevenueCalculator onComplete={handleCalculatorComplete} />
+        )}
+        
+        {currentStep === 'results' && (
+          <ResultsDashboard 
+            quizResults={quizResults}
+            calculatorResults={calculatorResults}
+            onReset={resetSimulation}
+          />
+        )}
       </div>
     </div>
   );
