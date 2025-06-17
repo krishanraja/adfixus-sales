@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,7 +15,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
         <div className="mb-8">
           <BarChart3 className="w-16 h-16 text-cyan-600 mx-auto mb-4" />
           <h1 className="text-5xl font-black text-gray-900 mb-4 whitespace-nowrap">
-            Publisher ID Simulator
+            ID Simulator
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Discover how much revenue you're losing to dark inventory and ID durability gaps. 
