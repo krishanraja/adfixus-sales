@@ -103,9 +103,9 @@ const questions: Question[] = [
     tooltip: 'First-party data activation allows for better targeting while maintaining privacy compliance.',
     options: [
       { value: 'advanced', label: '20+ segments, behavioural and demo', score: 4 },
-      { value: 'moderate', label: 'Basic audience targeting capabilities', score: 3 },
-      { value: 'limited', label: 'Limited data activation', score: 2 },
-      { value: 'none', label: 'Minimal first-party data use', score: 1 }
+      { value: 'moderate', label: 'Basic audience targeting capabilities: demographics and contextual only', score: 3 },
+      { value: 'limited', label: 'Limited/minimal data activation such as demographics only', score: 2 },
+      { value: 'none', label: 'No first-party data use', score: 0 }
     ]
   }
 ];
