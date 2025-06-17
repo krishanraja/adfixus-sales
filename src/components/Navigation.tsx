@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { BarChart3, Home, Calculator, FileText } from 'lucide-react';
@@ -26,9 +25,6 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
               alt="AdFixus Logo" 
               className="h-8 w-auto"
             />
-            <h1 className="text-xl font-bold text-gray-900">
-              Identity ROI
-            </h1>
           </div>
           
           <div className="hidden md:flex items-center space-x-6">
