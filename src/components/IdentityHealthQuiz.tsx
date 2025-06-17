@@ -99,13 +99,13 @@ const questions: Question[] = [
   {
     id: 'data-activation',
     category: 'privacy',
-    question: 'How effectively can you activate your first-party data for advertising?',
+    question: 'What level of segmentation do you currently have?',
     tooltip: 'First-party data activation allows for better targeting while maintaining privacy compliance.',
     options: [
-      { value: 'advanced', label: '20+ segments, behavioural and demo', score: 4 },
-      { value: 'moderate', label: 'Basic audience targeting capabilities: demographics and contextual only', score: 3 },
-      { value: 'limited', label: 'Limited/minimal data activation such as demographics only', score: 2 },
-      { value: 'none', label: 'No first-party data use', score: 0 }
+      { value: 'advanced', label: 'Advanced: i.e 20+ segments, a combination of contextual, behavioural and demographic', score: 4 },
+      { value: 'moderate', label: 'Moderate: i.e demographics and contextual only', score: 3 },
+      { value: 'limited', label: 'Limited: i.e Demographics only', score: 2 },
+      { value: 'minimal', label: 'Minimal: No first-party data use', score: 0 }
     ]
   }
 ];
