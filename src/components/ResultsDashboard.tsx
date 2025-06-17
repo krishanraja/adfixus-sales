@@ -1,10 +1,11 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar } from 'lucide-react';
+import { generatePDF, sendPDFByEmail } from '../utils/pdfGenerator';
+import { useToast } from '@/hooks/use-toast';
 
 interface ResultsDashboardProps {
   quizResults: any;
@@ -17,6 +18,56 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   calculatorResults, 
   onReset 
 }) => {
+  const { toast } = useToast();
+
+  // Auto-send PDF when component mounts
+  React.useEffect(() => {
+    const autoSendPDF = async () => {
+      try {
+        const pdf = await generatePDF(quizResults, calculatorResults);
+        const pdfBlob = pdf.output('blob');
+        
+        const result = await sendPDFByEmail(pdfBlob);
+        
+        if (result.success) {
+          console.log('PDF automatically sent to krish.raja@adfixus.com');
+        } else {
+          console.error('Failed to auto-send PDF:', result.message);
+        }
+      } catch (error) {
+        console.error('Error in auto-send PDF:', error);
+      }
+    };
+
+    autoSendPDF();
+  }, [quizResults, calculatorResults]);
+
+  const handleDownloadPDF = async () => {
+    try {
+      toast({
+        title: "Generating PDF...",
+        description: "Please wait while we prepare your report.",
+      });
+
+      const pdf = await generatePDF(quizResults, calculatorResults);
+      
+      // Download the PDF
+      pdf.save('identity-roi-analysis-report.pdf');
+      
+      toast({
+        title: "PDF Downloaded",
+        description: "Your Identity ROI Analysis report has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getGradeColor = (grade: string) => {
     const colors = {
       'A+': 'bg-green-100 text-green-800 border-green-200',
@@ -330,9 +381,9 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700 text-white px-8">
               Book a Demo
             </Button>
-            <Button size="lg" variant="outline" className="px-8">
+            <Button size="lg" variant="outline" onClick={handleDownloadPDF} className="px-8">
               <Download className="w-4 h-4 mr-2" />
-              Export Report
+              Download PDF Report
             </Button>
             <Button size="lg" variant="outline" onClick={onReset} className="px-8">
               Run New Analysis
