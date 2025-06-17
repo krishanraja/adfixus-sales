@@ -15,11 +15,11 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
       <div className="text-center mb-16">
         <div className="mb-8">
           <BarChart3 className="w-16 h-16 text-cyan-600 mx-auto mb-4" />
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            AdFixus Identity ROI Simulator
+          <h1 className="text-5xl font-black text-gray-900 mb-4 whitespace-nowrap">
+            Publisher ID Simulator
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Discover how much revenue you're losing to dark inventory and identity gaps. 
+            Discover how much revenue you're losing to dark inventory and ID durability gaps. 
             Get your Identity Health Score and calculate your potential uplift.
           </p>
         </div>
@@ -56,7 +56,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
             </h3>
             <p className="text-gray-600 leading-relaxed">
               Input your traffic data and see exactly how much revenue 
-              you're leaving on the table due to identity gaps.
+              you're leaving on the table due to ID durability gaps.
             </p>
           </CardContent>
         </Card>
@@ -69,7 +69,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
             </h3>
             <p className="text-gray-600 leading-relaxed">
               Get detailed recommendations and see your potential uplift 
-              with AdFixus's identity resolution technology.
+              with AdFixus's ID durability technology.
             </p>
           </CardContent>
         </Card>
