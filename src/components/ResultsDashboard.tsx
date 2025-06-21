@@ -135,6 +135,16 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
+      {/* Page Header */}
+      <div className="text-center space-y-4">
+        <h1 className="text-4xl font-bold text-gray-900">
+          Your Identity ROI Analysis Results
+        </h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          Complete analysis of your identity health and revenue optimization opportunities
+        </p>
+      </div>
+
       {/* Revenue Impact Overview */}
       <div className="grid md:grid-cols-4 gap-6">
         <Card className="shadow-lg border-l-4 border-l-red-500">
