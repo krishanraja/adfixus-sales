@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,7 +76,7 @@ const questions: Question[] = [
     id: 'sales-mix',
     category: 'sales-mix',
     type: 'slider',
-    question: 'Provide a rough makeup of your ad sales?',
+    question: 'Provide a rough makeup of your ad sales',
     sliders: [
       { key: 'direct', label: 'Direct', defaultValue: 33 },
       { key: 'dealIds', label: 'Deal IDs', defaultValue: 33 },
@@ -123,13 +122,17 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
   };
 
   const handleSliderChange = (questionId: string, key: string, value: number) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: {
-        ...prev[questionId],
-        [key]: value
-      }
-    }));
+    const currentAnswers = answers[questionId] || {};
+    const newAnswers = { ...currentAnswers, [key]: value };
+    
+    // Ensure total doesn't exceed 100%
+    const total = Object.values(newAnswers).reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
+    if (total <= 100) {
+      setAnswers(prev => ({
+        ...prev,
+        [questionId]: newAnswers
+      }));
+    }
   };
 
   const handleNext = () => {

@@ -43,7 +43,7 @@ const Index = () => {
         )}
         
         {currentStep === 'calculator' && (
-          <RevenueCalculator onComplete={handleCalculatorComplete} />
+          <RevenueCalculator onComplete={handleCalculatorComplete} quizResults={quizResults} />
         )}
         
         {currentStep === 'results' && (
