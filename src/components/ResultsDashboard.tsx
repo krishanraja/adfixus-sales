@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,12 +135,75 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-4xl font-bold text-gray-900 mb-4">Your Identity ROI Analysis</h2>
-        <p className="text-xl text-gray-600">
-          Complete assessment of your identity setup and revenue opportunity
-        </p>
+      {/* Revenue Impact Overview */}
+      <div className="grid md:grid-cols-4 gap-6">
+        <Card className="shadow-lg border-l-4 border-l-red-500">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Monthly Revenue Loss</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(calculatorResults.darkInventory.lostRevenue)}
+                </p>
+              </div>
+              <TrendingDown className="w-8 h-8 text-red-500" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {calculatorResults.darkInventory.percentage.toFixed(1)}% dark inventory
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-l-4 border-l-teal-500">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Monthly Uplift Potential</p>
+                <p className="text-2xl font-bold text-teal-600">
+                  {formatCurrency(calculatorResults.uplift.totalMonthlyUplift)}
+                </p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-teal-500" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              +{calculatorResults.uplift.percentageImprovement.toFixed(1)}% revenue increase
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-l-4 border-l-cyan-500">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Annual Opportunity</p>
+                <p className="text-2xl font-bold text-cyan-600">
+                  {formatCurrency(calculatorResults.uplift.totalAnnualUplift)}
+                </p>
+              </div>
+              <Calendar className="w-8 h-8 text-cyan-500" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              12-month projection
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-l-4 border-l-purple-500">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Addressability Improvement</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  +{calculatorResults.breakdown.addressabilityImprovement}%
+                </p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-purple-500" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              From {calculatorResults.inputs.currentAddressability}% to 100%
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Identity Health Scorecard */}
@@ -235,77 +297,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </div>
         </CardContent>
       </Card>
-
-      {/* Revenue Impact Overview */}
-      <div className="grid md:grid-cols-4 gap-6">
-        <Card className="shadow-lg border-l-4 border-l-red-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Monthly Revenue Loss</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(calculatorResults.darkInventory.lostRevenue)}
-                </p>
-              </div>
-              <TrendingDown className="w-8 h-8 text-red-500" />
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              {calculatorResults.darkInventory.percentage.toFixed(1)}% dark inventory
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-l-teal-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Monthly Uplift Potential</p>
-                <p className="text-2xl font-bold text-teal-600">
-                  {formatCurrency(calculatorResults.uplift.totalMonthlyUplift)}
-                </p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-teal-500" />
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              +{calculatorResults.uplift.percentageImprovement.toFixed(1)}% revenue increase
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-l-cyan-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Annual Opportunity</p>
-                <p className="text-2xl font-bold text-cyan-600">
-                  {formatCurrency(calculatorResults.uplift.totalAnnualUplift)}
-                </p>
-              </div>
-              <Calendar className="w-8 h-8 text-cyan-500" />
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              12-month projection
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-l-purple-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Addressability Improvement</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  +{calculatorResults.breakdown.addressabilityImprovement}%
-                </p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-purple-500" />
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              From {calculatorResults.inputs.currentAddressability}% to 100%
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-8">
