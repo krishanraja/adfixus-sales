@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +16,9 @@ interface RevenueCalculatorProps {
 export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete, quizResults }) => {
   const [formData, setFormData] = useState({
     monthlyPageviews: 5000000,
-    avgCPM: 4.50,
+    webDisplayCPM: 4.50,
+    webVideoCPM: 12.00,
+    displayVideoSplit: 80, // % of inventory that is display (remainder is video)
     safariShare: 30,
     firefoxShare: 5,
     unauthenticatedShare: 75,
@@ -62,12 +65,18 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
   const calculateRevenue = () => {
     const {
       monthlyPageviews,
-      avgCPM,
+      webDisplayCPM,
+      webVideoCPM,
+      displayVideoSplit,
       safariShare,
       firefoxShare,
       unauthenticatedShare,
       currentAddressability
     } = formData;
+
+    // Split inventory into display and video
+    const displayImpressions = monthlyPageviews * (displayVideoSplit / 100);
+    const videoImpressions = monthlyPageviews * ((100 - displayVideoSplit) / 100);
 
     // Calculate dark inventory (Safari + Firefox unauthenticated traffic with poor addressability)
     const safariTraffic = monthlyPageviews * (safariShare / 100);
@@ -77,29 +86,75 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     const unauthenticatedRestrictiveTraffic = restrictiveTraffic * (unauthenticatedShare / 100);
     const currentlyUnaddressable = monthlyPageviews * (1 - currentAddressability / 100);
     
+    // Split unaddressable inventory by display/video
+    const unaddressableDisplay = currentlyUnaddressable * (displayVideoSplit / 100);
+    const unaddressableVideo = currentlyUnaddressable * ((100 - displayVideoSplit) / 100);
+    
     // With AdFixus assumptions - 100% addressability
     const adFixusAddressability = 100;
     const newlyAddressable = monthlyPageviews * (adFixusAddressability / 100 - currentAddressability / 100);
+    const newlyAddressableDisplay = newlyAddressable * (displayVideoSplit / 100);
+    const newlyAddressableVideo = newlyAddressable * ((100 - displayVideoSplit) / 100);
     
-    // Revenue calculations
-    const currentRevenue = monthlyPageviews * (avgCPM / 1000);
-    const lostRevenue = (currentlyUnaddressable / 1000) * avgCPM;
-    const potentialUplift = (newlyAddressable / 1000) * avgCPM;
-    const annualUplift = potentialUplift * 12;
+    // Revenue calculations - separate for display and video
+    const currentDisplayRevenue = displayImpressions * (webDisplayCPM / 1000);
+    const currentVideoRevenue = videoImpressions * (webVideoCPM / 1000);
+    const currentRevenue = currentDisplayRevenue + currentVideoRevenue;
+    
+    const lostDisplayRevenue = (unaddressableDisplay / 1000) * webDisplayCPM;
+    const lostVideoRevenue = (unaddressableVideo / 1000) * webVideoCPM;
+    const lostRevenue = lostDisplayRevenue + lostVideoRevenue;
+    
+    const potentialDisplayUplift = (newlyAddressableDisplay / 1000) * webDisplayCPM;
+    const potentialVideoUplift = (newlyAddressableVideo / 1000) * webVideoCPM;
+    const potentialUplift = potentialDisplayUplift + potentialVideoUplift;
     
     // CPM improvement for newly addressable inventory - 25% uplift
-    const improvedCPM = avgCPM * 1.25;
-    const cpmUplift = (newlyAddressable / 1000) * (improvedCPM - avgCPM);
+    const improvedDisplayCPM = webDisplayCPM * 1.25;
+    const improvedVideoCPM = webVideoCPM * 1.25;
+    const displayCpmUplift = (newlyAddressableDisplay / 1000) * (improvedDisplayCPM - webDisplayCPM);
+    const videoCpmUplift = (newlyAddressableVideo / 1000) * (improvedVideoCPM - webVideoCPM);
+    const cpmUplift = displayCpmUplift + videoCpmUplift;
+    
     const totalMonthlyUplift = potentialUplift + cpmUplift;
     const totalAnnualUplift = totalMonthlyUplift * 12;
 
     return {
       inputs: formData,
       currentRevenue,
+      breakdown: {
+        display: {
+          impressions: displayImpressions,
+          currentRevenue: currentDisplayRevenue,
+          cpm: webDisplayCPM,
+          newlyAddressable: newlyAddressableDisplay,
+          uplift: potentialDisplayUplift + displayCpmUplift
+        },
+        video: {
+          impressions: videoImpressions,
+          currentRevenue: currentVideoRevenue,
+          cpm: webVideoCPM,
+          newlyAddressable: newlyAddressableVideo,
+          uplift: potentialVideoUplift + videoCpmUplift
+        },
+        safariTraffic,
+        firefoxTraffic,
+        restrictiveTraffic,
+        unauthenticatedRestrictiveTraffic,
+        addressabilityImprovement: adFixusAddressability - currentAddressability
+      },
       darkInventory: {
         impressions: currentlyUnaddressable,
         percentage: (currentlyUnaddressable / monthlyPageviews) * 100,
-        lostRevenue
+        lostRevenue,
+        display: {
+          impressions: unaddressableDisplay,
+          lostRevenue: lostDisplayRevenue
+        },
+        video: {
+          impressions: unaddressableVideo,
+          lostRevenue: lostVideoRevenue
+        }
       },
       uplift: {
         newlyAddressableImpressions: newlyAddressable,
@@ -107,14 +162,15 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         cpmImprovement: cpmUplift,
         totalMonthlyUplift,
         totalAnnualUplift,
-        percentageImprovement: (totalMonthlyUplift / currentRevenue) * 100
-      },
-      breakdown: {
-        safariTraffic,
-        firefoxTraffic,
-        restrictiveTraffic,
-        unauthenticatedRestrictiveTraffic,
-        addressabilityImprovement: adFixusAddressability - currentAddressability
+        percentageImprovement: (totalMonthlyUplift / currentRevenue) * 100,
+        display: {
+          monthlyUplift: potentialDisplayUplift + displayCpmUplift,
+          annualUplift: (potentialDisplayUplift + displayCpmUplift) * 12
+        },
+        video: {
+          monthlyUplift: potentialVideoUplift + videoCpmUplift,
+          annualUplift: (potentialVideoUplift + videoCpmUplift) * 12
+        }
       }
     };
   };
@@ -157,11 +213,29 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label>Average CPM: ${formData.avgCPM.toFixed(2)}</Label>
+                <Label>Display vs Video Split: {formData.displayVideoSplit}% Display / {100 - formData.displayVideoSplit}% Video</Label>
               </div>
               <Slider
-                value={[formData.avgCPM]}
-                onValueChange={([value]) => handleInputChange('avgCPM', value)}
+                value={[formData.displayVideoSplit]}
+                onValueChange={([value]) => handleInputChange('displayVideoSplit', value)}
+                min={0}
+                max={100}
+                step={1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0% Display</span>
+                <span>100% Display</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Label>Web Display CPM: ${formData.webDisplayCPM.toFixed(2)}</Label>
+              </div>
+              <Slider
+                value={[formData.webDisplayCPM]}
+                onValueChange={([value]) => handleInputChange('webDisplayCPM', value)}
                 min={0.5}
                 max={15}
                 step={0.25}
@@ -175,19 +249,37 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
+                <Label>Web Video CPM: ${formData.webVideoCPM.toFixed(2)}</Label>
+              </div>
+              <Slider
+                value={[formData.webVideoCPM]}
+                onValueChange={([value]) => handleInputChange('webVideoCPM', value)}
+                min={1}
+                max={50}
+                step={0.50}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>$1.00</span>
+                <span>$50.00</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
                 <Label>Current Addressability: {formData.currentAddressability}%</Label>
               </div>
               <Slider
                 value={[formData.currentAddressability]}
                 onValueChange={([value]) => handleInputChange('currentAddressability', value)}
-                min={10}
-                max={90}
+                min={0}
+                max={100}
                 step={5}
                 className="mt-2"
               />
               <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>10%</span>
-                <span>90%</span>
+                <span>0%</span>
+                <span>100%</span>
               </div>
             </div>
           </CardContent>
@@ -242,14 +334,14 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <Slider
                 value={[formData.unauthenticatedShare]}
                 onValueChange={([value]) => handleInputChange('unauthenticatedShare', value)}
-                min={40}
-                max={95}
+                min={0}
+                max={100}
                 step={1}
                 className="mt-2"
               />
               <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>40%</span>
-                <span>95%</span>
+                <span>0%</span>
+                <span>100%</span>
               </div>
             </div>
 
