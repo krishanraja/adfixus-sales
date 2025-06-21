@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -89,12 +90,12 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
             <div className="text-gray-600 text-sm">Unauthenticated Users</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-yellow-600 mb-2">30%</div>
+            <div className="text-3xl font-bold text-yellow-600 mb-2">45%</div>
             <div className="text-gray-600 text-sm">Typical Match Rate</div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold text-teal-600 mb-2">25%</div>
-            <div className="text-gray-600 text-sm">Average Revenue Loss</div>
+            <div className="text-gray-600 text-sm">Average Yield Uplift</div>
           </div>
         </div>
       </div>
