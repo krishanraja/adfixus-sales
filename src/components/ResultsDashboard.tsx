@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -173,12 +174,37 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     }
   ];
 
-  const monthlyProjectionData = Array.from({ length: 12 }, (_, i) => ({
-    month: `Month ${i + 1}`,
-    current: calculatorResults.currentRevenue,
-    withAdFixus: calculatorResults.currentRevenue + calculatorResults.uplift.totalMonthlyUplift,
-    uplift: calculatorResults.uplift.totalMonthlyUplift
-  }));
+  // Generate realistic 12-month projection with gradual ramp-up and fluctuations
+  const monthlyProjectionData = Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1;
+    const baseCurrentRevenue = calculatorResults.currentRevenue;
+    const maxUplift = calculatorResults.uplift.totalMonthlyUplift;
+    
+    // Ramp-up factors: slow start, full effect by month 3
+    let rampFactor;
+    if (month === 1) {
+      rampFactor = 0.15; // 15% of full uplift in month 1
+    } else if (month === 2) {
+      rampFactor = 0.35; // 35% of full uplift in month 2
+    } else {
+      rampFactor = 1.0; // Full uplift from month 3 onwards
+    }
+    
+    // Add realistic monthly fluctuations (±5% variation)
+    const fluctuationSeed = Math.sin(month * 0.8) * 0.05; // Deterministic fluctuation
+    const currentFluctuation = 1 + (fluctuationSeed * 0.5); // ±2.5% for current
+    const adFixusFluctuation = 1 + fluctuationSeed; // ±5% for AdFixus
+    
+    const currentRevenue = baseCurrentRevenue * currentFluctuation;
+    const upliftAmount = maxUplift * rampFactor * adFixusFluctuation;
+    
+    return {
+      month: `Month ${month}`,
+      current: Math.round(currentRevenue),
+      withAdFixus: Math.round(currentRevenue + upliftAmount),
+      uplift: Math.round(upliftAmount)
+    };
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
