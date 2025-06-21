@@ -1,26 +1,27 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { HelpCircle } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Slider } from '@/components/ui/slider';
 
 interface Question {
   id: string;
-  category: 'durability' | 'cross-domain' | 'privacy' | 'browser';
+  category: 'durability' | 'cross-domain' | 'privacy' | 'browser' | 'sales-mix';
   question: string;
-  tooltip: string;
-  options: { value: string; label: string; score: number }[];
+  type: 'radio' | 'slider';
+  options?: { value: string; label: string; score: number }[];
+  sliders?: { key: string; label: string; defaultValue: number }[];
 }
 
 const questions: Question[] = [
   {
     id: 'first-party-data',
     category: 'durability',
-    question: 'What percentage of your users are authenticated/logged in?',
-    tooltip: 'Authenticated users provide first-party data, which is more durable and privacy-compliant than third-party cookies.',
+    type: 'radio',
+    question: 'What percentage of your users are actively logged in (not just authenticated)?',
     options: [
       { value: 'high', label: '60%+ of users are logged in', score: 4 },
       { value: 'medium', label: '30-60% of users are logged in', score: 3 },
@@ -31,8 +32,8 @@ const questions: Question[] = [
   {
     id: 'identity-resolution',
     category: 'cross-domain',
+    type: 'radio',
     question: 'Do you have identity resolution across multiple domains/subdomains?',
-    tooltip: 'Cross-domain identity resolution allows you to recognize the same user across different properties, increasing addressability.',
     options: [
       { value: 'full', label: 'Yes, comprehensive cross-domain tracking', score: 4 },
       { value: 'partial', label: 'Limited cross-domain capabilities', score: 2 },
@@ -42,8 +43,8 @@ const questions: Question[] = [
   {
     id: 'privacy-compliance',
     category: 'privacy',
+    type: 'radio',
     question: 'How do you handle privacy consent and compliance?',
-    tooltip: 'Strong privacy compliance ensures sustainable revenue as regulations tighten globally.',
     options: [
       { value: 'comprehensive', label: 'GDPR/CCPA compliant with consent management', score: 4 },
       { value: 'basic', label: 'Basic privacy compliance in place', score: 3 },
@@ -53,19 +54,19 @@ const questions: Question[] = [
   {
     id: 'safari-strategy',
     category: 'browser',
-    question: 'How do you monetize Safari traffic (35% of web traffic)?',
-    tooltip: 'Safari blocks third-party cookies by default, making it difficult to monetize without proper identity solutions.',
+    type: 'radio',
+    question: 'How do you monetize Safari/Firefox traffic?',
     options: [
-      { value: 'optimized', label: 'We have Safari-specific optimization', score: 4 },
-      { value: 'basic', label: 'Basic contextual targeting for Safari', score: 2 },
-      { value: 'struggling', label: 'Safari traffic is poorly monetized', score: 1 }
+      { value: 'optimized', label: 'We have Safari/Firefox-specific optimization', score: 4 },
+      { value: 'basic', label: 'Basic contextual targeting for Safari/Firefox', score: 2 },
+      { value: 'struggling', label: 'Safari/Firefox traffic is poorly monetized', score: 1 }
     ]
   },
   {
     id: 'cookie-dependence',
     category: 'durability',
+    type: 'radio',
     question: 'How dependent is your current setup on third-party cookies?',
-    tooltip: 'Third-party cookies are being phased out. Heavy dependence indicates vulnerability to future changes.',
     options: [
       { value: 'low', label: 'Minimal dependence on 3P cookies', score: 4 },
       { value: 'medium', label: 'Moderate dependence on 3P cookies', score: 2 },
@@ -73,22 +74,21 @@ const questions: Question[] = [
     ]
   },
   {
-    id: 'match-rates',
-    category: 'cross-domain',
-    question: 'What are your typical ID match rates with demand partners?',
-    tooltip: 'Higher match rates mean more of your inventory is addressable to buyers, leading to higher CPMs.',
-    options: [
-      { value: 'high', label: '70%+ match rates', score: 4 },
-      { value: 'medium', label: '50-70% match rates', score: 3 },
-      { value: 'low', label: '30-50% match rates', score: 2 },
-      { value: 'very-low', label: 'Below 30% match rates', score: 1 }
+    id: 'sales-mix',
+    category: 'sales-mix',
+    type: 'slider',
+    question: 'Provide a rough makeup of your ad sales?',
+    sliders: [
+      { key: 'direct', label: 'Direct', defaultValue: 33 },
+      { key: 'dealIds', label: 'Deal IDs', defaultValue: 33 },
+      { key: 'openExchange', label: 'Open Exchange', defaultValue: 34 }
     ]
   },
   {
     id: 'frequency-capping',
     category: 'cross-domain',
+    type: 'radio',
     question: 'Can you effectively manage frequency capping across your properties?',
-    tooltip: 'Effective frequency capping prevents ad fatigue and improves campaign performance, leading to higher advertiser satisfaction.',
     options: [
       { value: 'excellent', label: 'Comprehensive frequency management', score: 4 },
       { value: 'good', label: 'Basic frequency capping in place', score: 3 },
@@ -99,8 +99,8 @@ const questions: Question[] = [
   {
     id: 'data-activation',
     category: 'privacy',
+    type: 'radio',
     question: 'What level of segmentation do you currently have?',
-    tooltip: 'First-party data activation allows for better targeting while maintaining privacy compliance.',
     options: [
       { value: 'advanced', label: 'Advanced: i.e 20+ segments, a combination of contextual, behavioural and demographic', score: 4 },
       { value: 'moderate', label: 'Moderate: i.e demographics and contextual only', score: 3 },
@@ -116,10 +116,20 @@ interface IdentityHealthQuizProps {
 
 export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComplete }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, any>>({});
 
-  const handleAnswerChange = (questionId: string, value: string) => {
+  const handleAnswerChange = (questionId: string, value: string | Record<string, number>) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleSliderChange = (questionId: string, key: string, value: number) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionId]: {
+        ...prev[questionId],
+        [key]: value
+      }
+    }));
   };
 
   const handleNext = () => {
@@ -138,34 +148,54 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
     }
   };
 
-  const calculateResults = (answers: Record<string, string>) => {
+  const calculateResults = (answers: Record<string, any>) => {
     const categories = {
       durability: { total: 0, count: 0 },
       'cross-domain': { total: 0, count: 0 },
       privacy: { total: 0, count: 0 },
-      browser: { total: 0, count: 0 }
+      browser: { total: 0, count: 0 },
+      'sales-mix': { total: 0, count: 0 }
     };
 
     questions.forEach(question => {
       const answer = answers[question.id];
       if (answer) {
-        const option = question.options.find(opt => opt.value === answer);
-        if (option) {
-          categories[question.category].total += option.score;
+        if (question.type === 'radio' && question.options) {
+          const option = question.options.find(opt => opt.value === answer);
+          if (option) {
+            categories[question.category].total += option.score;
+            categories[question.category].count += 1;
+          }
+        } else if (question.type === 'slider') {
+          // For sales mix, we'll assign a neutral score
+          categories[question.category].total += 3;
           categories[question.category].count += 1;
         }
       }
     });
 
     const scores = Object.entries(categories).reduce((acc, [category, data]) => {
-      const avgScore = data.count > 0 ? data.total / data.count : 0;
-      const grade = getGrade(avgScore);
-      acc[category] = { score: avgScore, grade, total: data.total, count: data.count };
+      if (category === 'sales-mix') {
+        // Special handling for sales mix
+        acc[category] = { 
+          score: 3, 
+          grade: 'B', 
+          total: data.total, 
+          count: data.count,
+          breakdown: answers['sales-mix'] || { direct: 33, dealIds: 33, openExchange: 34 }
+        };
+      } else {
+        const avgScore = data.count > 0 ? data.total / data.count : 0;
+        const grade = getGrade(avgScore);
+        acc[category] = { score: avgScore, grade, total: data.total, count: data.count };
+      }
       return acc;
     }, {} as Record<string, any>);
 
-    const overallScore = Object.values(categories).reduce((sum, cat) => sum + cat.total, 0) / 
-                       Object.values(categories).reduce((sum, cat) => sum + cat.count, 0);
+    // Calculate overall score excluding sales-mix
+    const scoringCategories = Object.entries(categories).filter(([cat]) => cat !== 'sales-mix');
+    const overallScore = scoringCategories.reduce((sum, [, cat]) => sum + cat.total, 0) / 
+                       scoringCategories.reduce((sum, [, cat]) => sum + cat.count, 0);
     
     return {
       scores,
@@ -188,34 +218,33 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
   const question = questions[currentQuestion];
   const currentAnswer = answers[question.id];
 
-  return (
-    <TooltipProvider>
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-3xl font-bold text-gray-900">Identity Health Assessment</h2>
-            <span className="text-sm text-gray-500">
-              Question {currentQuestion + 1} of {questions.length}
-            </span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
+  const isAnswered = () => {
+    if (question.type === 'radio') {
+      return !!currentAnswer;
+    } else if (question.type === 'slider') {
+      return currentAnswer && Object.keys(currentAnswer).length === (question.sliders?.length || 0);
+    }
+    return false;
+  };
 
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <span>{question.question}</span>
-              <Tooltip>
-                <TooltipTrigger>
-                  <HelpCircle className="w-5 h-5 text-gray-400 hover:text-gray-600" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>{question.tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-3xl font-bold text-gray-900">Identity Health Assessment</h2>
+          <span className="text-sm text-gray-500">
+            Question {currentQuestion + 1} of {questions.length}
+          </span>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>{question.question}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {question.type === 'radio' && question.options && (
             <RadioGroup 
               value={currentAnswer || ''} 
               onValueChange={(value) => handleAnswerChange(question.id, value)}
@@ -230,26 +259,52 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
                 </div>
               ))}
             </RadioGroup>
+          )}
 
-            <div className="flex justify-between mt-8">
-              <Button 
-                variant="outline" 
-                onClick={handlePrevious}
-                disabled={currentQuestion === 0}
-              >
-                Previous
-              </Button>
-              <Button 
-                onClick={handleNext}
-                disabled={!currentAnswer}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {currentQuestion === questions.length - 1 ? 'Complete Assessment' : 'Next Question'}
-              </Button>
+          {question.type === 'slider' && question.sliders && (
+            <div className="space-y-6">
+              {question.sliders.map((slider) => (
+                <div key={slider.key}>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label>{slider.label}</Label>
+                    <span className="text-sm font-medium">
+                      {currentAnswer?.[slider.key] || slider.defaultValue}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[currentAnswer?.[slider.key] || slider.defaultValue]}
+                    onValueChange={([value]) => handleSliderChange(question.id, slider.key, value)}
+                    min={0}
+                    max={100}
+                    step={1}
+                    className="mt-2"
+                  />
+                </div>
+              ))}
+              <div className="text-sm text-gray-500 mt-4">
+                Total: {Object.values(currentAnswer || {}).reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0)}%
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </TooltipProvider>
+          )}
+
+          <div className="flex justify-between mt-8">
+            <Button 
+              variant="outline" 
+              onClick={handlePrevious}
+              disabled={currentQuestion === 0}
+            >
+              Previous
+            </Button>
+            <Button 
+              onClick={handleNext}
+              disabled={!isAnswered()}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {currentQuestion === questions.length - 1 ? 'Complete Assessment' : 'Next Question'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

@@ -7,6 +7,22 @@ export const generatePDF = async (quizResults: any, calculatorResults: any) => {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   
+  // Try to capture the visual dashboard
+  let dashboardImage = null;
+  try {
+    const dashboardElement = document.querySelector('.max-w-7xl');
+    if (dashboardElement) {
+      dashboardImage = await html2canvas(dashboardElement as HTMLElement, {
+        scale: 1,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+    }
+  } catch (error) {
+    console.warn('Could not capture dashboard visual:', error);
+  }
+  
   // Header
   pdf.setFontSize(24);
   pdf.setFont('helvetica', 'bold');
@@ -39,10 +55,19 @@ export const generatePDF = async (quizResults: any, calculatorResults: any) => {
   
   pdf.setFont('helvetica', 'normal');
   Object.entries(quizResults.scores).forEach(([category, data]: [string, any]) => {
-    const categoryName = getCategoryName(category);
-    pdf.text(`${categoryName}: ${data.grade} (${data.score.toFixed(1)}/4.0)`, 25, yPosition);
-    yPosition += 8;
+    if (category !== 'sales-mix') {
+      const categoryName = getCategoryName(category);
+      pdf.text(`${categoryName}: ${data.grade} (${data.score.toFixed(1)}/4.0)`, 25, yPosition);
+      yPosition += 8;
+    }
   });
+  
+  // Sales Mix
+  if (quizResults.scores['sales-mix']?.breakdown) {
+    const breakdown = quizResults.scores['sales-mix'].breakdown;
+    pdf.text(`Sales Mix: Direct ${breakdown.direct}%, Deal IDs ${breakdown.dealIds}%, Open Exchange ${breakdown.openExchange}%`, 25, yPosition);
+    yPosition += 8;
+  }
   
   yPosition += 15;
   
@@ -72,7 +97,7 @@ export const generatePDF = async (quizResults: any, calculatorResults: any) => {
   yPosition += 8;
   pdf.text(`Revenue Improvement: +${calculatorResults.uplift.percentageImprovement.toFixed(1)}%`, 20, yPosition);
   yPosition += 8;
-  pdf.text(`Match Rate Improvement: +${calculatorResults.breakdown.matchRateImprovement}%`, 20, yPosition);
+  pdf.text(`Addressability Improvement: +${calculatorResults.breakdown.addressabilityImprovement}%`, 20, yPosition);
   yPosition += 20;
   
   // Key Metrics
@@ -85,17 +110,45 @@ export const generatePDF = async (quizResults: any, calculatorResults: any) => {
   pdf.setFont('helvetica', 'normal');
   pdf.text(`Dark Inventory: ${calculatorResults.darkInventory.percentage.toFixed(1)}%`, 25, yPosition);
   yPosition += 8;
-  pdf.text(`Current Match Rate: ${calculatorResults.inputs.currentMatchRate}%`, 25, yPosition);
+  pdf.text(`Current Addressability: ${calculatorResults.inputs.currentAddressability}%`, 25, yPosition);
   yPosition += 8;
   pdf.text(`Monthly Pageviews: ${new Intl.NumberFormat('en-US').format(calculatorResults.inputs.monthlyPageviews)}`, 25, yPosition);
   yPosition += 20;
   
-  // Recommendations
-  if (yPosition > pageHeight - 60) {
+  // Add dashboard image if captured
+  if (dashboardImage && yPosition > pageHeight - 100) {
     pdf.addPage();
     yPosition = 30;
   }
   
+  if (dashboardImage) {
+    try {
+      const imgWidth = pageWidth - 40;
+      const imgHeight = (dashboardImage.height * imgWidth) / dashboardImage.width;
+      
+      // Check if image fits on current page
+      if (yPosition + imgHeight > pageHeight - 20) {
+        pdf.addPage();
+        yPosition = 30;
+      }
+      
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Visual Analysis Dashboard:', 20, yPosition);
+      yPosition += 15;
+      
+      const imgData = dashboardImage.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 20, yPosition, imgWidth, Math.min(imgHeight, pageHeight - yPosition - 40));
+      
+      // Move to next page for recommendations
+      pdf.addPage();
+      yPosition = 30;
+    } catch (error) {
+      console.warn('Could not add dashboard image to PDF:', error);
+    }
+  }
+  
+  // Recommendations
   pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
   pdf.text('Key Recommendations:', 20, yPosition);
@@ -109,7 +162,7 @@ export const generatePDF = async (quizResults: any, calculatorResults: any) => {
     recommendations.push('• Implement a comprehensive identity resolution strategy');
   }
   if (quizResults.scores['browser']?.score < 2.5) {
-    recommendations.push('• Optimize for Safari and privacy-focused browsers');
+    recommendations.push('• Optimize for Safari and Firefox browsers');
   }
   if (quizResults.scores['cross-domain']?.score < 2.5) {
     recommendations.push('• Improve cross-domain identity resolution capabilities');
@@ -150,16 +203,8 @@ export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
   formData.append('timestamp', new Date().toISOString());
   
   try {
-    // This would typically go to your backend endpoint
-    // For now, we'll log the action and show a message to the user
     console.log('PDF would be sent to krish.raja@adfixus.com');
     console.log('PDF blob size:', pdfBlob.size);
-    
-    // In a real implementation, you would send this to your backend:
-    // const response = await fetch('/api/send-pdf', {
-    //   method: 'POST',
-    //   body: formData,
-    // });
     
     return { success: true, message: 'PDF sent successfully' };
   } catch (error) {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,7 +86,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       'durability': 'Identity Durability',
       'cross-domain': 'Cross-Domain Visibility',
       'privacy': 'Privacy & Compliance',
-      'browser': 'Browser Resilience'
+      'browser': 'Browser Resilience',
+      'sales-mix': 'Sales Mix'
     };
     return names[category] || category;
   };
@@ -163,8 +165,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               </p>
             </div>
 
-            {/* Category Grades */}
-            {Object.entries(quizResults.scores).map(([category, data]: [string, any]) => (
+            {/* Category Grades - exclude sales-mix from visual display */}
+            {Object.entries(quizResults.scores)
+              .filter(([category]) => category !== 'sales-mix')
+              .map(([category, data]: [string, any]) => (
               <div key={category} className="text-center">
                 <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full text-xl font-bold border-2 ${getGradeColor(data.grade)}`}>
                   {data.grade}
@@ -179,6 +183,33 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             ))}
           </div>
 
+          {/* Sales Mix Display */}
+          {quizResults.scores['sales-mix']?.breakdown && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-semibold text-gray-900 mb-2">Sales Mix Breakdown</h4>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {quizResults.scores['sales-mix'].breakdown.direct}%
+                  </p>
+                  <p className="text-sm text-gray-600">Direct Sales</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {quizResults.scores['sales-mix'].breakdown.dealIds}%
+                  </p>
+                  <p className="text-sm text-gray-600">Deal IDs</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {quizResults.scores['sales-mix'].breakdown.openExchange}%
+                  </p>
+                  <p className="text-sm text-gray-600">Open Exchange</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Recommendations */}
           <div className="mt-8 p-4 bg-yellow-50 rounded-lg">
             <div className="flex items-start space-x-2">
@@ -190,7 +221,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                     <li>• Consider implementing a comprehensive identity resolution strategy</li>
                   )}
                   {quizResults.scores['browser']?.score < 2.5 && (
-                    <li>• Optimize for Safari and privacy-focused browsers</li>
+                    <li>• Optimize for Safari and Firefox browsers</li>
                   )}
                   {quizResults.scores['cross-domain']?.score < 2.5 && (
                     <li>• Improve cross-domain identity resolution capabilities</li>
@@ -262,15 +293,15 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Match Rate Improvement</p>
+                <p className="text-sm text-gray-600">Addressability Improvement</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  +{calculatorResults.breakdown.matchRateImprovement}%
+                  +{calculatorResults.breakdown.addressabilityImprovement}%
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-purple-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              From {calculatorResults.inputs.currentMatchRate}% to 85%
+              From {calculatorResults.inputs.currentAddressability}% to 100%
             </p>
           </CardContent>
         </Card>
@@ -315,7 +346,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </CardContent>
         </Card>
 
-        {/* Revenue Comparison */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Revenue Comparison</CardTitle>

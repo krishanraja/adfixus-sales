@@ -21,7 +21,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     unauthenticatedShare: 75,
     numDomains: 1,
     sessionFrequency: 3.2,
-    currentMatchRate: 30
+    currentAddressability: 65
   });
 
   const handleInputChange = (field: string, value: number) => {
@@ -35,20 +35,20 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
       safariShare,
       firefoxShare,
       unauthenticatedShare,
-      currentMatchRate
+      currentAddressability
     } = formData;
 
-    // Calculate dark inventory (Safari + Firefox unauthenticated traffic with poor match rates)
+    // Calculate dark inventory (Safari + Firefox unauthenticated traffic with poor addressability)
     const safariTraffic = monthlyPageviews * (safariShare / 100);
     const firefoxTraffic = monthlyPageviews * (firefoxShare / 100);
     const restrictiveTraffic = safariTraffic + firefoxTraffic;
     
     const unauthenticatedRestrictiveTraffic = restrictiveTraffic * (unauthenticatedShare / 100);
-    const currentlyUnaddressable = unauthenticatedRestrictiveTraffic * (1 - currentMatchRate / 100);
+    const currentlyUnaddressable = monthlyPageviews * (1 - currentAddressability / 100);
     
-    // With AdFixus assumptions
-    const adFixusMatchRate = 85; // Conservative improvement
-    const newlyAddressable = unauthenticatedRestrictiveTraffic * (adFixusMatchRate / 100 - currentMatchRate / 100);
+    // With AdFixus assumptions - 100% addressability
+    const adFixusAddressability = 100;
+    const newlyAddressable = monthlyPageviews * (adFixusAddressability / 100 - currentAddressability / 100);
     
     // Revenue calculations
     const currentRevenue = monthlyPageviews * (avgCPM / 1000);
@@ -56,8 +56,8 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     const potentialUplift = (newlyAddressable / 1000) * avgCPM;
     const annualUplift = potentialUplift * 12;
     
-    // CPM improvement for newly addressable inventory
-    const improvedCPM = avgCPM * 1.35; // 35% CPM uplift for addressable inventory
+    // CPM improvement for newly addressable inventory - 25% uplift
+    const improvedCPM = avgCPM * 1.25;
     const cpmUplift = (newlyAddressable / 1000) * (improvedCPM - avgCPM);
     const totalMonthlyUplift = potentialUplift + cpmUplift;
     const totalAnnualUplift = totalMonthlyUplift * 12;
@@ -83,7 +83,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         firefoxTraffic,
         restrictiveTraffic,
         unauthenticatedRestrictiveTraffic,
-        matchRateImprovement: adFixusMatchRate - currentMatchRate
+        addressabilityImprovement: adFixusAddressability - currentAddressability
       }
     };
   };
@@ -115,14 +115,6 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <div>
                 <div className="flex items-center space-x-2 mb-2">
                   <Label htmlFor="pageviews">Monthly Pageviews</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Total monthly pageviews across all your properties</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
                 <Input
                   id="pageviews"
@@ -136,14 +128,6 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <div>
                 <div className="flex items-center space-x-2 mb-2">
                   <Label>Average CPM: ${formData.avgCPM.toFixed(2)}</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Your average revenue per 1,000 impressions</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
                 <Slider
                   value={[formData.avgCPM]}
@@ -161,19 +145,11 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
               <div>
                 <div className="flex items-center space-x-2 mb-2">
-                  <Label>Current Match Rate: {formData.currentMatchRate}%</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Percentage of your inventory that's addressable to programmatic buyers</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <Label>Current Addressability: {formData.currentAddressability}%</Label>
                 </div>
                 <Slider
-                  value={[formData.currentMatchRate]}
-                  onValueChange={([value]) => handleInputChange('currentMatchRate', value)}
+                  value={[formData.currentAddressability]}
+                  onValueChange={([value]) => handleInputChange('currentAddressability', value)}
                   min={10}
                   max={90}
                   step={5}
@@ -196,14 +172,6 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <div>
                 <div className="flex items-center space-x-2 mb-2">
                   <Label>Safari Traffic: {formData.safariShare}%</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Percentage of traffic from Safari browsers (blocks 3P cookies by default)</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
                 <Slider
                   value={[formData.safariShare]}
@@ -222,14 +190,6 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <div>
                 <div className="flex items-center space-x-2 mb-2">
                   <Label>Firefox Traffic: {formData.firefoxShare}%</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Percentage of traffic from Firefox browsers (enhanced privacy features)</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
                 <Slider
                   value={[formData.firefoxShare]}
@@ -248,14 +208,6 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <div>
                 <div className="flex items-center space-x-2 mb-2">
                   <Label>Unauthenticated Users: {formData.unauthenticatedShare}%</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Percentage of users who aren't logged in (no first-party identity data)</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
                 <Slider
                   value={[formData.unauthenticatedShare]}
@@ -274,14 +226,6 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <div>
                 <div className="flex items-center space-x-2 mb-2">
                   <Label htmlFor="domains">Number of Domains/Subdomains</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>More domains increase identity fragmentation challenges</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
                 <Input
                   id="domains"
