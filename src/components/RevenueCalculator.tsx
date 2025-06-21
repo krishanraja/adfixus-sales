@@ -24,7 +24,10 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     unauthenticatedShare: 75,
     numDomains: 1,
     sessionFrequency: 3.2,
-    currentAddressability: 65
+    currentAddressability: 65,
+    directSales: 40,
+    dealIds: 35,
+    openExchange: 25
   });
 
   // Estimate default values based on quiz results
@@ -52,6 +55,44 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleSalesMixChange = (field: string, value: number) => {
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Ensure the three values always sum to 100
+      const total = newData.directSales + newData.dealIds + newData.openExchange;
+      
+      if (total !== 100) {
+        // Adjust the other two fields proportionally
+        const remaining = 100 - value;
+        const otherFields = ['directSales', 'dealIds', 'openExchange'].filter(f => f !== field);
+        const currentOtherTotal = otherFields.reduce((sum, f) => sum + prev[f], 0);
+        
+        if (currentOtherTotal > 0) {
+          const ratio = remaining / currentOtherTotal;
+          otherFields.forEach(f => {
+            newData[f] = Math.round(prev[f] * ratio);
+          });
+          
+          // Final adjustment to ensure exact 100%
+          const finalTotal = newData.directSales + newData.dealIds + newData.openExchange;
+          const diff = 100 - finalTotal;
+          if (diff !== 0) {
+            newData[otherFields[0]] += diff;
+          }
+        } else {
+          // If other fields are 0, distribute remaining evenly
+          const perField = Math.round(remaining / otherFields.length);
+          otherFields.forEach((f, i) => {
+            newData[f] = i === 0 ? remaining - perField * (otherFields.length - 1) : perField;
+          });
+        }
+      }
+      
+      return newData;
+    });
+  };
+
   const formatNumberWithCommas = (num: number): string => {
     return new Intl.NumberFormat('en-US').format(num);
   };
@@ -71,7 +112,10 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
       safariShare,
       firefoxShare,
       unauthenticatedShare,
-      currentAddressability
+      currentAddressability,
+      directSales,
+      dealIds,
+      openExchange
     } = formData;
 
     // Split inventory into display and video
@@ -141,7 +185,12 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         firefoxTraffic,
         restrictiveTraffic,
         unauthenticatedRestrictiveTraffic,
-        addressabilityImprovement: adFixusAddressability - currentAddressability
+        addressabilityImprovement: adFixusAddressability - currentAddressability,
+        salesMix: {
+          directSales,
+          dealIds,
+          openExchange
+        }
       },
       darkInventory: {
         impressions: currentlyUnaddressable,
@@ -254,14 +303,14 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <Slider
                 value={[formData.webVideoCPM]}
                 onValueChange={([value]) => handleInputChange('webVideoCPM', value)}
-                min={1}
-                max={50}
+                min={5}
+                max={100}
                 step={0.50}
                 className="mt-2"
               />
               <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>$1.00</span>
-                <span>$50.00</span>
+                <span>$5.00</span>
+                <span>$100.00</span>
               </div>
             </div>
 
@@ -361,6 +410,76 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           </CardContent>
         </Card>
       </div>
+
+      {/* Sales Mix Section */}
+      <Card className="shadow-lg mt-8">
+        <CardHeader>
+          <CardTitle>Sales Mix Distribution</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Label>Direct Sales: {formData.directSales}%</Label>
+              </div>
+              <Slider
+                value={[formData.directSales]}
+                onValueChange={([value]) => handleSalesMixChange('directSales', value)}
+                min={0}
+                max={100}
+                step={1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Label>Deal IDs: {formData.dealIds}%</Label>
+              </div>
+              <Slider
+                value={[formData.dealIds]}
+                onValueChange={([value]) => handleSalesMixChange('dealIds', value)}
+                min={0}
+                max={100}
+                step={1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Label>Open Exchange: {formData.openExchange}%</Label>
+              </div>
+              <Slider
+                value={[formData.openExchange]}
+                onValueChange={([value]) => handleSalesMixChange('openExchange', value)}
+                min={0}
+                max={100}
+                step={1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              Total: {formData.directSales + formData.dealIds + formData.openExchange}% (automatically adjusts to maintain 100%)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="mt-8 text-center">
         <Button 

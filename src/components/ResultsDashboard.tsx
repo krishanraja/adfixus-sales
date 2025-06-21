@@ -91,6 +91,66 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     return names[category] || category;
   };
 
+  // Generate comprehensive recommendations based on data
+  const generateKeyRecommendations = () => {
+    const recommendations = [];
+    
+    // Always include based on dark inventory percentage
+    if (calculatorResults.darkInventory.percentage > 20) {
+      recommendations.push('• Implement comprehensive identity resolution to address significant dark inventory');
+    } else if (calculatorResults.darkInventory.percentage > 10) {
+      recommendations.push('• Optimize identity resolution to capture remaining dark inventory');
+    } else {
+      recommendations.push('• Fine-tune identity resolution for maximum addressability rates');
+    }
+
+    // Browser-specific recommendations
+    if (calculatorResults.inputs.safariShare > 25) {
+      recommendations.push('• Implement Safari-specific optimization strategies');
+    }
+    if (calculatorResults.inputs.firefoxShare > 10) {
+      recommendations.push('• Enhance Firefox browser compatibility');
+    }
+    
+    // Addressability recommendations
+    if (calculatorResults.inputs.currentAddressability < 70) {
+      recommendations.push('• Priority focus on improving overall addressability rates');
+    }
+    
+    // Sales mix recommendations
+    if (calculatorResults.breakdown.salesMix) {
+      const { directSales, dealIds, openExchange } = calculatorResults.breakdown.salesMix;
+      if (openExchange > 50) {
+        recommendations.push('• Consider increasing direct sales and deal ID usage to improve margins');
+      }
+      if (directSales < 30) {
+        recommendations.push('• Explore opportunities to grow direct sales relationships');
+      }
+    }
+    
+    // Video vs display recommendations
+    if (calculatorResults.inputs.displayVideoSplit < 20) {
+      recommendations.push('• Optimize video inventory monetization strategies');
+    } else if (calculatorResults.inputs.displayVideoSplit > 90) {
+      recommendations.push('• Consider expanding video inventory opportunities');
+    }
+    
+    // Cross-domain recommendations
+    if (calculatorResults.inputs.numDomains > 3) {
+      recommendations.push('• Implement cross-domain identity resolution for multi-domain operations');
+    }
+    
+    // Ensure we always have at least 3 recommendations
+    if (recommendations.length < 3) {
+      recommendations.push('• Leverage privacy-compliant targeting to maximize CPMs');
+      if (recommendations.length < 3) {
+        recommendations.push('• Implement real-time optimization for inventory management');
+      }
+    }
+    
+    return recommendations.slice(0, 6); // Max 6 recommendations for readability
+  };
+
   // Prepare data for charts
   const inventoryData = [
     {
@@ -256,25 +316,25 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </div>
 
           {/* Sales Mix Display */}
-          {quizResults.scores['sales-mix']?.breakdown && (
+          {calculatorResults.breakdown.salesMix && (
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <h4 className="font-semibold text-gray-900 mb-2">Sales Mix Breakdown</h4>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-2xl font-bold text-blue-600">
-                    {quizResults.scores['sales-mix'].breakdown.direct}%
+                    {calculatorResults.breakdown.salesMix.directSales}%
                   </p>
                   <p className="text-sm text-gray-600">Direct Sales</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-green-600">
-                    {quizResults.scores['sales-mix'].breakdown.dealIds}%
+                    {calculatorResults.breakdown.salesMix.dealIds}%
                   </p>
                   <p className="text-sm text-gray-600">Deal IDs</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-orange-600">
-                    {quizResults.scores['sales-mix'].breakdown.openExchange}%
+                    {calculatorResults.breakdown.salesMix.openExchange}%
                   </p>
                   <p className="text-sm text-gray-600">Open Exchange</p>
                 </div>
@@ -282,25 +342,16 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             </div>
           )}
 
-          {/* Recommendations */}
+          {/* Key Recommendations - Always Present */}
           <div className="mt-8 p-4 bg-yellow-50 rounded-lg">
             <div className="flex items-start space-x-2">
               <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div>
                 <h4 className="font-semibold text-yellow-800">Key Recommendations</h4>
                 <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                  {quizResults.overallScore < 3.0 && (
-                    <li>• Consider implementing a comprehensive identity resolution strategy</li>
-                  )}
-                  {quizResults.scores['browser']?.score < 2.5 && (
-                    <li>• Optimize for Safari and Firefox browsers</li>
-                  )}
-                  {quizResults.scores['cross-domain']?.score < 2.5 && (
-                    <li>• Improve cross-domain identity resolution capabilities</li>
-                  )}
-                  {quizResults.scores['privacy']?.score < 3.0 && (
-                    <li>• Strengthen privacy compliance and consent management</li>
-                  )}
+                  {generateKeyRecommendations().map((recommendation, index) => (
+                    <li key={index}>{recommendation}</li>
+                  ))}
                 </ul>
               </div>
             </div>
