@@ -153,10 +153,11 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   };
 
   // Prepare data for charts
+  const totalAdImpressions = calculatorResults.breakdown.totalAdImpressions;
   const inventoryData = [
     {
       name: 'Addressable Inventory',
-      value: calculatorResults.inputs.monthlyPageviews - calculatorResults.darkInventory.impressions,
+      value: totalAdImpressions - calculatorResults.darkInventory.impressions,
       color: '#22c55e'
     },
     {
@@ -296,7 +297,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <CheckCircle className="w-8 h-8 text-purple-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              From {calculatorResults.inputs.currentAddressability}% to 100%
+              From {calculatorResults.breakdown.currentAddressability}% to 100%
             </p>
           </CardContent>
         </Card>
@@ -348,7 +349,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-2xl font-bold text-blue-600">
-                    {calculatorResults.breakdown.salesMix.directSales}%
+                    {calculatorResults.breakdown.salesMix.direct}%
                   </p>
                   <p className="text-sm text-gray-600">Direct Sales</p>
                 </div>

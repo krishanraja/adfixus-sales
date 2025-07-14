@@ -86,10 +86,20 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     const displayImpressions = totalAdImpressions * (displayVideoSplit / 100);
     const videoImpressions = totalAdImpressions * ((100 - displayVideoSplit) / 100);
 
-    // Current addressability is just Chrome share (only Chrome is addressable)
-    const currentAddressability = chromeShare;
-    const addressableImpressions = totalAdImpressions * (chromeShare / 100);
-    const unaddressableImpressions = totalAdImpressions * ((100 - chromeShare) / 100);
+    // Calculate addressability based on browser strategy
+    let currentAddressability = chromeShare;
+    const safariStrategy = quizResults?.answers?.['safari-strategy'];
+    
+    // If fully optimized for privacy browsers, treat Safari/Firefox as addressable
+    if (safariStrategy === 'optimized') {
+      currentAddressability = 100; // All traffic is addressable
+    } else {
+      // Only Chrome traffic is addressable for struggling/basic users
+      currentAddressability = chromeShare;
+    }
+    
+    const addressableImpressions = totalAdImpressions * (currentAddressability / 100);
+    const unaddressableImpressions = totalAdImpressions * ((100 - currentAddressability) / 100);
     
     // Split addressable/unaddressable inventory by display/video
     const addressableDisplay = addressableImpressions * (displayVideoSplit / 100);
@@ -148,6 +158,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         },
         totalAdImpressions,
         chromeShare,
+        currentAddressability,
         addressabilityImprovement: adFixusAddressability - currentAddressability,
         salesMix
       },
@@ -199,13 +210,13 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid lg:grid-cols-2 gap-8">
         {/* Traffic & Monetization Inputs */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Traffic & Monetization</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
             <div>
               <div className="flex items-center space-x-2 mb-2">
                 <Label htmlFor="pageviews">Monthly Pageviews</Label>
@@ -320,7 +331,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
                       <HelpCircle className="w-4 h-4 text-gray-400" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>% of your traffic from Chrome browsers (addressable inventory)</p>
+                      <p>% of your traffic from Chrome browsers</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -341,12 +352,25 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           </CardContent>
         </Card>
 
-        {/* Additional Settings */}
+        {/* Browser Strategy & Settings */}
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Additional Settings</CardTitle>
+            <CardTitle>Browser Strategy & Settings</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
+            {/* Browser Strategy Display */}
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-semibold text-blue-800 mb-2">Browser Optimization Status</h4>
+              <p className="text-sm text-blue-700">
+                {quizResults?.answers?.['safari-strategy'] === 'optimized' 
+                  ? 'Fully optimized for privacy-focused browsers - all traffic is addressable'
+                  : quizResults?.answers?.['safari-strategy'] === 'struggling'
+                  ? 'Struggling with Safari/Firefox monetization - only Chrome traffic is addressable'
+                  : 'Basic Safari/Firefox approach - only Chrome traffic is addressable'
+                }
+              </p>
+            </div>
+
             <div>
               <div className="flex items-center space-x-2 mb-2">
                 <Label htmlFor="domains">Number of Domains/Subdomains</Label>
