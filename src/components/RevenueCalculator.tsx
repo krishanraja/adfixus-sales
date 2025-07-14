@@ -16,82 +16,45 @@ interface RevenueCalculatorProps {
 export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete, quizResults }) => {
   const [formData, setFormData] = useState({
     monthlyPageviews: 5000000,
+    adImpressionsPerPage: 3.2, // Average ad impressions per page view
     webDisplayCPM: 4.50,
     webVideoCPM: 12.00,
     displayVideoSplit: 80, // % of inventory that is display (remainder is video)
-    safariShare: 30,
-    firefoxShare: 5,
-    unauthenticatedShare: 75,
-    numDomains: 1,
-    sessionFrequency: 3.2,
-    currentAddressability: 65,
-    directSales: 40,
-    dealIds: 35,
-    openExchange: 25
+    chromeShare: 70, // % of traffic from Chrome (addressable)
+    numDomains: 1
   });
 
   // Estimate default values based on quiz results
   useEffect(() => {
     if (quizResults) {
-      let estimatedSafari = 30;
-      let estimatedFirefox = 5;
+      let estimatedChrome = 70;
       
       // Adjust based on browser strategy answers
       if (quizResults.answers?.['safari-strategy'] === 'struggling') {
-        estimatedSafari = 40; // Higher Safari traffic if struggling to monetize
+        estimatedChrome = 60; // Lower Chrome if struggling with Safari/Firefox
       } else if (quizResults.answers?.['safari-strategy'] === 'optimized') {
-        estimatedSafari = 25; // Lower if well optimized
+        estimatedChrome = 75; // Higher Chrome if well optimized for other browsers
       }
       
       setFormData(prev => ({
         ...prev,
-        safariShare: estimatedSafari,
-        firefoxShare: estimatedFirefox
+        chromeShare: estimatedChrome
       }));
     }
   }, [quizResults]);
+
+  // Get sales mix from quiz results
+  const getSalesMix = () => {
+    if (quizResults?.scores?.['sales-mix']?.breakdown) {
+      return quizResults.scores['sales-mix'].breakdown;
+    }
+    return { direct: 40, dealIds: 35, openExchange: 25 };
+  };
 
   const handleInputChange = (field: string, value: number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSalesMixChange = (field: string, value: number) => {
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      
-      // Ensure the three values always sum to 100
-      const total = newData.directSales + newData.dealIds + newData.openExchange;
-      
-      if (total !== 100) {
-        // Adjust the other two fields proportionally
-        const remaining = 100 - value;
-        const otherFields = ['directSales', 'dealIds', 'openExchange'].filter(f => f !== field);
-        const currentOtherTotal = otherFields.reduce((sum, f) => sum + prev[f], 0);
-        
-        if (currentOtherTotal > 0) {
-          const ratio = remaining / currentOtherTotal;
-          otherFields.forEach(f => {
-            newData[f] = Math.round(prev[f] * ratio);
-          });
-          
-          // Final adjustment to ensure exact 100%
-          const finalTotal = newData.directSales + newData.dealIds + newData.openExchange;
-          const diff = 100 - finalTotal;
-          if (diff !== 0) {
-            newData[otherFields[0]] += diff;
-          }
-        } else {
-          // If other fields are 0, distribute remaining evenly
-          const perField = Math.round(remaining / otherFields.length);
-          otherFields.forEach((f, i) => {
-            newData[f] = i === 0 ? remaining - perField * (otherFields.length - 1) : perField;
-          });
-        }
-      }
-      
-      return newData;
-    });
-  };
 
   const formatNumberWithCommas = (num: number): string => {
     return new Intl.NumberFormat('en-US').format(num);
@@ -106,43 +69,43 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
   const calculateRevenue = () => {
     const {
       monthlyPageviews,
+      adImpressionsPerPage,
       webDisplayCPM,
       webVideoCPM,
       displayVideoSplit,
-      safariShare,
-      firefoxShare,
-      unauthenticatedShare,
-      currentAddressability,
-      directSales,
-      dealIds,
-      openExchange
+      chromeShare,
+      numDomains
     } = formData;
 
-    // Split inventory into display and video
-    const displayImpressions = monthlyPageviews * (displayVideoSplit / 100);
-    const videoImpressions = monthlyPageviews * ((100 - displayVideoSplit) / 100);
+    const salesMix = getSalesMix();
 
-    // Calculate dark inventory (Safari + Firefox unauthenticated traffic with poor addressability)
-    const safariTraffic = monthlyPageviews * (safariShare / 100);
-    const firefoxTraffic = monthlyPageviews * (firefoxShare / 100);
-    const restrictiveTraffic = safariTraffic + firefoxTraffic;
+    // Calculate total ad impressions from page views
+    const totalAdImpressions = monthlyPageviews * adImpressionsPerPage;
     
-    const unauthenticatedRestrictiveTraffic = restrictiveTraffic * (unauthenticatedShare / 100);
-    const currentlyUnaddressable = monthlyPageviews * (1 - currentAddressability / 100);
+    // Split inventory into display and video
+    const displayImpressions = totalAdImpressions * (displayVideoSplit / 100);
+    const videoImpressions = totalAdImpressions * ((100 - displayVideoSplit) / 100);
+
+    // Current addressability is just Chrome share (only Chrome is addressable)
+    const currentAddressability = chromeShare;
+    const addressableImpressions = totalAdImpressions * (chromeShare / 100);
+    const unaddressableImpressions = totalAdImpressions * ((100 - chromeShare) / 100);
     
-    // Split unaddressable inventory by display/video
-    const unaddressableDisplay = currentlyUnaddressable * (displayVideoSplit / 100);
-    const unaddressableVideo = currentlyUnaddressable * ((100 - displayVideoSplit) / 100);
+    // Split addressable/unaddressable inventory by display/video
+    const addressableDisplay = addressableImpressions * (displayVideoSplit / 100);
+    const addressableVideo = addressableImpressions * ((100 - displayVideoSplit) / 100);
+    const unaddressableDisplay = unaddressableImpressions * (displayVideoSplit / 100);
+    const unaddressableVideo = unaddressableImpressions * ((100 - displayVideoSplit) / 100);
     
-    // With AdFixus assumptions - 100% addressability
+    // With AdFixus assumptions - 100% addressability achieved
     const adFixusAddressability = 100;
-    const newlyAddressable = monthlyPageviews * (adFixusAddressability / 100 - currentAddressability / 100);
+    const newlyAddressable = totalAdImpressions * ((adFixusAddressability - currentAddressability) / 100);
     const newlyAddressableDisplay = newlyAddressable * (displayVideoSplit / 100);
     const newlyAddressableVideo = newlyAddressable * ((100 - displayVideoSplit) / 100);
     
-    // Revenue calculations - separate for display and video
-    const currentDisplayRevenue = displayImpressions * (webDisplayCPM / 1000);
-    const currentVideoRevenue = videoImpressions * (webVideoCPM / 1000);
+    // Revenue calculations - based on addressable inventory only
+    const currentDisplayRevenue = (addressableDisplay / 1000) * webDisplayCPM;
+    const currentVideoRevenue = (addressableVideo / 1000) * webVideoCPM;
     const currentRevenue = currentDisplayRevenue + currentVideoRevenue;
     
     const lostDisplayRevenue = (unaddressableDisplay / 1000) * webDisplayCPM;
@@ -169,6 +132,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
       breakdown: {
         display: {
           impressions: displayImpressions,
+          addressableImpressions: addressableDisplay,
           currentRevenue: currentDisplayRevenue,
           cpm: webDisplayCPM,
           newlyAddressable: newlyAddressableDisplay,
@@ -176,25 +140,20 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         },
         video: {
           impressions: videoImpressions,
+          addressableImpressions: addressableVideo,
           currentRevenue: currentVideoRevenue,
           cpm: webVideoCPM,
           newlyAddressable: newlyAddressableVideo,
           uplift: potentialVideoUplift + videoCpmUplift
         },
-        safariTraffic,
-        firefoxTraffic,
-        restrictiveTraffic,
-        unauthenticatedRestrictiveTraffic,
+        totalAdImpressions,
+        chromeShare,
         addressabilityImprovement: adFixusAddressability - currentAddressability,
-        salesMix: {
-          directSales,
-          dealIds,
-          openExchange
-        }
+        salesMix
       },
       darkInventory: {
-        impressions: currentlyUnaddressable,
-        percentage: (currentlyUnaddressable / monthlyPageviews) * 100,
+        impressions: unaddressableImpressions,
+        percentage: (unaddressableImpressions / totalAdImpressions) * 100,
         lostRevenue,
         display: {
           impressions: unaddressableDisplay,
@@ -250,6 +209,16 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
             <div>
               <div className="flex items-center space-x-2 mb-2">
                 <Label htmlFor="pageviews">Monthly Pageviews</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="w-4 h-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Total monthly page views (not ad impressions)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <Input
                 id="pageviews"
@@ -258,6 +227,34 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
                 onChange={handlePageviewsChange}
                 className="text-lg"
               />
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Label>Ad Impressions per Page: {formData.adImpressionsPerPage.toFixed(1)}</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="w-4 h-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Average number of ad impressions per page view</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Slider
+                value={[formData.adImpressionsPerPage]}
+                onValueChange={([value]) => handleInputChange('adImpressionsPerPage', value)}
+                min={1}
+                max={10}
+                step={0.1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>1.0</span>
+                <span>10.0</span>
+              </div>
             </div>
 
             <div>
@@ -316,14 +313,24 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label>Current Addressability: {formData.currentAddressability}%</Label>
+                <Label>Chrome Traffic Share: {formData.chromeShare}%</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="w-4 h-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>% of your traffic from Chrome browsers (addressable inventory)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <Slider
-                value={[formData.currentAddressability]}
-                onValueChange={([value]) => handleInputChange('currentAddressability', value)}
+                value={[formData.chromeShare]}
+                onValueChange={([value]) => handleInputChange('chromeShare', value)}
                 min={0}
                 max={100}
-                step={5}
+                step={1}
                 className="mt-2"
               />
               <div className="flex justify-between text-xs text-gray-500 mt-1">
@@ -334,69 +341,25 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           </CardContent>
         </Card>
 
-        {/* Browser & User Behavior */}
+        {/* Additional Settings */}
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Browser & User Behavior</CardTitle>
+            <CardTitle>Additional Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label>Safari Traffic: {formData.safariShare}%</Label>
-              </div>
-              <Slider
-                value={[formData.safariShare]}
-                onValueChange={([value]) => handleInputChange('safariShare', value)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Label>Firefox Traffic: {formData.firefoxShare}%</Label>
-              </div>
-              <Slider
-                value={[formData.firefoxShare]}
-                onValueChange={([value]) => handleInputChange('firefoxShare', value)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Label>Unauthenticated Users: {formData.unauthenticatedShare}%</Label>
-              </div>
-              <Slider
-                value={[formData.unauthenticatedShare]}
-                onValueChange={([value]) => handleInputChange('unauthenticatedShare', value)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
                 <Label htmlFor="domains">Number of Domains/Subdomains</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="w-4 h-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>How many different domains/subdomains you operate</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <Input
                 id="domains"
@@ -411,73 +374,29 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         </Card>
       </div>
 
-      {/* Sales Mix Section */}
+      {/* Sales Mix from Quiz Results */}
       <Card className="shadow-lg mt-8">
         <CardHeader>
           <CardTitle>Sales Mix Distribution</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid md:grid-cols-3 gap-6">
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Label>Direct Sales: {formData.directSales}%</Label>
-              </div>
-              <Slider
-                value={[formData.directSales]}
-                onValueChange={([value]) => handleSalesMixChange('directSales', value)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
+        <CardContent>
+          <div className="grid md:grid-cols-3 gap-6 text-center">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-800">{getSalesMix().direct}%</div>
+              <div className="text-sm text-blue-600">Direct Sales</div>
             </div>
-
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Label>Deal IDs: {formData.dealIds}%</Label>
-              </div>
-              <Slider
-                value={[formData.dealIds]}
-                onValueChange={([value]) => handleSalesMixChange('dealIds', value)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
+            <div className="p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-800">{getSalesMix().dealIds}%</div>
+              <div className="text-sm text-green-600">Deal IDs</div>
             </div>
-
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Label>Open Exchange: {formData.openExchange}%</Label>
-              </div>
-              <Slider
-                value={[formData.openExchange]}
-                onValueChange={([value]) => handleSalesMixChange('openExchange', value)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-800">{getSalesMix().openExchange}%</div>
+              <div className="text-sm text-purple-600">Open Exchange</div>
             </div>
           </div>
-          
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
-              Total: {formData.directSales + formData.dealIds + formData.openExchange}% (automatically adjusts to maintain 100%)
-            </p>
-          </div>
+          <p className="text-sm text-gray-600 text-center mt-4">
+            Sales mix data from your Identity Health Assessment
+          </p>
         </CardContent>
       </Card>
 
