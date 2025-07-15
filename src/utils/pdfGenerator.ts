@@ -213,7 +213,7 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     doc.text(`${categoryName}:`, layout.margin, yPosition);
     
     // Summary text with proper wrapping
-    doc.setTextColor(brandColors.gray[700]);
+    doc.setTextColor(brandColors.gray[600]);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 5);
