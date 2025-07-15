@@ -1,7 +1,7 @@
 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import logoImage from '@/assets/adfixus-logo.png';
+import logoImage from '@/assets/adfixus-logo-full.png';
 
 export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
   // Enhanced brand colors and styling
@@ -47,8 +47,8 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
 
   const addLogo = (doc: jsPDF) => {
     try {
-      // Add logo image
-      doc.addImage(logoImage, 'PNG', layout.margin, 10, 50, 18);
+      // Add logo image in top left corner
+      doc.addImage(logoImage, 'PNG', layout.margin, 8, 60, 20);
     } catch (error) {
       // Fallback text if image fails
       doc.setTextColor(brandColors.primary);
@@ -189,22 +189,49 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   
   yPosition += layout.cardHeight + 25;
   
-  // Identity Health Scorecard with perfect circle spacing
+  // Identity Health Scorecard in text format
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 20;
+  yPosition += 15;
   
-  const categories = Object.keys(quizResults.scores);
-  const totalCirclesWidth = categories.length * (layout.circleRadius * 2) + (categories.length - 1) * layout.circleSpacing;
-  const circleStartX = (layout.pageWidth - totalCirclesWidth) / 2;
+  // Filter out sales-mix category and display grades in text format
+  const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
+  
+  doc.setTextColor(brandColors.gray[800]);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
   
   categories.forEach((category, index) => {
     const grade = quizResults.scores[category].grade;
     const categoryName = getCategoryName(category);
-    const xPos = circleStartX + index * (layout.circleRadius * 2 + layout.circleSpacing);
-    addGradeCircle(doc, xPos, yPosition, grade, categoryName);
+    const score = quizResults.scores[category].score || 0;
+    
+    // Category name and grade on same line
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${categoryName}:`, layout.margin, yPosition);
+    
+    // Grade with color coding
+    const gradeColors = {
+      'A': brandColors.success,
+      'B': '#84CC16', 
+      'C': brandColors.warning,
+      'D': '#F97316',
+      'F': brandColors.danger
+    };
+    
+    doc.setTextColor(gradeColors[grade] || brandColors.gray[600]);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Grade ${grade}`, layout.margin + 60, yPosition);
+    
+    // Score percentage
+    doc.setTextColor(brandColors.gray[600]);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`(${score}%)`, layout.margin + 85, yPosition);
+    
+    yPosition += 8;
+    doc.setTextColor(brandColors.gray[800]);
   });
   
-  yPosition += 70;
+  yPosition += 15;
   
   // Key Recommendations with improved formatting
   addSectionHeader(doc, yPosition, 'Key Recommendations');

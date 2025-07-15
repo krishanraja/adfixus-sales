@@ -28,7 +28,8 @@ const Index = () => {
   const handleCalculatorComplete = (results) => {
     console.log('Calculator completed:', results);
     setCalculatorResults(results);
-    setCurrentStep('leadCapture');
+    // Skip leadCapture step since it's handled in modal
+    setCurrentStep('results');
   };
 
   const resetSimulation = () => {
@@ -47,9 +48,6 @@ const Index = () => {
           <Hero onStartQuiz={() => setCurrentStep('quiz')} />
         )}
         
-        {currentStep === 'leadCapture' && (
-          <LeadCaptureForm onSubmitSuccess={handleLeadCapture} />
-        )}
         
         {currentStep === 'quiz' && (
           <IdentityHealthQuiz onComplete={handleQuizComplete} />

@@ -208,7 +208,9 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
   const handleLeadSubmit = (leadData: any) => {
     const results = (window as any)._tempCalculatorResults;
     setShowLeadModal(false);
+    // Call onLeadCapture first to store lead data
     onLeadCapture(leadData);
+    // Then call onComplete with results to move to results page
     onComplete(results);
     // Clean up temp storage
     delete (window as any)._tempCalculatorResults;
