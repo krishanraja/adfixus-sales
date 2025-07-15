@@ -1,7 +1,6 @@
 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import logoImage from '@/assets/adfixus-logo-full.png';
 
 export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
   // Enhanced brand colors and styling
@@ -22,15 +21,15 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     white: '#FFFFFF'
   };
 
-  // Precise measurements for perfect layout
+  // Improved layout with larger dimensions and better spacing
   const layout = {
     pageWidth: 210,
     pageHeight: 297,
-    margin: 15,
-    headerHeight: 35,
+    margin: 25,  // Increased margin
+    headerHeight: 45,  // Increased header height
     cardWidth: 42,
-    cardHeight: 25,
-    cardSpacing: 5.5,
+    cardHeight: 35,  // Increased card height significantly
+    cardSpacing: 8,  // Increased spacing
     circleRadius: 12,
     circleSpacing: 30
   };
@@ -47,14 +46,15 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
 
   const addLogo = (doc: jsPDF) => {
     try {
-      // Add logo image in top left corner
-      doc.addImage(logoImage, 'PNG', layout.margin, 8, 60, 20);
+      // Use the correct uploaded logo path - the one that actually works
+      const logoUrl = '/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png';
+      doc.addImage(logoUrl, 'PNG', layout.margin, 12, 70, 25);
     } catch (error) {
-      // Fallback text if image fails
+      // Fallback text with larger size
       doc.setTextColor(brandColors.primary);
-      doc.setFontSize(16);
+      doc.setFontSize(24);  // Much larger fallback text
       doc.setFont('helvetica', 'bold');
-      doc.text('AdFixus', layout.margin, 22);
+      doc.text('AdFixus', layout.margin, 30);
     }
   };
 
@@ -66,11 +66,11 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     // Add logo
     addLogo(doc);
     
-    // Title with perfect positioning
+    // Title with MUCH larger font and better positioning
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(20);
+    doc.setFontSize(24);  // Increased from 20 to 24
     doc.setFont('helvetica', 'bold');
-    doc.text('Identity Health Report', layout.pageWidth / 2, 25, { align: 'center' });
+    doc.text('Identity Health Report', layout.pageWidth / 2, 32, { align: 'center' });
     
     // Subtle border
     doc.setDrawColor(brandColors.gray[300]);
@@ -94,34 +94,37 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
       doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'S');
     }
     
-    // Title text
+    // Title text with MUCH larger font
     doc.setTextColor(textColor);
-    doc.setFontSize(9);
+    doc.setFontSize(12);  // Increased from 9 to 12
     doc.setFont('helvetica', 'normal');
     
-    // Multi-line title handling
-    const titleLines = doc.splitTextToSize(title, layout.cardWidth - 4);
-    const titleHeight = titleLines.length * 3;
-    const titleY = y + 6;
+    // Multi-line title handling with better spacing
+    const titleLines = doc.splitTextToSize(title, layout.cardWidth - 6);
+    const lineHeight = 4;  // Increased line height
+    const titleStartY = y + 8;
     
     titleLines.forEach((line: string, index: number) => {
-      doc.text(line, x + layout.cardWidth / 2, titleY + (index * 3), { align: 'center' });
+      doc.text(line, x + layout.cardWidth / 2, titleStartY + (index * lineHeight), { align: 'center' });
     });
     
-    // Value text
+    // Value text with larger font and better positioning
     doc.setTextColor(valueColor);
-    doc.setFontSize(14);
+    doc.setFontSize(18);  // Increased from 14 to 18
     doc.setFont('helvetica', 'bold');
-    doc.text(value, x + layout.cardWidth / 2, y + layout.cardHeight - 5, { align: 'center' });
+    
+    // Position value at bottom with proper margin
+    const valueY = y + layout.cardHeight - 8;
+    doc.text(value, x + layout.cardWidth / 2, valueY, { align: 'center' });
   };
 
   const addSectionHeader = (doc: jsPDF, y: number, title: string) => {
     doc.setFillColor(brandColors.gray[100]);
-    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 12, 'F');
+    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 15, 'F');  // Increased height
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(12);
+    doc.setFontSize(16);  // Increased from 12 to 16
     doc.setFont('helvetica', 'bold');
-    doc.text(title, layout.margin + 5, y + 8);
+    doc.text(title, layout.margin + 8, y + 11);  // Better positioning
   };
 
   const addGradeCircle = (doc: jsPDF, x: number, y: number, grade: string, category: string) => {
@@ -189,27 +192,25 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   
   yPosition += layout.cardHeight + 25;
   
-  // Identity Health Scorecard in text format
+  // Identity Health Scorecard with improved layout and typography
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 15;
+  yPosition += 20;  // Increased spacing
   
   // Filter out sales-mix category and display grades in text format
   const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
-  
-  doc.setTextColor(brandColors.gray[800]);
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
   
   categories.forEach((category, index) => {
     const grade = quizResults.scores[category].grade;
     const categoryName = getCategoryName(category);
     const score = quizResults.scores[category].score || 0;
     
-    // Category name and grade on same line
+    // Category name with larger font
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(12);  // Increased from 11 to 12
     doc.setFont('helvetica', 'bold');
     doc.text(`${categoryName}:`, layout.margin, yPosition);
     
-    // Grade with color coding
+    // Grade with color coding and larger font
     const gradeColors = {
       'A': brandColors.success,
       'B': '#84CC16', 
@@ -219,23 +220,24 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     };
     
     doc.setTextColor(gradeColors[grade] || brandColors.gray[600]);
+    doc.setFontSize(14);  // Increased font size for grade
     doc.setFont('helvetica', 'bold');
-    doc.text(`Grade ${grade}`, layout.margin + 60, yPosition);
+    doc.text(`Grade ${grade}`, layout.margin + 80, yPosition);
     
-    // Score percentage
+    // Score percentage with better contrast
     doc.setTextColor(brandColors.gray[600]);
+    doc.setFontSize(12);  // Increased font size
     doc.setFont('helvetica', 'normal');
-    doc.text(`(${score}%)`, layout.margin + 85, yPosition);
+    doc.text(`(${score}%)`, layout.margin + 120, yPosition);
     
-    yPosition += 8;
-    doc.setTextColor(brandColors.gray[800]);
+    yPosition += 12;  // Increased line spacing from 8 to 12
   });
   
-  yPosition += 15;
+  yPosition += 20;  // Increased spacing after scorecard
   
-  // Key Recommendations with improved formatting
+  // Key Recommendations with improved formatting and larger text
   addSectionHeader(doc, yPosition, 'Key Recommendations');
-  yPosition += 15;
+  yPosition += 20;  // Increased spacing
   
   const recommendations = [
     'Implement AdFixus identity durability technology to maximize addressable inventory',
@@ -245,20 +247,20 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   ];
   
   doc.setTextColor(brandColors.gray[800]);
-  doc.setFontSize(10);
+  doc.setFontSize(11);  // Increased from 10 to 11
   doc.setFont('helvetica', 'normal');
   
   recommendations.forEach((rec, index) => {
-    // Bullet point
+    // Larger bullet point
     doc.setFillColor(brandColors.primary);
-    doc.circle(layout.margin + 2, yPosition + 1.5, 1, 'F');
+    doc.circle(layout.margin + 3, yPosition + 2, 1.5, 'F');  // Larger bullet
     
-    // Recommendation text with proper wrapping
-    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 8);
+    // Recommendation text with proper wrapping and better spacing
+    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 12);
     textLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 6, yPosition + (lineIndex * 4));
+      doc.text(line, layout.margin + 10, yPosition + (lineIndex * 5));  // Increased line spacing
     });
-    yPosition += Math.max(textLines.length * 4, 6) + 3;
+    yPosition += Math.max(textLines.length * 5, 8) + 5;  // Better spacing between recommendations
   });
   
   // Professional footer with call to action
