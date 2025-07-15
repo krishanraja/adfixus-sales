@@ -1,327 +1,259 @@
 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import logoImage from '@/assets/adfixus-logo.png';
 
 export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 20;
-  
-  // Brand colors
-  const brandCyan: [number, number, number] = [8, 145, 178]; // #0891b2
-  const brandDark: [number, number, number] = [22, 78, 99]; // #164e63
-  const lightGray: [number, number, number] = [248, 250, 252]; // #f8fafc
-  const darkGray: [number, number, number] = [71, 85, 105]; // #475569
-  
-  // Try to capture the visual dashboard
-  let dashboardImage = null;
-  try {
-    const dashboardElement = document.querySelector('.max-w-7xl');
-    if (dashboardElement) {
-      dashboardImage = await html2canvas(dashboardElement as HTMLElement, {
-        scale: 0.8,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
-      });
-    }
-  } catch (error) {
-    console.warn('Could not capture dashboard visual:', error);
-  }
-  
-  // Helper functions
-  const formatCurrency = (amount: number) => {
+  // Enhanced brand colors and styling
+  const brandColors = {
+    primary: '#0066CC',
+    secondary: '#00A3E0',
+    success: '#22C55E',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    gray: {
+      50: '#F8FAFC',
+      100: '#F1F5F9',
+      300: '#CBD5E1',
+      600: '#475569',
+      800: '#1E293B',
+      900: '#0F172A'
+    },
+    white: '#FFFFFF'
+  };
+
+  // Precise measurements for perfect layout
+  const layout = {
+    pageWidth: 210,
+    pageHeight: 297,
+    margin: 15,
+    headerHeight: 35,
+    cardWidth: 42,
+    cardHeight: 25,
+    cardSpacing: 5.5,
+    circleRadius: 12,
+    circleSpacing: 30
+  };
+
+  // Helper functions with improved formatting
+  const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
-  
-  const addBrandedHeader = (title: string, subtitle?: string) => {
-    // Header background
-    pdf.setFillColor(...brandCyan);
-    pdf.rect(0, 0, pageWidth, 50, 'F');
+
+  const addLogo = (doc: jsPDF) => {
+    try {
+      // Add logo image
+      doc.addImage(logoImage, 'PNG', layout.margin, 10, 50, 18);
+    } catch (error) {
+      // Fallback text if image fails
+      doc.setTextColor(brandColors.primary);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('AdFixus', layout.margin, 22);
+    }
+  };
+
+  const addHeader = (doc: jsPDF) => {
+    // Clean header background
+    doc.setFillColor(brandColors.white);
+    doc.rect(0, 0, layout.pageWidth, layout.headerHeight, 'F');
     
-    // Company logo placeholder
-    pdf.setFillColor(255, 255, 255);
-    pdf.rect(margin, 15, 40, 20, 'F');
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(8, 145, 178);
-    pdf.text('AdFixus', margin + 20, 27, { align: 'center' });
+    // Add logo
+    addLogo(doc);
     
-    // Title
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(22);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(title, pageWidth - margin, 25, { align: 'right' });
+    // Title with perfect positioning
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Identity Health Report', layout.pageWidth / 2, 25, { align: 'center' });
     
-    if (subtitle) {
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(subtitle, pageWidth - margin, 35, { align: 'right' });
+    // Subtle border
+    doc.setDrawColor(brandColors.gray[300]);
+    doc.setLineWidth(0.5);
+    doc.line(layout.margin, layout.headerHeight, layout.pageWidth - layout.margin, layout.headerHeight);
+  };
+
+  const addMetricCard = (doc: jsPDF, x: number, y: number, title: string, value: string, isHighlight: boolean = false) => {
+    const cardColor = isHighlight ? brandColors.primary : brandColors.white;
+    const textColor = isHighlight ? brandColors.white : brandColors.gray[800];
+    const valueColor = isHighlight ? brandColors.white : brandColors.primary;
+    
+    // Card with rounded corners effect
+    doc.setFillColor(cardColor);
+    doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'F');
+    
+    // Subtle border for white cards
+    if (!isHighlight) {
+      doc.setDrawColor(brandColors.gray[300]);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'S');
     }
     
-    return 60;
+    // Title text
+    doc.setTextColor(textColor);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    
+    // Multi-line title handling
+    const titleLines = doc.splitTextToSize(title, layout.cardWidth - 4);
+    const titleHeight = titleLines.length * 3;
+    const titleY = y + 6;
+    
+    titleLines.forEach((line: string, index: number) => {
+      doc.text(line, x + layout.cardWidth / 2, titleY + (index * 3), { align: 'center' });
+    });
+    
+    // Value text
+    doc.setTextColor(valueColor);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(value, x + layout.cardWidth / 2, y + layout.cardHeight - 5, { align: 'center' });
   };
-  
-  const addMetricCard = (x: number, y: number, width: number, title: string, value: string, color: [number, number, number] = brandCyan) => {
-    // Card background
-    pdf.setFillColor(...lightGray);
-    pdf.rect(x, y, width, 25, 'F');
-    
-    // Colored accent bar
-    pdf.setFillColor(...color);
-    pdf.rect(x, y, 3, 25, 'F');
-    
-    // Border
-    pdf.setDrawColor(...darkGray);
-    pdf.setLineWidth(0.1);
-    pdf.rect(x, y, width, 25, 'S');
-    
-    // Title
-    pdf.setTextColor(...darkGray);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(title, x + 8, y + 8);
-    
-    // Value
-    pdf.setTextColor(...brandDark);
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(value, x + 8, y + 20);
-    
-    return y + 30;
+
+  const addSectionHeader = (doc: jsPDF, y: number, title: string) => {
+    doc.setFillColor(brandColors.gray[100]);
+    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 12, 'F');
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, layout.margin + 5, y + 8);
   };
-  
-  const addSectionHeader = (y: number, title: string, description?: string) => {
-    pdf.setFillColor(...brandDark);
-    pdf.rect(margin, y, pageWidth - 2 * margin, 15, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(title, margin + 5, y + 10);
-    
-    let newY = y + 20;
-    if (description) {
-      pdf.setTextColor(...darkGray);
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(description, margin, newY);
-      newY += 10;
-    }
-    
-    return newY;
-  };
-  
-  const addGradeIndicator = (x: number, y: number, grade: string, score: number) => {
-    const gradeColors: Record<string, [number, number, number]> = {
-      'A': [34, 197, 94], // green
-      'B': [59, 130, 246], // blue
-      'C': [234, 179, 8], // yellow
-      'D': [239, 68, 68], // red
-      'F': [220, 38, 38]  // dark red
+
+  const addGradeCircle = (doc: jsPDF, x: number, y: number, grade: string, category: string) => {
+    const gradeColors: Record<string, string> = {
+      'A': brandColors.success,
+      'B': '#84CC16',
+      'C': brandColors.warning,
+      'D': '#F97316',
+      'F': brandColors.danger
     };
     
-    const color = gradeColors[grade] || darkGray;
+    // Circle with shadow effect
+    doc.setFillColor('#00000020');
+    doc.circle(x + layout.circleRadius + 1, y + layout.circleRadius + 1, layout.circleRadius, 'F');
     
-    // Grade circle
-    pdf.setFillColor(...color);
-    pdf.circle(x + 15, y + 10, 12, 'F');
+    // Main circle
+    doc.setFillColor(gradeColors[grade] || brandColors.gray[600]);
+    doc.circle(x + layout.circleRadius, y + layout.circleRadius, layout.circleRadius, 'F');
     
-    // Grade letter
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(grade, x + 15, y + 14, { align: 'center' });
+    // Grade text
+    doc.setTextColor(brandColors.white);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(grade, x + layout.circleRadius, y + layout.circleRadius + 4, { align: 'center' });
     
-    // Score bar
-    const barWidth = 60;
-    const fillWidth = (score / 4.0) * barWidth;
-    
-    // Background bar
-    pdf.setFillColor(230, 230, 230);
-    pdf.rect(x + 35, y + 5, barWidth, 8, 'F');
-    
-    // Progress bar
-    pdf.setFillColor(...color);
-    pdf.rect(x + 35, y + 5, fillWidth, 8, 'F');
-    
-    // Score text
-    pdf.setTextColor(...darkGray);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`${score.toFixed(1)}/4.0`, x + 105, y + 11);
-    
-    return y + 25;
+    // Category text with proper wrapping
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const categoryLines = doc.splitTextToSize(category, layout.circleSpacing - 2);
+    categoryLines.forEach((line: string, index: number) => {
+      doc.text(line, x + layout.circleRadius, y + (layout.circleRadius * 2) + 8 + (index * 3), { align: 'center' });
+    });
   };
+
+  // Create new PDF document with optimized settings
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
   
-  // Simple grade circle function (moved before usage)
-  const addGradeCircle = (x: number, y: number, grade: string, title: string, score: string) => {
-    const gradeColors: Record<string, [number, number, number]> = {
-      'A': [34, 197, 94],
-      'B': [59, 130, 246], 
-      'C': [234, 179, 8],
-      'D': [239, 68, 68],
-      'F': [220, 38, 38]
-    };
-    
-    const color = gradeColors[grade] || [220, 38, 38];
-    
-    // Circle
-    pdf.setFillColor(...color);
-    pdf.circle(x, y + 15, 15, 'F');
-    
-    // Grade letter
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(grade, x, y + 20, { align: 'center' });
-    
-    // Title
-    pdf.setTextColor(...darkGray);
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(title, x, y + 40, { align: 'center' });
-    
-    // Score
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(score, x, y + 52, { align: 'center' });
-  };
+  // Add header
+  addHeader(doc);
   
-  // SINGLE PAGE REPORT matching the design
-  let yPos = addBrandedHeader('Your Identity ROI Analysis Results', 'Complete analysis of your identity health and revenue optimization opportunities');
+  let yPosition = layout.headerHeight + 15;
   
-  // Four main metric cards in a row (matching the design)
-  yPos += 5;
-  const cardWidth = (pageWidth - 5 * margin) / 4;
-  const cardHeight = 25;
+  // Key metrics section with perfect spacing
+  addSectionHeader(doc, yPosition, 'Revenue Impact Overview');
+  yPosition += 20;
   
-  // Monthly Revenue Loss (red card)
-  addMetricCard(margin, yPos, cardWidth, 'Monthly Revenue Loss', 
-    formatCurrency(calculatorResults.darkInventory.lostRevenue), [239, 68, 68]);
+  // Calculate perfect card positioning
+  const totalCardsWidth = 4 * layout.cardWidth + 3 * layout.cardSpacing;
+  const startX = (layout.pageWidth - totalCardsWidth) / 2;
   
-  // Monthly Uplift Potential (teal card)  
-  addMetricCard(margin + cardWidth + 5, yPos, cardWidth, 'Monthly Uplift Potential',
-    formatCurrency(calculatorResults.uplift.totalMonthlyUplift), [20, 184, 166]);
-    
-  // Annual Opportunity (blue card)
-  addMetricCard(margin + 2 * (cardWidth + 5), yPos, cardWidth, 'Annual Opportunity',
-    formatCurrency(calculatorResults.uplift.totalAnnualUplift), [59, 130, 246]);
-    
-  // Addressability Improvement (purple card)
-  addMetricCard(margin + 3 * (cardWidth + 5), yPos, cardWidth, 'Addressability Improvement',
-    `+${calculatorResults.breakdown.addressabilityImprovement}%`, [139, 92, 246]);
+  // Metric cards with consistent styling
+  addMetricCard(doc, startX, yPosition, 
+    'Current Monthly Revenue', formatCurrency(calculatorResults.currentRevenue), false);
+  addMetricCard(doc, startX + layout.cardWidth + layout.cardSpacing, yPosition,
+    'Lost Revenue (Dark Inventory)', formatCurrency(calculatorResults.darkInventory.lostRevenue), false);
+  addMetricCard(doc, startX + 2 * (layout.cardWidth + layout.cardSpacing), yPosition,
+    'Monthly Uplift Potential', formatCurrency(calculatorResults.uplift.totalMonthlyUplift), true);
+  addMetricCard(doc, startX + 3 * (layout.cardWidth + layout.cardSpacing), yPosition,
+    'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
   
-  yPos += cardHeight + 15;
+  yPosition += layout.cardHeight + 25;
   
-  // Identity Health Scorecard section header
-  pdf.setTextColor(...brandCyan);
-  pdf.setFontSize(16);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Identity Health Scorecard', margin, yPos);
-  yPos += 20;
+  // Identity Health Scorecard with perfect circle spacing
+  addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
+  yPosition += 20;
   
-  // Grade circles in a row (like the design)
-  const gradeStartX = margin;
-  const gradeSpacing = (pageWidth - 2 * margin) / 5;
-  
-  // Overall Grade (F)
-  const overallX = gradeStartX;
-  addGradeCircle(overallX, yPos, quizResults.overallGrade, 'Overall Grade', `Score: ${quizResults.overallScore.toFixed(1)}/4.0`);
-  
-  // Category grades
-  const categories = ['durability', 'cross-domain', 'privacy', 'browser'];
-  const categoryNames = ['Identity Durability', 'Cross-Domain Visibility', 'Privacy & Compliance', 'Browser Resilience'];
+  const categories = Object.keys(quizResults.scores);
+  const totalCirclesWidth = categories.length * (layout.circleRadius * 2) + (categories.length - 1) * layout.circleSpacing;
+  const circleStartX = (layout.pageWidth - totalCirclesWidth) / 2;
   
   categories.forEach((category, index) => {
-    if (quizResults.scores[category]) {
-      const x = gradeStartX + (index + 1) * gradeSpacing;
-      addGradeCircle(x, yPos, quizResults.scores[category].grade, categoryNames[index], 
-        `${quizResults.scores[category].score.toFixed(1)}/4.0`);
-    }
+    const grade = quizResults.scores[category].grade;
+    const categoryName = getCategoryName(category);
+    const xPos = circleStartX + index * (layout.circleRadius * 2 + layout.circleSpacing);
+    addGradeCircle(doc, xPos, yPosition, grade, categoryName);
   });
   
-  yPos += 80;
+  yPosition += 70;
   
-  // Sales Mix Breakdown section
-  pdf.setTextColor(...darkGray);
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Sales Mix Breakdown', margin, yPos);
-  yPos += 20;
-  
-  // Three percentages in large colored text
-  if (quizResults.scores['sales-mix']?.breakdown) {
-    const breakdown = quizResults.scores['sales-mix'].breakdown;
-    const mixWidth = (pageWidth - 4 * margin) / 3;
-    
-    // Direct Sales (59% - blue)
-    pdf.setTextColor(59, 130, 246);
-    pdf.setFontSize(36);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${breakdown.direct}%`, margin + mixWidth/2, yPos, { align: 'center' });
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Direct Sales', margin + mixWidth/2, yPos + 15, { align: 'center' });
-    
-    // Deal IDs (23% - green)
-    pdf.setTextColor(34, 197, 94);
-    pdf.setFontSize(36);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${breakdown.dealIds}%`, margin + mixWidth + mixWidth/2, yPos, { align: 'center' });
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Deal IDs', margin + mixWidth + mixWidth/2, yPos + 15, { align: 'center' });
-    
-    // Open Exchange (18% - red)
-    pdf.setTextColor(239, 68, 68);
-    pdf.setFontSize(36);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${breakdown.openExchange}%`, margin + 2*mixWidth + mixWidth/2, yPos, { align: 'center' });
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Open Exchange', margin + 2*mixWidth + mixWidth/2, yPos + 15, { align: 'center' });
-    
-    yPos += 40;
-  }
-  
-  // Key Recommendations section
-  pdf.setTextColor(251, 146, 60);
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Key Recommendations', margin, yPos);
-  yPos += 20;
+  // Key Recommendations with improved formatting
+  addSectionHeader(doc, yPosition, 'Key Recommendations');
+  yPosition += 15;
   
   const recommendations = [
-    'Implement comprehensive identity resolution to address significant dark inventory',
-    'Leverage privacy-compliant targeting to maximize CPMs',
-    'Implement real-time optimization for inventory management'
+    'Implement AdFixus identity durability technology to maximize addressable inventory',
+    'Focus on Safari and Firefox optimization for improved cross-browser performance',
+    'Enhance first-party data collection strategies and ID resolution capabilities',
+    'Optimize header bidding setup to capture maximum yield from addressable inventory'
   ];
   
+  doc.setTextColor(brandColors.gray[800]);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  
   recommendations.forEach((rec, index) => {
-    pdf.setTextColor(...darkGray);
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`• ${rec}`, margin, yPos);
-    yPos += 12;
+    // Bullet point
+    doc.setFillColor(brandColors.primary);
+    doc.circle(layout.margin + 2, yPosition + 1.5, 1, 'F');
+    
+    // Recommendation text with proper wrapping
+    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 8);
+    textLines.forEach((line: string, lineIndex: number) => {
+      doc.text(line, layout.margin + 6, yPosition + (lineIndex * 4));
+    });
+    yPosition += Math.max(textLines.length * 4, 6) + 3;
   });
   
-  yPos += 20;
+  // Professional footer with call to action
+  yPosition = 270;
+  doc.setFillColor(brandColors.gray[100]);
+  doc.rect(0, yPosition, layout.pageWidth, 27, 'F');
   
-  // Footer with the specific message
-  pdf.setFontSize(10);
-  pdf.setTextColor(...darkGray);
-  pdf.setFont('helvetica', 'normal');
-  pdf.text('Email krish.raja@adfixus.com to discuss an identity-led revenue strategy for your business.', 
-    pageWidth / 2, pageHeight - 15, { align: 'center' });
+  // Call to action as requested
+  doc.setTextColor(brandColors.gray[800]);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Email krish.raja@adfixus.com to discuss an identity-led revenue strategy for your business.', 
+    layout.pageWidth / 2, yPosition + 15, { align: 'center' });
   
-  return pdf;
+  // Subtle branding
+  doc.setTextColor(brandColors.gray[600]);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Generated by AdFixus Identity ROI Simulator', 
+    layout.pageWidth / 2, yPosition + 22, { align: 'center' });
+  
+  return doc;
 };
 
 const getCategoryName = (category: string) => {

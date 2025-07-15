@@ -16,7 +16,7 @@ const Index = () => {
   const handleLeadCapture = (data) => {
     console.log('Lead captured:', data);
     setLeadData(data);
-    setCurrentStep('quiz');
+    setCurrentStep('results');
   };
 
   const handleQuizComplete = (results) => {
@@ -28,7 +28,7 @@ const Index = () => {
   const handleCalculatorComplete = (results) => {
     console.log('Calculator completed:', results);
     setCalculatorResults(results);
-    setCurrentStep('results');
+    setCurrentStep('leadCapture');
   };
 
   const resetSimulation = () => {
@@ -44,7 +44,7 @@ const Index = () => {
       
       <div className="container mx-auto px-4 py-8">
         {currentStep === 'hero' && (
-          <Hero onStartQuiz={() => setCurrentStep('leadCapture')} />
+          <Hero onStartQuiz={() => setCurrentStep('quiz')} />
         )}
         
         {currentStep === 'leadCapture' && (
@@ -56,7 +56,11 @@ const Index = () => {
         )}
         
         {currentStep === 'calculator' && (
-          <RevenueCalculator onComplete={handleCalculatorComplete} quizResults={quizResults} />
+          <RevenueCalculator 
+            onComplete={handleCalculatorComplete} 
+            quizResults={quizResults}
+            onLeadCapture={handleLeadCapture}
+          />
         )}
         
         {currentStep === 'results' && (

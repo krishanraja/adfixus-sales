@@ -7,13 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { HelpCircle, Calculator } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { LeadCaptureModal } from './LeadCaptureModal';
 
 interface RevenueCalculatorProps {
   onComplete: (results: any) => void;
   quizResults?: any;
+  onLeadCapture: (data: any) => void;
 }
 
-export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete, quizResults }) => {
+export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete, quizResults, onLeadCapture }) => {
+  const [showLeadModal, setShowLeadModal] = useState(false);
   const [formData, setFormData] = useState({
     monthlyPageviews: 5000000,
     adImpressionsPerPage: 3.2, // Average ad impressions per page view
@@ -197,7 +200,18 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
   const handleSubmit = () => {
     const results = calculateRevenue();
     console.log('Revenue calculation results:', results);
+    setShowLeadModal(true);
+    // Store results temporarily to use after lead capture
+    (window as any)._tempCalculatorResults = results;
+  };
+
+  const handleLeadSubmit = (leadData: any) => {
+    const results = (window as any)._tempCalculatorResults;
+    setShowLeadModal(false);
+    onLeadCapture(leadData);
     onComplete(results);
+    // Clean up temp storage
+    delete (window as any)._tempCalculatorResults;
   };
 
   return (
@@ -433,6 +447,11 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           Calculate Revenue Impact
         </Button>
       </div>
+
+      <LeadCaptureModal 
+        open={showLeadModal}
+        onSubmitSuccess={handleLeadSubmit}
+      />
     </div>
   );
 };
