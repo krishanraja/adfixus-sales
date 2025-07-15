@@ -193,11 +193,11 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   addMetricCard(doc, startX + 3 * (layout.cardWidth + layout.cardSpacing), yPosition,
     'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
   
-  yPosition += layout.cardHeight + 25;
+  yPosition += layout.cardHeight + 20;  // Reduced spacing before scorecard
   
   // Identity Health Scorecard with summary insights
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 18;  // Slightly reduced spacing
+  yPosition += 15;  // Reduced spacing after header
   
   // Filter out sales-mix category and display summary insights
   const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
@@ -224,11 +224,11 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     yPosition += Math.max(summaryLines.length * 4, 8) + 8;  // Dynamic spacing based on text
   });
   
-  yPosition += 10;  // Reduced spacing after scorecard
+  yPosition += 8;  // Further reduced spacing after scorecard
   
   // Key Recommendations with improved formatting and larger text
   addSectionHeader(doc, yPosition, 'Key Recommendations');
-  yPosition += 15;  // Optimized spacing to fit on page
+  yPosition += 12;  // Further reduced spacing after header to prevent overlap
   
   const recommendations = [
     'Implement AdFixus identity durability technology to maximize addressable inventory',
