@@ -174,8 +174,18 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   addHeader(doc);
   
   let yPosition = layout.headerHeight + 15;
+  const maxPageHeight = 270; // Maximum safe height before footer
+  
+  // Height tracking function
+  const ensureSpace = (requiredHeight: number) => {
+    if (yPosition + requiredHeight > maxPageHeight) {
+      console.warn('Content overflow detected, adjusting spacing');
+      yPosition = Math.min(yPosition, maxPageHeight - requiredHeight);
+    }
+  };
   
   // Key metrics section with perfect spacing
+  ensureSpace(60); // Reserve space for section header and cards
   addSectionHeader(doc, yPosition, 'Revenue Impact Overview');
   yPosition += 20;
   
@@ -193,11 +203,12 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   addMetricCard(doc, startX + 3 * (layout.cardWidth + layout.cardSpacing), yPosition,
     'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
   
-  yPosition += layout.cardHeight + 15;  // Reduced spacing before scorecard
+  yPosition += layout.cardHeight + 12;  // Reduced spacing before scorecard
   
   // Identity Health Scorecard with summary insights
+  ensureSpace(50); // Reserve space for scorecard section
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 12;  // Reduced spacing after header
+  yPosition += 10;  // Reduced spacing after header
   
   // Filter out sales-mix category and display summary insights
   const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
@@ -208,37 +219,39 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     
     // Category name with smaller font to save space
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(11);  // Reduced from 12 to 11
+    doc.setFontSize(10);  // Reduced from 11 to 10
     doc.setFont('helvetica', 'bold');
     doc.text(`${categoryName}:`, layout.margin, yPosition);
     
-    // Summary text with smaller font and tighter spacing
+    // Summary text with much smaller font and tighter spacing
     doc.setTextColor(brandColors.gray[600]);
-    doc.setFontSize(10);  // Reduced from 11 to 10
+    doc.setFontSize(9);  // Reduced from 10 to 9
     doc.setFont('helvetica', 'normal');
     const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 5);
     summaryLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 5, yPosition + 5 + (lineIndex * 3.5));  // Tighter line spacing
+      doc.text(line, layout.margin + 5, yPosition + 4 + (lineIndex * 3));  // Tighter line spacing (3mm)
     });
     
-    yPosition += Math.max(summaryLines.length * 3.5, 6) + 6;  // Tighter spacing between categories
+    // Strict height limit per category (15mm max)
+    const categoryHeight = Math.min(Math.max(summaryLines.length * 3, 5) + 4, 15);
+    yPosition += categoryHeight;
   });
   
-  yPosition += 6;  // Reduced spacing after scorecard
+  yPosition += 5;  // Reduced spacing after scorecard
   
   // Key Recommendations with improved formatting and larger text
+  ensureSpace(40); // Reserve space for recommendations section
   addSectionHeader(doc, yPosition, 'Key Recommendations');
-  yPosition += 10;  // Reduced spacing after header
+  yPosition += 8;  // Reduced spacing after header
   
   const recommendations = [
     'Implement AdFixus identity durability technology to maximize addressable inventory',
     'Focus on Safari and Firefox optimization for improved cross-browser performance',
-    'Enhance first-party data collection strategies and ID resolution capabilities',
-    'Optimize header bidding setup to capture maximum yield from addressable inventory'
+    'Enhance first-party data collection strategies and ID resolution capabilities'
   ];
   
   doc.setTextColor(brandColors.gray[800]);
-  doc.setFontSize(11);  // Increased from 10 to 11
+  doc.setFontSize(10);  // Reduced from 11 to 10
   doc.setFont('helvetica', 'normal');
   
   recommendations.forEach((rec, index) => {
@@ -249,13 +262,19 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     // Recommendation text with proper wrapping and tighter spacing
     const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 12);
     textLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 10, yPosition + (lineIndex * 4.5));  // Tighter line spacing
+      doc.text(line, layout.margin + 10, yPosition + (lineIndex * 4));  // Tighter line spacing
     });
-    yPosition += Math.max(textLines.length * 4.5, 6) + 4;  // Tighter spacing between recommendations
+    yPosition += Math.max(textLines.length * 4, 5) + 3;  // Tighter spacing between recommendations
   });
   
+  // Final overflow protection
+  if (yPosition + 35 > maxPageHeight) {
+    console.warn('Final overflow detected, adjusting for footer');
+    yPosition = maxPageHeight - 35;
+  }
+  
   // Dynamic footer positioning with proper margin
-  yPosition += 15;  // Add margin before footer
+  yPosition += 10;  // Add margin before footer
   
   // Professional footer with call to action
   doc.setFillColor(brandColors.gray[100]);
@@ -298,8 +317,8 @@ const getCategorySummary = (category: string, quizResults: any) => {
         answers[q]?.toLowerCase().includes('limited')
       );
       return hasWeakDurability 
-        ? "Your current strategy needs improvement for handling logged-in users across sessions."
-        : "Strong identity persistence strategy maintains user recognition across extended sessions.";
+        ? "Identity strategy needs improvement for session continuity."
+        : "Strong identity persistence across extended sessions.";
     },
     'cross-domain': () => {
       const crossDomainQuestions = Object.keys(answers).filter(q => q.includes('domain') || q.includes('cross'));
@@ -308,8 +327,8 @@ const getCategorySummary = (category: string, quizResults: any) => {
         answers[q]?.toLowerCase().includes('limited')
       );
       return hasLimitedCrossDomain
-        ? "Limited capability to track users across different domains reduces addressability."
-        : "Good cross-domain tracking enables comprehensive user journey understanding.";
+        ? "Limited cross-domain tracking reduces addressability."
+        : "Good cross-domain tracking enables comprehensive insights.";
     },
     'privacy': () => {
       const privacyQuestions = Object.keys(answers).filter(q => q.includes('privacy') || q.includes('consent'));
@@ -318,8 +337,8 @@ const getCategorySummary = (category: string, quizResults: any) => {
         answers[q]?.toLowerCase().includes('minimal')
       );
       return hasBasicPrivacy
-        ? "Basic compliance framework in place but could benefit from advanced consent management."
-        : "Comprehensive privacy-first approach balances compliance with effective targeting.";
+        ? "Basic compliance framework could benefit from enhancement."
+        : "Comprehensive privacy-first approach balances compliance and targeting.";
     },
     'browser': () => {
       const browserQuestions = Object.keys(answers).filter(q => q.includes('browser') || q.includes('safari'));
@@ -328,12 +347,12 @@ const getCategorySummary = (category: string, quizResults: any) => {
         answers[q]?.toLowerCase().includes('limited')
       );
       return hasLimitedBrowser
-        ? "Struggling to effectively monetize Safari and Firefox traffic due to limited workarounds."
-        : "Effective cross-browser strategies maintain consistent performance across all browsers.";
+        ? "Struggling to monetize Safari and Firefox traffic effectively."
+        : "Effective cross-browser strategies maintain consistent performance.";
     }
   };
   
-  return summaries[category] ? summaries[category]() : "Assessment data needs review for comprehensive analysis.";
+  return summaries[category] ? summaries[category]() : "Assessment data needs review for analysis.";
 };
 
 export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
