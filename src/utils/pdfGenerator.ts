@@ -37,12 +37,14 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     pageWidth: 210,
     pageHeight: 297,
     margin: 20,
-    headerHeight: 40,
+    headerHeight: 45,
     cardWidth: 40,
     cardHeight: 30,
     cardSpacing: 10,
-    sectionSpacing: 15,
-    lineHeight: 4
+    sectionSpacing: 18,
+    lineHeight: 5,
+    bulletSize: 1.5,
+    bulletIndent: 8
   };
 
   // Helper functions with improved formatting
@@ -131,11 +133,11 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
 
   const addSectionHeader = (doc: jsPDF, y: number, title: string) => {
     doc.setFillColor(brandColors.gray[100]);
-    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 12, 'F');
+    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 14, 'F');
     doc.setTextColor(brandColors.gray[800]);
     doc.setFontSize(typography.section);
     doc.setFont('helvetica', 'bold');
-    doc.text(title, layout.margin + 6, y + 8);
+    doc.text(title, layout.margin + 8, y + 9);
   };
 
 
@@ -181,9 +183,9 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   yPosition += layout.cardHeight + layout.sectionSpacing;
   
   // Identity Health Scorecard
-  ensureSpace(45);
+  ensureSpace(60);
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 12;
+  yPosition += 18;
   
   // Clean category summaries
   const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
@@ -198,24 +200,24 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     doc.setFont('helvetica', 'bold');
     doc.text(`${categoryName}:`, layout.margin, yPosition);
     
-    // Concise summary
+    // Concise summary with proper spacing
     doc.setTextColor(brandColors.gray[600]);
     doc.setFontSize(typography.small);
     doc.setFont('helvetica', 'normal');
-    const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 4);
+    const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 8);
     summaryLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 4, yPosition + 4 + (lineIndex * 3));
+      doc.text(line, layout.margin + 8, yPosition + 6 + (lineIndex * 4));
     });
     
-    yPosition += Math.min(summaryLines.length * 3 + 6, 12);
+    yPosition += Math.max(summaryLines.length * 4 + 12, 16);
   });
   
   yPosition += layout.sectionSpacing;
   
   // Key Recommendations
-  ensureSpace(35);
+  ensureSpace(50);
   addSectionHeader(doc, yPosition, 'Key Recommendations');
-  yPosition += 12;
+  yPosition += 18;
   
   const recommendations = [
     'Implement AdFixus identity durability technology to maximize addressable inventory',
@@ -228,16 +230,16 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   doc.setFont('helvetica', 'normal');
   
   recommendations.forEach((rec) => {
-    // Clean bullet
+    // Professional bullet point
     doc.setFillColor(brandColors.primary);
-    doc.circle(layout.margin + 2, yPosition + 2, 1, 'F');
+    doc.circle(layout.margin + 4, yPosition + 3, layout.bulletSize, 'F');
     
-    // Professional text layout
-    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 8);
+    // Professional text layout with proper indentation
+    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - layout.bulletIndent - 4);
     textLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 6, yPosition + (lineIndex * layout.lineHeight));
+      doc.text(line, layout.margin + layout.bulletIndent, yPosition + 2 + (lineIndex * layout.lineHeight));
     });
-    yPosition += textLines.length * layout.lineHeight + 3;
+    yPosition += textLines.length * layout.lineHeight + 6;
   });
   
   // Ensure footer space
