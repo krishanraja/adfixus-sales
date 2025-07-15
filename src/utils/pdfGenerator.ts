@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
-  // Enhanced brand colors and styling
+  // Professional brand colors
   const brandColors = {
     primary: '#0066CC',
     secondary: '#00A3E0',
@@ -21,17 +21,28 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     white: '#FFFFFF'
   };
 
-  // Improved layout with larger dimensions and better spacing
+  // Professional typography scale
+  const typography = {
+    title: 20,        // Main title
+    section: 14,      // Section headers
+    cardTitle: 10,    // Card titles
+    cardValue: 16,    // Card values
+    body: 10,         // Body text
+    small: 9,         // Small text
+    footer: 8         // Footer text
+  };
+
+  // Grid-based layout system
   const layout = {
     pageWidth: 210,
     pageHeight: 297,
-    margin: 25,  // Increased margin
-    headerHeight: 45,  // Increased header height
-    cardWidth: 42,
-    cardHeight: 35,  // Increased card height significantly
-    cardSpacing: 8,  // Increased spacing
-    circleRadius: 12,
-    circleSpacing: 30
+    margin: 20,
+    headerHeight: 40,
+    cardWidth: 40,
+    cardHeight: 30,
+    cardSpacing: 10,
+    sectionSpacing: 15,
+    lineHeight: 4
   };
 
   // Helper functions with improved formatting
@@ -46,18 +57,18 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
 
   const addLogo = (doc: jsPDF) => {
     try {
-      // Use the correct uploaded logo path with centered positioning and smaller size
+      // Proper logo aspect ratio (assuming 3:1 ratio for typical logo)
       const logoUrl = '/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png';
-      const logoWidth = 30;
+      const logoWidth = 36;
       const logoHeight = 12;
       const logoX = (layout.pageWidth - logoWidth) / 2;
-      doc.addImage(logoUrl, 'PNG', logoX, 10, logoWidth, logoHeight);
+      doc.addImage(logoUrl, 'PNG', logoX, 8, logoWidth, logoHeight);
     } catch (error) {
-      // Fallback text with centered positioning
+      // Fallback text
       doc.setTextColor(brandColors.primary);
-      doc.setFontSize(16);
+      doc.setFontSize(typography.section);
       doc.setFont('helvetica', 'bold');
-      doc.text('AdFixus', layout.pageWidth / 2, 20, { align: 'center' });
+      doc.text('AdFixus', layout.pageWidth / 2, 16, { align: 'center' });
     }
   };
 
@@ -69,13 +80,13 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     // Add logo
     addLogo(doc);
     
-    // Title positioned below centered logo
+    // Professional title
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(24);
+    doc.setFontSize(typography.title);
     doc.setFont('helvetica', 'bold');
-    doc.text('Identity Health Report', layout.pageWidth / 2, 30, { align: 'center' });
+    doc.text('Identity Health Report', layout.pageWidth / 2, 28, { align: 'center' });
     
-    // Subtle border
+    // Clean border
     doc.setDrawColor(brandColors.gray[300]);
     doc.setLineWidth(0.5);
     doc.line(layout.margin, layout.headerHeight, layout.pageWidth - layout.margin, layout.headerHeight);
@@ -86,84 +97,49 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     const textColor = isHighlight ? brandColors.white : brandColors.gray[800];
     const valueColor = isHighlight ? brandColors.white : brandColors.primary;
     
-    // Card with rounded corners effect
+    // Professional card
     doc.setFillColor(cardColor);
     doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'F');
     
-    // Subtle border for white cards
+    // Clean border for white cards
     if (!isHighlight) {
       doc.setDrawColor(brandColors.gray[300]);
       doc.setLineWidth(0.5);
       doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'S');
     }
     
-    // Title text with MUCH larger font
+    // Title with consistent typography
     doc.setTextColor(textColor);
-    doc.setFontSize(12);  // Increased from 9 to 12
+    doc.setFontSize(typography.cardTitle);
     doc.setFont('helvetica', 'normal');
     
-    // Multi-line title handling with better spacing
-    const titleLines = doc.splitTextToSize(title, layout.cardWidth - 6);
-    const lineHeight = 4;  // Increased line height
-    const titleStartY = y + 8;
+    const titleLines = doc.splitTextToSize(title, layout.cardWidth - 4);
+    const titleStartY = y + 6;
     
     titleLines.forEach((line: string, index: number) => {
-      doc.text(line, x + layout.cardWidth / 2, titleStartY + (index * lineHeight), { align: 'center' });
+      doc.text(line, x + layout.cardWidth / 2, titleStartY + (index * layout.lineHeight), { align: 'center' });
     });
     
-    // Value text with larger font and better positioning
+    // Value with consistent typography
     doc.setTextColor(valueColor);
-    doc.setFontSize(18);  // Increased from 14 to 18
+    doc.setFontSize(typography.cardValue);
     doc.setFont('helvetica', 'bold');
     
-    // Position value at bottom with proper margin
-    const valueY = y + layout.cardHeight - 8;
+    const valueY = y + layout.cardHeight - 6;
     doc.text(value, x + layout.cardWidth / 2, valueY, { align: 'center' });
   };
 
   const addSectionHeader = (doc: jsPDF, y: number, title: string) => {
     doc.setFillColor(brandColors.gray[100]);
-    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 15, 'F');  // Increased height
+    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 12, 'F');
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(16);  // Increased from 12 to 16
+    doc.setFontSize(typography.section);
     doc.setFont('helvetica', 'bold');
-    doc.text(title, layout.margin + 8, y + 11);  // Better positioning
+    doc.text(title, layout.margin + 6, y + 8);
   };
 
-  const addGradeCircle = (doc: jsPDF, x: number, y: number, grade: string, category: string) => {
-    const gradeColors: Record<string, string> = {
-      'A': brandColors.success,
-      'B': '#84CC16',
-      'C': brandColors.warning,
-      'D': '#F97316',
-      'F': brandColors.danger
-    };
-    
-    // Circle with shadow effect
-    doc.setFillColor('#00000020');
-    doc.circle(x + layout.circleRadius + 1, y + layout.circleRadius + 1, layout.circleRadius, 'F');
-    
-    // Main circle
-    doc.setFillColor(gradeColors[grade] || brandColors.gray[600]);
-    doc.circle(x + layout.circleRadius, y + layout.circleRadius, layout.circleRadius, 'F');
-    
-    // Grade text
-    doc.setTextColor(brandColors.white);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(grade, x + layout.circleRadius, y + layout.circleRadius + 4, { align: 'center' });
-    
-    // Category text with proper wrapping
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    const categoryLines = doc.splitTextToSize(category, layout.circleSpacing - 2);
-    categoryLines.forEach((line: string, index: number) => {
-      doc.text(line, x + layout.circleRadius, y + (layout.circleRadius * 2) + 8 + (index * 3), { align: 'center' });
-    });
-  };
 
-  // Create new PDF document with optimized settings
+  // Create PDF with professional settings
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -173,27 +149,26 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   // Add header
   addHeader(doc);
   
-  let yPosition = layout.headerHeight + 15;
-  const maxPageHeight = 270; // Maximum safe height before footer
+  let yPosition = layout.headerHeight + layout.sectionSpacing;
+  const maxPageHeight = 270;
   
-  // Height tracking function
+  // Professional space management
   const ensureSpace = (requiredHeight: number) => {
     if (yPosition + requiredHeight > maxPageHeight) {
-      console.warn('Content overflow detected, adjusting spacing');
-      yPosition = Math.min(yPosition, maxPageHeight - requiredHeight);
+      yPosition = Math.max(layout.headerHeight + layout.sectionSpacing, maxPageHeight - requiredHeight);
     }
   };
   
-  // Key metrics section with perfect spacing
-  ensureSpace(60); // Reserve space for section header and cards
+  // Revenue Impact section
+  ensureSpace(50);
   addSectionHeader(doc, yPosition, 'Revenue Impact Overview');
-  yPosition += 20;
+  yPosition += 15;
   
-  // Calculate perfect card positioning
+  // Centered card layout
   const totalCardsWidth = 4 * layout.cardWidth + 3 * layout.cardSpacing;
   const startX = (layout.pageWidth - totalCardsWidth) / 2;
   
-  // Metric cards with consistent styling
+  // Professional metric cards
   addMetricCard(doc, startX, yPosition, 
     'Current Monthly Revenue', formatCurrency(calculatorResults.currentRevenue), false);
   addMetricCard(doc, startX + layout.cardWidth + layout.cardSpacing, yPosition,
@@ -203,46 +178,44 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   addMetricCard(doc, startX + 3 * (layout.cardWidth + layout.cardSpacing), yPosition,
     'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
   
-  yPosition += layout.cardHeight + 12;  // Reduced spacing before scorecard
+  yPosition += layout.cardHeight + layout.sectionSpacing;
   
-  // Identity Health Scorecard with summary insights
-  ensureSpace(50); // Reserve space for scorecard section
+  // Identity Health Scorecard
+  ensureSpace(45);
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 10;  // Reduced spacing after header
+  yPosition += 12;
   
-  // Filter out sales-mix category and display summary insights
+  // Clean category summaries
   const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
   
-  categories.forEach((category, index) => {
+  categories.forEach((category) => {
     const categoryName = getCategoryName(category);
     const summary = getCategorySummary(category, quizResults);
     
-    // Category name with smaller font to save space
+    // Category name
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(10);  // Reduced from 11 to 10
+    doc.setFontSize(typography.body);
     doc.setFont('helvetica', 'bold');
     doc.text(`${categoryName}:`, layout.margin, yPosition);
     
-    // Summary text with much smaller font and tighter spacing
+    // Concise summary
     doc.setTextColor(brandColors.gray[600]);
-    doc.setFontSize(9);  // Reduced from 10 to 9
+    doc.setFontSize(typography.small);
     doc.setFont('helvetica', 'normal');
-    const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 5);
+    const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 4);
     summaryLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 5, yPosition + 4 + (lineIndex * 3));  // Tighter line spacing (3mm)
+      doc.text(line, layout.margin + 4, yPosition + 4 + (lineIndex * 3));
     });
     
-    // Strict height limit per category (15mm max)
-    const categoryHeight = Math.min(Math.max(summaryLines.length * 3, 5) + 4, 15);
-    yPosition += categoryHeight;
+    yPosition += Math.min(summaryLines.length * 3 + 6, 12);
   });
   
-  yPosition += 5;  // Reduced spacing after scorecard
+  yPosition += layout.sectionSpacing;
   
-  // Key Recommendations with improved formatting and larger text
-  ensureSpace(40); // Reserve space for recommendations section
+  // Key Recommendations
+  ensureSpace(35);
   addSectionHeader(doc, yPosition, 'Key Recommendations');
-  yPosition += 8;  // Reduced spacing after header
+  yPosition += 12;
   
   const recommendations = [
     'Implement AdFixus identity durability technology to maximize addressable inventory',
@@ -251,48 +224,46 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   ];
   
   doc.setTextColor(brandColors.gray[800]);
-  doc.setFontSize(10);  // Reduced from 11 to 10
+  doc.setFontSize(typography.body);
   doc.setFont('helvetica', 'normal');
   
-  recommendations.forEach((rec, index) => {
-    // Larger bullet point
+  recommendations.forEach((rec) => {
+    // Clean bullet
     doc.setFillColor(brandColors.primary);
-    doc.circle(layout.margin + 3, yPosition + 2, 1.5, 'F');  // Larger bullet
+    doc.circle(layout.margin + 2, yPosition + 2, 1, 'F');
     
-    // Recommendation text with proper wrapping and tighter spacing
-    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 12);
+    // Professional text layout
+    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 8);
     textLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 10, yPosition + (lineIndex * 4));  // Tighter line spacing
+      doc.text(line, layout.margin + 6, yPosition + (lineIndex * layout.lineHeight));
     });
-    yPosition += Math.max(textLines.length * 4, 5) + 3;  // Tighter spacing between recommendations
+    yPosition += textLines.length * layout.lineHeight + 3;
   });
   
-  // Final overflow protection
-  if (yPosition + 35 > maxPageHeight) {
-    console.warn('Final overflow detected, adjusting for footer');
-    yPosition = maxPageHeight - 35;
+  // Ensure footer space
+  if (yPosition + 25 > maxPageHeight) {
+    yPosition = maxPageHeight - 25;
   }
   
-  // Dynamic footer positioning with proper margin
-  yPosition += 10;  // Add margin before footer
+  yPosition += 8;
   
-  // Professional footer with call to action
+  // Professional footer
   doc.setFillColor(brandColors.gray[100]);
-  doc.rect(0, yPosition, layout.pageWidth, 27, 'F');
+  doc.rect(0, yPosition, layout.pageWidth, 22, 'F');
   
-  // Call to action as requested
+  // Call to action
   doc.setTextColor(brandColors.gray[800]);
-  doc.setFontSize(12);
+  doc.setFontSize(typography.body);
   doc.setFont('helvetica', 'bold');
   doc.text('Email krish.raja@adfixus.com to discuss an identity-led revenue strategy for your business.', 
-    layout.pageWidth / 2, yPosition + 15, { align: 'center' });
+    layout.pageWidth / 2, yPosition + 12, { align: 'center' });
   
-  // Subtle branding
+  // Clean branding
   doc.setTextColor(brandColors.gray[600]);
-  doc.setFontSize(8);
+  doc.setFontSize(typography.footer);
   doc.setFont('helvetica', 'normal');
   doc.text('Generated by AdFixus Identity ROI Simulator', 
-    layout.pageWidth / 2, yPosition + 22, { align: 'center' });
+    layout.pageWidth / 2, yPosition + 18, { align: 'center' });
   
   return doc;
 };
