@@ -5,11 +5,19 @@ import { RevenueCalculator } from '../components/RevenueCalculator';
 import { ResultsDashboard } from '../components/ResultsDashboard';
 import { Navigation } from '../components/Navigation';
 import { Hero } from '../components/Hero';
+import { LeadCaptureForm } from '../components/LeadCaptureForm';
 
 const Index = () => {
-  const [currentStep, setCurrentStep] = useState('hero'); // hero, quiz, calculator, results
+  const [currentStep, setCurrentStep] = useState('hero'); // hero, leadCapture, quiz, calculator, results
   const [quizResults, setQuizResults] = useState(null);
   const [calculatorResults, setCalculatorResults] = useState(null);
+  const [leadData, setLeadData] = useState(null);
+
+  const handleLeadCapture = (data) => {
+    console.log('Lead captured:', data);
+    setLeadData(data);
+    setCurrentStep('quiz');
+  };
 
   const handleQuizComplete = (results) => {
     console.log('Quiz completed:', results);
@@ -27,6 +35,7 @@ const Index = () => {
     setCurrentStep('hero');
     setQuizResults(null);
     setCalculatorResults(null);
+    setLeadData(null);
   };
 
   return (
@@ -35,7 +44,11 @@ const Index = () => {
       
       <div className="container mx-auto px-4 py-8">
         {currentStep === 'hero' && (
-          <Hero onStartQuiz={() => setCurrentStep('quiz')} />
+          <Hero onStartQuiz={() => setCurrentStep('leadCapture')} />
+        )}
+        
+        {currentStep === 'leadCapture' && (
+          <LeadCaptureForm onSubmitSuccess={handleLeadCapture} />
         )}
         
         {currentStep === 'quiz' && (
@@ -50,6 +63,7 @@ const Index = () => {
           <ResultsDashboard 
             quizResults={quizResults}
             calculatorResults={calculatorResults}
+            leadData={leadData}
             onReset={resetSimulation}
           />
         )}

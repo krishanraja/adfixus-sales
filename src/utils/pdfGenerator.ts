@@ -2,7 +2,7 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export const generatePDF = async (quizResults: any, calculatorResults: any) => {
+export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -160,292 +160,166 @@ export const generatePDF = async (quizResults: any, calculatorResults: any) => {
     return y + 25;
   };
   
-  // PAGE 1: COVER & EXECUTIVE SUMMARY
-  let yPos = addBrandedHeader('Identity ROI Analysis Report', new Date().toLocaleDateString());
+  // Simple grade circle function (moved before usage)
+  const addGradeCircle = (x: number, y: number, grade: string, title: string, score: string) => {
+    const gradeColors: Record<string, [number, number, number]> = {
+      'A': [34, 197, 94],
+      'B': [59, 130, 246], 
+      'C': [234, 179, 8],
+      'D': [239, 68, 68],
+      'F': [220, 38, 38]
+    };
+    
+    const color = gradeColors[grade] || [220, 38, 38];
+    
+    // Circle
+    pdf.setFillColor(...color);
+    pdf.circle(x, y + 15, 15, 'F');
+    
+    // Grade letter
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(20);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(grade, x, y + 20, { align: 'center' });
+    
+    // Title
+    pdf.setTextColor(...darkGray);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(title, x, y + 40, { align: 'center' });
+    
+    // Score
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(score, x, y + 52, { align: 'center' });
+  };
   
-  // Executive Summary Box
-  yPos += 10;
-  pdf.setFillColor(245, 250, 255);
-  pdf.rect(margin, yPos, pageWidth - 2 * margin, 60, 'F');
-  pdf.setDrawColor(...brandCyan);
-  pdf.setLineWidth(0.5);
-  pdf.rect(margin, yPos, pageWidth - 2 * margin, 60, 'S');
+  // SINGLE PAGE REPORT matching the design
+  let yPos = addBrandedHeader('Your Identity ROI Analysis Results', 'Complete analysis of your identity health and revenue optimization opportunities');
   
-  pdf.setTextColor(...brandDark);
+  // Four main metric cards in a row (matching the design)
+  yPos += 5;
+  const cardWidth = (pageWidth - 5 * margin) / 4;
+  const cardHeight = 25;
+  
+  // Monthly Revenue Loss (red card)
+  addMetricCard(margin, yPos, cardWidth, 'Monthly Revenue Loss', 
+    formatCurrency(calculatorResults.darkInventory.lostRevenue), [239, 68, 68]);
+  
+  // Monthly Uplift Potential (teal card)  
+  addMetricCard(margin + cardWidth + 5, yPos, cardWidth, 'Monthly Uplift Potential',
+    formatCurrency(calculatorResults.uplift.totalMonthlyUplift), [20, 184, 166]);
+    
+  // Annual Opportunity (blue card)
+  addMetricCard(margin + 2 * (cardWidth + 5), yPos, cardWidth, 'Annual Opportunity',
+    formatCurrency(calculatorResults.uplift.totalAnnualUplift), [59, 130, 246]);
+    
+  // Addressability Improvement (purple card)
+  addMetricCard(margin + 3 * (cardWidth + 5), yPos, cardWidth, 'Addressability Improvement',
+    `+${calculatorResults.breakdown.addressabilityImprovement}%`, [139, 92, 246]);
+  
+  yPos += cardHeight + 15;
+  
+  // Identity Health Scorecard section header
+  pdf.setTextColor(...brandCyan);
   pdf.setFontSize(16);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Executive Summary', margin + 10, yPos + 15);
+  pdf.text('Identity Health Scorecard', margin, yPos);
+  yPos += 20;
   
-  pdf.setTextColor(...darkGray);
-  pdf.setFontSize(12);
-  pdf.setFont('helvetica', 'normal');
-  const summaryText = `Your identity infrastructure assessment reveals a ${quizResults.overallGrade} grade with significant revenue opportunity. You're potentially leaving ${formatCurrency(calculatorResults.uplift.totalAnnualUplift)} annually on the table due to identity resolution gaps.`;
-  const lines = pdf.splitTextToSize(summaryText, pageWidth - 4 * margin);
-  pdf.text(lines, margin + 10, yPos + 30);
+  // Grade circles in a row (like the design)
+  const gradeStartX = margin;
+  const gradeSpacing = (pageWidth - 2 * margin) / 5;
+  
+  // Overall Grade (F)
+  const overallX = gradeStartX;
+  addGradeCircle(overallX, yPos, quizResults.overallGrade, 'Overall Grade', `Score: ${quizResults.overallScore.toFixed(1)}/4.0`);
+  
+  // Category grades
+  const categories = ['durability', 'cross-domain', 'privacy', 'browser'];
+  const categoryNames = ['Identity Durability', 'Cross-Domain Visibility', 'Privacy & Compliance', 'Browser Resilience'];
+  
+  categories.forEach((category, index) => {
+    if (quizResults.scores[category]) {
+      const x = gradeStartX + (index + 1) * gradeSpacing;
+      addGradeCircle(x, yPos, quizResults.scores[category].grade, categoryNames[index], 
+        `${quizResults.scores[category].score.toFixed(1)}/4.0`);
+    }
+  });
   
   yPos += 80;
   
-  // Key Findings Cards
-  yPos = addSectionHeader(yPos, 'Key Financial Impact');
-  
-  const cardWidth = (pageWidth - 4 * margin) / 3;
-  yPos = addMetricCard(margin, yPos, cardWidth, 'Annual Revenue Opportunity', formatCurrency(calculatorResults.uplift.totalAnnualUplift));
-  
-  yPos -= 30;
-  addMetricCard(margin + cardWidth + 5, yPos, cardWidth, 'Monthly Revenue Loss', formatCurrency(calculatorResults.darkInventory.lostRevenue), [239, 68, 68] as [number, number, number]);
-  
-  addMetricCard(margin + 2 * (cardWidth + 5), yPos, cardWidth, 'Revenue Improvement', `+${calculatorResults.uplift.percentageImprovement.toFixed(1)}%`, [34, 197, 94] as [number, number, number]);
-  
-  yPos += 40;
-  
-  // Identity Health Scorecard
-  yPos = addSectionHeader(yPos, 'Identity Health Scorecard', 'Overall assessment of your identity infrastructure capabilities');
-  
-  // Overall grade
-  pdf.setTextColor(...brandDark);
+  // Sales Mix Breakdown section
+  pdf.setTextColor(...darkGray);
   pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Overall Performance', margin, yPos);
-  yPos += 10;
+  pdf.text('Sales Mix Breakdown', margin, yPos);
+  yPos += 20;
   
-  yPos = addGradeIndicator(margin, yPos, quizResults.overallGrade, quizResults.overallScore);
+  // Three percentages in large colored text
+  if (quizResults.scores['sales-mix']?.breakdown) {
+    const breakdown = quizResults.scores['sales-mix'].breakdown;
+    const mixWidth = (pageWidth - 4 * margin) / 3;
+    
+    // Direct Sales (59% - blue)
+    pdf.setTextColor(59, 130, 246);
+    pdf.setFontSize(36);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${breakdown.direct}%`, margin + mixWidth/2, yPos, { align: 'center' });
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Direct Sales', margin + mixWidth/2, yPos + 15, { align: 'center' });
+    
+    // Deal IDs (23% - green)
+    pdf.setTextColor(34, 197, 94);
+    pdf.setFontSize(36);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${breakdown.dealIds}%`, margin + mixWidth + mixWidth/2, yPos, { align: 'center' });
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Deal IDs', margin + mixWidth + mixWidth/2, yPos + 15, { align: 'center' });
+    
+    // Open Exchange (18% - red)
+    pdf.setTextColor(239, 68, 68);
+    pdf.setFontSize(36);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${breakdown.openExchange}%`, margin + 2*mixWidth + mixWidth/2, yPos, { align: 'center' });
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Open Exchange', margin + 2*mixWidth + mixWidth/2, yPos + 15, { align: 'center' });
+    
+    yPos += 40;
+  }
   
-  // Category breakdown
-  yPos += 10;
-  pdf.setFontSize(12);
+  // Key Recommendations section
+  pdf.setTextColor(251, 146, 60);
+  pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Category Performance:', margin, yPos);
-  yPos += 15;
+  pdf.text('Key Recommendations', margin, yPos);
+  yPos += 20;
   
-  Object.entries(quizResults.scores).forEach(([category, data]: [string, any]) => {
-    if (category !== 'sales-mix') {
-      const categoryName = getCategoryName(category);
-      pdf.setTextColor(...darkGray);
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(categoryName, margin, yPos);
-      yPos = addGradeIndicator(margin + 80, yPos - 15, data.grade, data.score);
-    }
-  });
-  
-  // PAGE 2: DETAILED ANALYSIS
-  pdf.addPage();
-  yPos = addBrandedHeader('Detailed Revenue Analysis');
-  
-  // Revenue breakdown
-  yPos = addSectionHeader(yPos, 'Revenue Impact Breakdown');
-  
-  const revenueData = [
-    ['Current Monthly Revenue', formatCurrency(calculatorResults.inputs.currentRevenue)],
-    ['Dark Inventory Loss', `-${formatCurrency(calculatorResults.darkInventory.lostRevenue)}`],
-    ['Potential Monthly Uplift', `+${formatCurrency(calculatorResults.uplift.totalMonthlyUplift)}`],
-    ['Addressability Improvement', `+${calculatorResults.breakdown.addressabilityImprovement}%`],
-    ['Dark Inventory Rate', `${calculatorResults.darkInventory.percentage.toFixed(1)}%`]
+  const recommendations = [
+    'Implement comprehensive identity resolution to address significant dark inventory',
+    'Leverage privacy-compliant targeting to maximize CPMs',
+    'Implement real-time optimization for inventory management'
   ];
   
-  revenueData.forEach(([label, value]) => {
+  recommendations.forEach((rec, index) => {
     pdf.setTextColor(...darkGray);
     pdf.setFontSize(11);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(label, margin, yPos);
-    
-    pdf.setTextColor(...brandDark);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(value, pageWidth - margin, yPos, { align: 'right' });
+    pdf.text(`• ${rec}`, margin, yPos);
     yPos += 12;
   });
   
-  // Sales Mix (if available)
-  if (quizResults.scores['sales-mix']?.breakdown) {
-    yPos += 10;
-    yPos = addSectionHeader(yPos, 'Sales Channel Distribution');
-    
-    const breakdown = quizResults.scores['sales-mix'].breakdown;
-    const channels = [
-      ['Direct Sales', `${breakdown.direct}%`],
-      ['Deal IDs', `${breakdown.dealIds}%`],
-      ['Open Exchange', `${breakdown.openExchange}%`]
-    ];
-    
-    channels.forEach(([channel, percentage]) => {
-      pdf.setTextColor(...darkGray);
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(channel, margin, yPos);
-      
-      // Percentage bar
-      const barWidth = 100;
-      const fillWidth = (parseInt(percentage) / 100) * barWidth;
-      
-      pdf.setFillColor(...lightGray);
-      pdf.rect(pageWidth - margin - barWidth - 40, yPos - 5, barWidth, 8, 'F');
-      
-      pdf.setFillColor(...brandCyan);
-      pdf.rect(pageWidth - margin - barWidth - 40, yPos - 5, fillWidth, 8, 'F');
-      
-      pdf.setTextColor(...brandDark);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(percentage, pageWidth - margin, yPos, { align: 'right' });
-      yPos += 15;
-    });
-  }
-  
-  // Add dashboard image if captured
-  if (dashboardImage) {
-    yPos += 20;
-    if (yPos > pageHeight - 100) {
-      pdf.addPage();
-      yPos = addBrandedHeader('Visual Dashboard');
-    } else {
-      yPos = addSectionHeader(yPos, 'Visual Dashboard Analysis');
-    }
-    
-    try {
-      const imgWidth = pageWidth - 2 * margin;
-      const imgHeight = Math.min((dashboardImage.height * imgWidth) / dashboardImage.width, pageHeight - yPos - 40);
-      
-      const imgData = dashboardImage.toDataURL('image/png', 0.8);
-      pdf.addImage(imgData, 'PNG', margin, yPos, imgWidth, imgHeight);
-      yPos += imgHeight + 20;
-    } catch (error) {
-      console.warn('Could not add dashboard image to PDF:', error);
-    }
-  }
-  
-  // PAGE 3: RECOMMENDATIONS & NEXT STEPS
-  if (yPos > pageHeight - 80) {
-    pdf.addPage();
-    yPos = addBrandedHeader('Action Plan & Recommendations');
-  } else {
-    yPos = addSectionHeader(yPos, 'Action Plan & Recommendations');
-  }
-  
-  const recommendations = [];
-  if (quizResults.overallScore < 3.0) {
-    recommendations.push({
-      priority: 'HIGH',
-      title: 'Identity Resolution Strategy',
-      description: 'Implement a comprehensive identity resolution platform to reduce dark inventory and increase addressability.'
-    });
-  }
-  if (quizResults.scores['browser']?.score < 2.5) {
-    recommendations.push({
-      priority: 'MEDIUM',
-      title: 'Browser Optimization',
-      description: 'Enhance Safari and Firefox browser support to maximize reach across all user segments.'
-    });
-  }
-  if (quizResults.scores['cross-domain']?.score < 2.5) {
-    recommendations.push({
-      priority: 'HIGH',
-      title: 'Cross-Domain Tracking',
-      description: 'Improve cross-domain identity resolution to maintain user context across your digital properties.'
-    });
-  }
-  if (quizResults.scores['privacy']?.score < 3.0) {
-    recommendations.push({
-      priority: 'CRITICAL',
-      title: 'Privacy Compliance',
-      description: 'Strengthen privacy compliance framework and consent management to ensure regulatory adherence.'
-    });
-  }
-  
-  recommendations.forEach((rec, index) => {
-    if (yPos > pageHeight - 60) {
-      pdf.addPage();
-      yPos = addBrandedHeader('Action Plan & Recommendations (continued)');
-    }
-    
-    // Priority badge
-    const priorityColors: Record<string, [number, number, number]> = {
-      'CRITICAL': [220, 38, 38],
-      'HIGH': [239, 68, 68],
-      'MEDIUM': [234, 179, 8],
-      'LOW': [34, 197, 94]
-    };
-    
-    const color = priorityColors[rec.priority] || darkGray;
-    pdf.setFillColor(...color);
-    pdf.rect(margin, yPos, 25, 8, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(rec.priority, margin + 12.5, yPos + 5.5, { align: 'center' });
-    
-    // Title
-    pdf.setTextColor(...brandDark);
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${index + 1}. ${rec.title}`, margin + 30, yPos + 5);
-    
-    // Description
-    pdf.setTextColor(...darkGray);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    const descLines = pdf.splitTextToSize(rec.description, pageWidth - 2 * margin - 30);
-    pdf.text(descLines, margin + 30, yPos + 15);
-    
-    yPos += 25 + (descLines.length * 5);
-  });
-  
-  // Next Steps Section
   yPos += 20;
-  if (yPos > pageHeight - 80) {
-    pdf.addPage();
-    yPos = addBrandedHeader('Next Steps');
-  } else {
-    yPos = addSectionHeader(yPos, 'Next Steps');
-  }
   
-  const nextSteps = [
-    'Schedule a personalized demo to see how AdFixus can address your specific challenges',
-    'Review detailed implementation roadmap and timeline',
-    'Discuss integration requirements and technical specifications',
-    'Calculate precise ROI projections based on your specific data'
-  ];
-  
-  nextSteps.forEach((step, index) => {
-    pdf.setFillColor(...brandCyan);
-    pdf.circle(margin + 5, yPos + 3, 3, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text((index + 1).toString(), margin + 5, yPos + 5, { align: 'center' });
-    
-    pdf.setTextColor(...darkGray);
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(step, margin + 15, yPos + 5);
-    yPos += 15;
-  });
-  
-  // Call to action
-  yPos += 20;
-  pdf.setFillColor(...brandCyan);
-  pdf.rect(margin, yPos, pageWidth - 2 * margin, 25, 'F');
-  
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Ready to unlock your revenue potential?', pageWidth / 2, yPos + 10, { align: 'center' });
-  
-  pdf.setFontSize(11);
+  // Footer with the specific message
+  pdf.setFontSize(10);
+  pdf.setTextColor(...darkGray);
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Book a demo at: https://calendly.com/krish-raja', pageWidth / 2, yPos + 20, { align: 'center' });
-  
-  // Footer on all pages
-  const totalPages = pdf.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    pdf.setPage(i);
-    pdf.setFontSize(8);
-    pdf.setTextColor(...darkGray);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Generated by AdFixus ID Simulator', margin, pageHeight - 10);
-    pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-    pdf.text('Confidential - For Internal Use Only', pageWidth / 2, pageHeight - 10, { align: 'center' });
-  }
+  pdf.text('Email krish.raja@adfixus.com to discuss an identity-led revenue strategy for your business.', 
+    pageWidth / 2, pageHeight - 15, { align: 'center' });
   
   return pdf;
 };

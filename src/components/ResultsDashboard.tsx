@@ -11,12 +11,14 @@ import { useToast } from '@/hooks/use-toast';
 interface ResultsDashboardProps {
   quizResults: any;
   calculatorResults: any;
+  leadData?: any;
   onReset: () => void;
 }
 
 export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ 
   quizResults, 
-  calculatorResults, 
+  calculatorResults,
+  leadData,
   onReset 
 }) => {
   const { toast } = useToast();
@@ -25,7 +27,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   React.useEffect(() => {
     const autoSendPDF = async () => {
       try {
-        const pdf = await generatePDF(quizResults, calculatorResults);
+        const pdf = await generatePDF(quizResults, calculatorResults, leadData);
         const pdfBlob = pdf.output('blob');
         
         const result = await sendPDFByEmail(pdfBlob);
@@ -50,7 +52,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         description: "Please wait while we prepare your report.",
       });
 
-      const pdf = await generatePDF(quizResults, calculatorResults);
+      const pdf = await generatePDF(quizResults, calculatorResults, leadData);
       
       // Download the PDF
       pdf.save('identity-roi-analysis-report.pdf');
