@@ -193,11 +193,11 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   addMetricCard(doc, startX + 3 * (layout.cardWidth + layout.cardSpacing), yPosition,
     'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
   
-  yPosition += layout.cardHeight + 20;  // Reduced spacing before scorecard
+  yPosition += layout.cardHeight + 15;  // Reduced spacing before scorecard
   
   // Identity Health Scorecard with summary insights
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 15;  // Reduced spacing after header
+  yPosition += 12;  // Reduced spacing after header
   
   // Filter out sales-mix category and display summary insights
   const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
@@ -206,29 +206,29 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     const categoryName = getCategoryName(category);
     const summary = getCategorySummary(category, quizResults);
     
-    // Category name with larger font
+    // Category name with smaller font to save space
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(12);
+    doc.setFontSize(11);  // Reduced from 12 to 11
     doc.setFont('helvetica', 'bold');
     doc.text(`${categoryName}:`, layout.margin, yPosition);
     
-    // Summary text with proper wrapping
+    // Summary text with smaller font and tighter spacing
     doc.setTextColor(brandColors.gray[600]);
-    doc.setFontSize(11);
+    doc.setFontSize(10);  // Reduced from 11 to 10
     doc.setFont('helvetica', 'normal');
     const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 5);
     summaryLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 5, yPosition + 6 + (lineIndex * 4));
+      doc.text(line, layout.margin + 5, yPosition + 5 + (lineIndex * 3.5));  // Tighter line spacing
     });
     
-    yPosition += Math.max(summaryLines.length * 4, 8) + 8;  // Dynamic spacing based on text
+    yPosition += Math.max(summaryLines.length * 3.5, 6) + 6;  // Tighter spacing between categories
   });
   
-  yPosition += 8;  // Further reduced spacing after scorecard
+  yPosition += 6;  // Reduced spacing after scorecard
   
   // Key Recommendations with improved formatting and larger text
   addSectionHeader(doc, yPosition, 'Key Recommendations');
-  yPosition += 12;  // Further reduced spacing after header to prevent overlap
+  yPosition += 10;  // Reduced spacing after header
   
   const recommendations = [
     'Implement AdFixus identity durability technology to maximize addressable inventory',
@@ -246,16 +246,18 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     doc.setFillColor(brandColors.primary);
     doc.circle(layout.margin + 3, yPosition + 2, 1.5, 'F');  // Larger bullet
     
-    // Recommendation text with proper wrapping and better spacing
+    // Recommendation text with proper wrapping and tighter spacing
     const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - 12);
     textLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 10, yPosition + (lineIndex * 5));  // Increased line spacing
+      doc.text(line, layout.margin + 10, yPosition + (lineIndex * 4.5));  // Tighter line spacing
     });
-    yPosition += Math.max(textLines.length * 5, 8) + 5;  // Better spacing between recommendations
+    yPosition += Math.max(textLines.length * 4.5, 6) + 4;  // Tighter spacing between recommendations
   });
   
+  // Dynamic footer positioning with proper margin
+  yPosition += 15;  // Add margin before footer
+  
   // Professional footer with call to action
-  yPosition = 270;
   doc.setFillColor(brandColors.gray[100]);
   doc.rect(0, yPosition, layout.pageWidth, 27, 'F');
   
