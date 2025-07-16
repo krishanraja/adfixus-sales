@@ -242,12 +242,8 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     yPosition += textLines.length * layout.lineHeight + 6;
   });
   
-  // Ensure footer space
-  if (yPosition + 25 > maxPageHeight) {
-    yPosition = maxPageHeight - 25;
-  }
-  
-  yPosition += 8;
+  // Move footer to absolute bottom of page
+  yPosition = maxPageHeight - 22;
   
   // Professional footer
   doc.setFillColor(brandColors.gray[100]);
