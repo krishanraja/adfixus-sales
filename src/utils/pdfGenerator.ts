@@ -214,34 +214,6 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   
   yPosition += layout.sectionSpacing;
   
-  // Key Recommendations
-  ensureSpace(50);
-  addSectionHeader(doc, yPosition, 'Key Recommendations');
-  yPosition += 18;
-  
-  const recommendations = [
-    'Implement AdFixus identity durability technology to maximize addressable inventory',
-    'Focus on Safari and Firefox optimization for improved cross-browser performance',
-    'Enhance first-party data collection strategies and ID resolution capabilities'
-  ];
-  
-  doc.setTextColor(brandColors.gray[800]);
-  doc.setFontSize(typography.body);
-  doc.setFont('helvetica', 'normal');
-  
-  recommendations.forEach((rec) => {
-    // Professional bullet point
-    doc.setFillColor(brandColors.primary);
-    doc.circle(layout.margin + 4, yPosition + 3, layout.bulletSize, 'F');
-    
-    // Professional text layout with proper indentation
-    const textLines = doc.splitTextToSize(rec, layout.pageWidth - layout.margin * 2 - layout.bulletIndent - 4);
-    textLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + layout.bulletIndent, yPosition + 2 + (lineIndex * layout.lineHeight));
-    });
-    yPosition += textLines.length * layout.lineHeight + 6;
-  });
-  
   // Move footer to absolute bottom of page
   yPosition = maxPageHeight - 22;
   
