@@ -166,18 +166,22 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   addSectionHeader(doc, yPosition, 'Revenue Impact Overview');
   yPosition += 15;
   
-  // Centered card layout
-  const totalCardsWidth = 4 * layout.cardWidth + 3 * layout.cardSpacing;
+  // Move cards down 1cm (10mm)
+  yPosition += 10;
+  
+  // Centered card layout with reduced spacing (half of original cardSpacing)
+  const reducedCardSpacing = layout.cardSpacing / 2;
+  const totalCardsWidth = 4 * layout.cardWidth + 3 * reducedCardSpacing;
   const startX = (layout.pageWidth - totalCardsWidth) / 2;
   
   // Professional metric cards
   addMetricCard(doc, startX, yPosition, 
     'Current Monthly Revenue', formatCurrency(calculatorResults.currentRevenue), false);
-  addMetricCard(doc, startX + layout.cardWidth + layout.cardSpacing, yPosition,
+  addMetricCard(doc, startX + layout.cardWidth + reducedCardSpacing, yPosition,
     'Lost Revenue (Unaddressable)', formatCurrency(calculatorResults.unaddressableInventory.lostRevenue), false);
-  addMetricCard(doc, startX + 2 * (layout.cardWidth + layout.cardSpacing), yPosition,
+  addMetricCard(doc, startX + 2 * (layout.cardWidth + reducedCardSpacing), yPosition,
     'Monthly Uplift Potential', formatCurrency(calculatorResults.uplift.totalMonthlyUplift), true);
-  addMetricCard(doc, startX + 3 * (layout.cardWidth + layout.cardSpacing), yPosition,
+  addMetricCard(doc, startX + 3 * (layout.cardWidth + reducedCardSpacing), yPosition,
     'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
   
   yPosition += layout.cardHeight + layout.sectionSpacing;
@@ -186,6 +190,9 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   ensureSpace(60);
   addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
   yPosition += 18;
+  
+  // Move scorecard body text down 1cm (10mm)
+  yPosition += 10;
   
   // Clean category summaries
   const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
