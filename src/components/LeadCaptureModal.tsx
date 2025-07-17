@@ -22,9 +22,10 @@ type FormData = z.infer<typeof formSchema>;
 interface LeadCaptureModalProps {
   open: boolean;
   onSubmitSuccess: (data: FormData) => void;
+  onOpenChange: (open: boolean) => void;
 }
 
-export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ open, onSubmitSuccess }) => {
+export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ open, onSubmitSuccess, onOpenChange }) => {
   const { toast } = useToast();
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -66,7 +67,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({ open, onSubm
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-primary">Access Your Report</DialogTitle>

@@ -174,13 +174,48 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   addMetricCard(doc, startX, yPosition, 
     'Current Monthly Revenue', formatCurrency(calculatorResults.currentRevenue), false);
   addMetricCard(doc, startX + layout.cardWidth + layout.cardSpacing, yPosition,
-    'Lost Revenue (Dark Inventory)', formatCurrency(calculatorResults.darkInventory.lostRevenue), false);
+    'Lost Revenue (Unaddressable)', formatCurrency(calculatorResults.unaddressableInventory.lostRevenue), false);
   addMetricCard(doc, startX + 2 * (layout.cardWidth + layout.cardSpacing), yPosition,
     'Monthly Uplift Potential', formatCurrency(calculatorResults.uplift.totalMonthlyUplift), true);
   addMetricCard(doc, startX + 3 * (layout.cardWidth + layout.cardSpacing), yPosition,
     'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
   
   yPosition += layout.cardHeight + layout.sectionSpacing;
+  
+  // Industry Benchmarks
+  ensureSpace(100);
+  addSectionHeader(doc, yPosition, 'Industry Benchmarks');
+  yPosition += 15;
+  
+  const benchmarks = [
+    { label: 'Safari Traffic Share', value: '~35%', description: 'Safari represents ~35% of web traffic on average' },
+    { label: 'Unauthenticated Visitors', value: '70%', description: 'Typical rate of unauthenticated visitors across web properties' },
+    { label: 'ID Match Rate', value: '45%', description: 'ID match rate to known users (before cookie deprecation)' },
+    { label: 'Potential Yield Uplift', value: '25%', description: 'Potential yield uplift from improved addressability (AdFixus benchmark)' }
+  ];
+  
+  benchmarks.forEach((benchmark) => {
+    doc.setFillColor(brandColors.primary);
+    doc.circle(layout.margin + 4, yPosition + 3, 2, 'F');
+    
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(typography.small);
+    doc.setFont('helvetica', 'bold');
+    doc.text(benchmark.label, layout.margin + 10, yPosition + 2);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(benchmark.value, layout.pageWidth - 60, yPosition + 2);
+    
+    // Add description on next line
+    doc.setFontSize(typography.small - 1);
+    doc.setTextColor(brandColors.gray[600]);
+    const descLines = doc.splitTextToSize(benchmark.description, layout.pageWidth - layout.margin * 2 - 14);
+    doc.text(descLines, layout.margin + 10, yPosition + 7);
+    
+    yPosition += 18; // More space for descriptions
+  });
+  
+  yPosition += layout.sectionSpacing;
   
   // Identity Health Scorecard
   ensureSpace(60);
@@ -288,8 +323,8 @@ const getCategorySummary = (category: string, quizResults: any) => {
         answers[q]?.toLowerCase().includes('limited')
       );
       return hasLimitedBrowser
-        ? "Struggling to monetize Safari and Firefox traffic effectively."
-        : "Effective cross-browser strategies maintain consistent performance.";
+        ? "Struggling to monetize Safari and Firefox traffic effectively. Only Chrome + Edge traffic currently addressable."
+        : "Effective cross-browser strategies maintain consistent performance across Chrome, Edge, Safari, and Firefox.";
     }
   };
   

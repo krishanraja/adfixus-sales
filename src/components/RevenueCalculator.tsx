@@ -23,25 +23,30 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     webDisplayCPM: 4.50,
     webVideoCPM: 12.00,
     displayVideoSplit: 80, // % of inventory that is display (remainder is video)
-    chromeShare: 70, // % of traffic from Chrome (addressable)
+    chromeShare: 50.63, // % of traffic from Chrome (US market share)
+    edgeShare: 7.2, // % of traffic from Edge (US market share)
     numDomains: 1
   });
 
   // Estimate default values based on quiz results
   useEffect(() => {
     if (quizResults) {
-      let estimatedChrome = 70;
+      let estimatedChrome = 50.63; // US market share
+      let estimatedEdge = 7.2; // US market share
       
       // Adjust based on browser strategy answers
       if (quizResults.answers?.['safari-strategy'] === 'struggling') {
-        estimatedChrome = 60; // Lower Chrome if struggling with Safari/Firefox
+        estimatedChrome = 45; // Lower Chrome if struggling with Safari/Firefox
+        estimatedEdge = 6.5; // Lower Edge too
       } else if (quizResults.answers?.['safari-strategy'] === 'optimized') {
-        estimatedChrome = 75; // Higher Chrome if well optimized for other browsers
+        estimatedChrome = 55; // Higher Chrome if well optimized for other browsers
+        estimatedEdge = 8; // Higher Edge too
       }
       
       setFormData(prev => ({
         ...prev,
-        chromeShare: estimatedChrome
+        chromeShare: estimatedChrome,
+        edgeShare: estimatedEdge
       }));
     }
   }, [quizResults]);
@@ -90,15 +95,15 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     const videoImpressions = totalAdImpressions * ((100 - displayVideoSplit) / 100);
 
     // Calculate addressability based on browser strategy
-    let currentAddressability = chromeShare;
     const safariStrategy = quizResults?.answers?.['safari-strategy'];
+    let currentAddressability;
     
     // If fully optimized for privacy browsers, treat Safari/Firefox as addressable
     if (safariStrategy === 'optimized') {
       currentAddressability = 100; // All traffic is addressable
     } else {
-      // Only Chrome traffic is addressable for struggling/basic users
-      currentAddressability = chromeShare;
+      // Only Chrome + Edge traffic is addressable for struggling/basic users (browsers with 3rd party cookies)
+      currentAddressability = chromeShare + formData.edgeShare;
     }
     
     const addressableImpressions = totalAdImpressions * (currentAddressability / 100);
@@ -165,7 +170,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         addressabilityImprovement: adFixusAddressability - currentAddressability,
         salesMix
       },
-      darkInventory: {
+      unaddressableInventory: {
         impressions: unaddressableImpressions,
         percentage: (unaddressableImpressions / totalAdImpressions) * 100,
         lostRevenue,
@@ -213,6 +218,12 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     // Then call onComplete with results to move to results page
     onComplete(results);
     // Clean up temp storage
+    delete (window as any)._tempCalculatorResults;
+  };
+
+  const handleModalClose = () => {
+    setShowLeadModal(false);
+    // Clean up temp storage if modal is closed without submitting
     delete (window as any)._tempCalculatorResults;
   };
 
@@ -304,7 +315,17 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label>Web Display CPM: ${formData.webDisplayCPM.toFixed(2)}</Label>
+                 <Label>Web Display CPM: ${formData.webDisplayCPM.toFixed(2)}</Label>
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger>
+                       <HelpCircle className="w-4 h-4 text-gray-400 ml-2" />
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Web display advertising only (excludes mobile app/CTV)</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
               </div>
               <Slider
                 value={[formData.webDisplayCPM]}
@@ -322,7 +343,17 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label>Web Video CPM: ${formData.webVideoCPM.toFixed(2)}</Label>
+                 <Label>Web Video CPM: ${formData.webVideoCPM.toFixed(2)}</Label>
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger>
+                       <HelpCircle className="w-4 h-4 text-gray-400 ml-2" />
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Web video advertising only (excludes CTV/mobile app inventory)</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
               </div>
               <Slider
                 value={[formData.webVideoCPM]}
@@ -347,7 +378,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
                       <HelpCircle className="w-4 h-4 text-gray-400" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>% of your traffic from Chrome browsers</p>
+                      <p>% of your traffic from Chrome browsers (US average: 50.6%)</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -363,6 +394,34 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
               <div className="flex justify-between text-xs text-gray-500 mt-1">
                 <span>0%</span>
                 <span>100%</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Label>Edge Traffic Share: {formData.edgeShare}%</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="w-4 h-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>% of your traffic from Edge browsers (US average: 7.2%)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Slider
+                value={[formData.edgeShare]}
+                onValueChange={([value]) => handleInputChange('edgeShare', value)}
+                min={0}
+                max={50}
+                step={0.1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0%</span>
+                <span>50%</span>
               </div>
             </div>
           </CardContent>
@@ -381,8 +440,8 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
                 {quizResults?.answers?.['safari-strategy'] === 'optimized' 
                   ? 'Fully optimized for privacy-focused browsers - all traffic is addressable'
                   : quizResults?.answers?.['safari-strategy'] === 'struggling'
-                  ? 'Struggling with Safari/Firefox monetization - only Chrome traffic is addressable'
-                  : 'Basic Safari/Firefox approach - only Chrome traffic is addressable'
+                  ? 'Struggling with Safari/Firefox monetization - only Chrome + Edge traffic is addressable'
+                  : 'Basic Safari/Firefox approach - only Chrome + Edge traffic is addressable'
                 }
               </p>
             </div>
@@ -450,9 +509,10 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
         </Button>
       </div>
 
-      <LeadCaptureModal 
+      <LeadCaptureModal
         open={showLeadModal}
         onSubmitSuccess={handleLeadSubmit}
+        onOpenChange={handleModalClose}
       />
     </div>
   );

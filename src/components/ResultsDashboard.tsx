@@ -98,11 +98,11 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   const generateKeyRecommendations = () => {
     const recommendations = [];
     
-    // Always include based on dark inventory percentage
-    if (calculatorResults.darkInventory.percentage > 20) {
-      recommendations.push('• Implement comprehensive identity resolution to address significant dark inventory');
-    } else if (calculatorResults.darkInventory.percentage > 10) {
-      recommendations.push('• Optimize identity resolution to capture remaining dark inventory');
+    // Always include based on unaddressable inventory percentage
+    if (calculatorResults.unaddressableInventory.percentage > 20) {
+      recommendations.push('• Implement comprehensive identity resolution to address significant unaddressable inventory');
+    } else if (calculatorResults.unaddressableInventory.percentage > 10) {
+      recommendations.push('• Optimize identity resolution to capture remaining unaddressable inventory');
     } else {
       recommendations.push('• Fine-tune identity resolution for maximum addressability rates');
     }
@@ -159,12 +159,12 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   const inventoryData = [
     {
       name: 'Addressable Inventory',
-      value: totalAdImpressions - calculatorResults.darkInventory.impressions,
+      value: totalAdImpressions - calculatorResults.unaddressableInventory.impressions,
       color: '#22c55e'
     },
     {
-      name: 'Dark Inventory',
-      value: calculatorResults.darkInventory.impressions,
+      name: 'Unaddressable Inventory',
+      value: calculatorResults.unaddressableInventory.impressions,
       color: '#ef4444'
     }
   ];
@@ -242,13 +242,13 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <div>
                 <p className="text-sm text-gray-600">Monthly Revenue Loss</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(calculatorResults.darkInventory.lostRevenue)}
+                  {formatCurrency(calculatorResults.unaddressableInventory.lostRevenue)}
                 </p>
               </div>
               <TrendingDown className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              {calculatorResults.darkInventory.percentage.toFixed(1)}% dark inventory
+              {calculatorResults.unaddressableInventory.percentage.toFixed(1)}% unaddressable inventory
             </p>
           </CardContent>
         </Card>
@@ -421,7 +421,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               </Badge>
               <Badge variant="secondary">
                 <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                Dark: {formatNumber(inventoryData[1].value)}
+                Unaddressable: {formatNumber(inventoryData[1].value)}
               </Badge>
             </div>
           </CardContent>
