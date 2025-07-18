@@ -371,7 +371,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label>Chrome Traffic Share: {formData.chromeShare}%</Label>
+                <Label>Chrome Traffic Share: {formData.chromeShare.toFixed(0)}%</Label>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
@@ -399,7 +399,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label>Edge Traffic Share: {formData.edgeShare}%</Label>
+                <Label>Edge Traffic Share: {formData.edgeShare.toFixed(1)}%</Label>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
