@@ -222,6 +222,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     return new Intl.NumberFormat('en-US').format(num);
   };
 
+  const formatPercentage = (num: number, decimals: number = 1) => {
+    return Number(num).toFixed(decimals);
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Page Header */}
@@ -248,7 +252,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <TrendingDown className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              {calculatorResults.unaddressableInventory.percentage.toFixed(1)}% unaddressable inventory
+              {formatPercentage(calculatorResults.unaddressableInventory.percentage)}% unaddressable inventory
             </p>
           </CardContent>
         </Card>
@@ -265,7 +269,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <TrendingUp className="w-8 h-8 text-teal-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              +{calculatorResults.uplift.percentageImprovement.toFixed(1)}% revenue increase
+              +{formatPercentage(calculatorResults.uplift.percentageImprovement)}% revenue increase
             </p>
           </CardContent>
         </Card>
@@ -293,13 +297,13 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <div>
                 <p className="text-sm text-gray-600">Addressability Improvement</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  +{calculatorResults.breakdown.addressabilityImprovement}%
+                  +{formatPercentage(calculatorResults.breakdown.addressabilityImprovement)}%
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-purple-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              From {calculatorResults.breakdown.currentAddressability}% to 100%
+              From {formatPercentage(calculatorResults.breakdown.currentAddressability)}% to 100%
             </p>
           </CardContent>
         </Card>
@@ -321,9 +325,9 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                 {quizResults.overallGrade}
               </div>
               <h3 className="font-semibold text-gray-900 mt-2">Overall Grade</h3>
-              <p className="text-sm text-gray-600">
-                Score: {quizResults.overallScore.toFixed(1)}/4.0
-              </p>
+                <p className="text-sm text-gray-600">
+                  Score: {formatPercentage(quizResults.overallScore)}/4.0
+                </p>
             </div>
 
             {/* Category Grades - exclude sales-mix from visual display */}
@@ -338,7 +342,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                   {getCategoryName(category)}
                 </h4>
                 <p className="text-xs text-gray-600">
-                  {data.score.toFixed(1)}/4.0
+                  {formatPercentage(data.score)}/4.0
                 </p>
               </div>
             ))}
