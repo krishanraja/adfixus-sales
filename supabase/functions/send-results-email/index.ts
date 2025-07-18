@@ -2,8 +2,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -16,17 +14,24 @@ interface ResultsEmailRequest {
   leadData?: any;
 }
 
-const formatCurrency = (amount: number): string => {
+const formatCurrency = (amount: number | undefined | null): string => {
+  if (!amount || isNaN(Number(amount))) return '$0';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(Number(amount));
 };
 
-const formatPercentage = (value: number, decimals: number = 1): string => {
-  return value.toFixed(decimals);
+const formatPercentage = (value: number | undefined | null, decimals: number = 1): string => {
+  if (!value || isNaN(Number(value))) return '0.0';
+  return Number(value).toFixed(decimals);
+};
+
+const formatNumber = (num: number | undefined | null): string => {
+  if (!num || isNaN(Number(num))) return '0';
+  return new Intl.NumberFormat('en-US').format(Number(num));
 };
 
 // Question mapping for quiz answers
@@ -84,23 +89,71 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log("=== EMAIL FUNCTION STARTED ===");
+    
+    // Validate RESEND_API_KEY
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY is not configured");
+      return new Response(
+        JSON.stringify({ success: false, error: "Email service not configured" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    console.log("Resend API key found:", resendApiKey.substring(0, 10) + "...");
+
+    const resend = new Resend(resendApiKey);
+
     const { quizResults, calculatorResults, leadData }: ResultsEmailRequest = await req.json();
 
     console.log("Processing results email with data:", {
       hasQuizResults: !!quizResults,
       hasCalculatorResults: !!calculatorResults,
-      hasLeadData: !!leadData
+      hasLeadData: !!leadData,
+      quizResultsKeys: quizResults ? Object.keys(quizResults) : [],
+      calculatorResultsKeys: calculatorResults ? Object.keys(calculatorResults) : [],
+      leadDataKeys: leadData ? Object.keys(leadData) : []
     });
 
-    // Calculate key metrics
-    const totalRevenue = calculatorResults.monthlyRevenue * 12;
-    const revenueIncrease = calculatorResults.uplift?.totalAnnualUplift || 0;
-    const addressabilityImprovement = calculatorResults.breakdown?.addressabilityImprovement || 0;
+    // Validate required data
+    if (!quizResults || !calculatorResults) {
+      console.error("Missing required data: quizResults or calculatorResults");
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing required assessment data" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Extract and validate calculator data with fallbacks
+    const monthlyRevenue = Number(calculatorResults.monthlyRevenue) || 0;
+    const totalRevenue = monthlyRevenue * 12;
+    
+    // Safe access to nested properties
+    const uplift = calculatorResults.uplift || {};
+    const breakdown = calculatorResults.breakdown || {};
+    const unaddressableInventory = calculatorResults.unaddressableInventory || {};
+    const inputs = calculatorResults.inputs || {};
+
+    const revenueIncrease = Number(uplift.totalAnnualUplift) || 0;
+    const addressabilityImprovement = Number(breakdown.addressabilityImprovement) || 0;
+    const monthlyUplift = Number(uplift.totalMonthlyUplift) || 0;
+    const percentageImprovement = Number(uplift.percentageImprovement) || 0;
+    
+    console.log("Calculated values:", {
+      monthlyRevenue,
+      totalRevenue,
+      revenueIncrease,
+      addressabilityImprovement,
+      monthlyUplift,
+      percentageImprovement
+    });
     
     // Create subject line with user info
-    const userName = leadData ? `${leadData.firstName} ${leadData.lastName}` : 'Anonymous User';
+    const userName = leadData ? `${leadData.firstName || 'User'} ${leadData.lastName || ''}`.trim() : 'Anonymous User';
     const companyName = leadData?.company || 'Unknown Company';
     const subjectLine = `Identity Health Assessment - ${userName} from ${companyName}`;
+    
+    console.log("Email subject:", subjectLine);
 
     // Generate comprehensive Q&A section
     const quizQASection = quizResults.answers ? Object.entries(quizResults.answers).map(([questionId, answerId]) => `
@@ -113,6 +166,14 @@ const handler = async (req: Request): Promise<Response> => {
         </p>
       </div>
     `).join('') : '<p>No quiz answers available</p>';
+
+    // Safe access to sales mix data
+    const salesMix = breakdown.salesMix || {};
+    const salesMixSection = salesMix.direct ? `
+      <p><strong>Direct Sales:</strong> ${salesMix.direct}%</p>
+      <p><strong>Deal IDs:</strong> ${salesMix.dealIds || 0}%</p>
+      <p><strong>Open Exchange:</strong> ${salesMix.openExchange || 0}%</p>
+    ` : '<p>Sales mix data not available</p>';
 
     // Generate email HTML with comprehensive data structure for AI parsing
     const emailHtml = `
@@ -131,12 +192,12 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #1e40af; font-size: 22px; margin-bottom: 20px; font-weight: bold;">📋 CONTACT INFORMATION</h2>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
             <div>
-              <p style="margin: 8px 0;"><strong>Full Name:</strong> ${leadData.firstName} ${leadData.lastName}</p>
-              <p style="margin: 8px 0;"><strong>Email:</strong> ${leadData.email}</p>
+              <p style="margin: 8px 0;"><strong>Full Name:</strong> ${leadData.firstName || 'N/A'} ${leadData.lastName || 'N/A'}</p>
+              <p style="margin: 8px 0;"><strong>Email:</strong> ${leadData.email || 'N/A'}</p>
             </div>
             <div>
-              <p style="margin: 8px 0;"><strong>Company:</strong> ${leadData.company}</p>
-              <p style="margin: 8px 0;"><strong>Job Title:</strong> ${leadData.jobTitle}</p>
+              <p style="margin: 8px 0;"><strong>Company:</strong> ${leadData.company || 'N/A'}</p>
+              <p style="margin: 8px 0;"><strong>Job Title:</strong> ${leadData.jobTitle || 'N/A'}</p>
             </div>
           </div>
         </div>
@@ -148,7 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
             <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
               <h3 style="color: #dc2626; font-size: 16px; margin-bottom: 5px;">Current Monthly Revenue Loss</h3>
-              <p style="color: #dc2626; font-size: 28px; font-weight: bold; margin: 5px 0;">${formatCurrency(calculatorResults.unaddressableInventory?.lostRevenue || 0)}</p>
+              <p style="color: #dc2626; font-size: 28px; font-weight: bold; margin: 5px 0;">${formatCurrency(unaddressableInventory.lostRevenue)}</p>
               <p style="color: #6b7280; font-size: 12px;">Due to unaddressable inventory</p>
             </div>
             <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
@@ -158,7 +219,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div style="text-align: center; padding: 15px; background: white; border-radius: 8px;">
               <h3 style="color: #7c3aed; font-size: 16px; margin-bottom: 5px;">Identity Health Grade</h3>
-              <p style="color: #7c3aed; font-size: 28px; font-weight: bold; margin: 5px 0;">${quizResults.overallGrade}</p>
+              <p style="color: #7c3aed; font-size: 28px; font-weight: bold; margin: 5px 0;">${quizResults.overallGrade || 'N/A'}</p>
               <p style="color: #6b7280; font-size: 12px;">Overall assessment score</p>
             </div>
           </div>
@@ -175,10 +236,10 @@ const handler = async (req: Request): Promise<Response> => {
               <div style="margin-bottom: 12px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                   <span style="color: #374151; font-weight: 500;">${category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}</span>
-                  <span style="color: #1f2937; font-weight: bold;">Grade: ${score.grade} (${formatPercentage(score.score)}/4.0)</span>
+                  <span style="color: #1f2937; font-weight: bold;">Grade: ${score.grade || 'N/A'} (${formatPercentage(score.score)}/4.0)</span>
                 </div>
                 <div style="background: #e5e7eb; height: 8px; border-radius: 4px;">
-                  <div style="background: #3b82f6; height: 100%; width: ${(score.score / 4) * 100}%; border-radius: 4px;"></div>
+                  <div style="background: #3b82f6; height: 100%; width: ${((score.score || 0) / 4) * 100}%; border-radius: 4px;"></div>
                 </div>
               </div>
             `).join('')}
@@ -191,28 +252,24 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
             <div style="background: white; padding: 20px; border-radius: 8px;">
               <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px; font-weight: bold;">Business Metrics</h4>
-              <p><strong>Monthly Revenue:</strong> ${formatCurrency(calculatorResults.monthlyRevenue)}</p>
+              <p><strong>Monthly Revenue:</strong> ${formatCurrency(monthlyRevenue)}</p>
               <p><strong>Annual Revenue:</strong> ${formatCurrency(totalRevenue)}</p>
-              <p><strong>Website Traffic:</strong> ${calculatorResults.websiteTraffic?.toLocaleString()} visitors/month</p>
-              <p><strong>Ad Impressions/Month:</strong> ${calculatorResults.breakdown?.totalAdImpressions?.toLocaleString()}</p>
+              <p><strong>Website Traffic:</strong> ${formatNumber(calculatorResults.websiteTraffic)} visitors/month</p>
+              <p><strong>Ad Impressions/Month:</strong> ${formatNumber(breakdown.totalAdImpressions)}</p>
             </div>
             <div style="background: white; padding: 20px; border-radius: 8px;">
               <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px; font-weight: bold;">Browser Distribution</h4>
-              <p><strong>Chrome Share:</strong> ${calculatorResults.inputs?.chromeShare?.toFixed(1)}%</p>
-              <p><strong>Safari Share:</strong> ${calculatorResults.inputs?.safariShare?.toFixed(1)}%</p>
-              <p><strong>Edge Share:</strong> ${calculatorResults.inputs?.edgeShare?.toFixed(1)}%</p>
-              <p><strong>Firefox Share:</strong> ${calculatorResults.inputs?.firefoxShare?.toFixed(1)}%</p>
+              <p><strong>Chrome Share:</strong> ${formatPercentage(inputs.chromeShare)}%</p>
+              <p><strong>Safari Share:</strong> ${formatPercentage(inputs.safariShare)}%</p>
+              <p><strong>Edge Share:</strong> ${formatPercentage(inputs.edgeShare)}%</p>
+              <p><strong>Firefox Share:</strong> ${formatPercentage(inputs.firefoxShare)}%</p>
             </div>
             <div style="background: white; padding: 20px; border-radius: 8px;">
               <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px; font-weight: bold;">Sales & Inventory</h4>
-              <p><strong>Current Addressability:</strong> ${calculatorResults.inputs?.currentAddressability?.toFixed(1)}%</p>
-              <p><strong>Display/Video Split:</strong> ${calculatorResults.inputs?.displayVideoSplit}% Display</p>
-              <p><strong>Number of Domains:</strong> ${calculatorResults.inputs?.numDomains}</p>
-              ${calculatorResults.breakdown?.salesMix ? `
-                <p><strong>Direct Sales:</strong> ${calculatorResults.breakdown.salesMix.direct}%</p>
-                <p><strong>Deal IDs:</strong> ${calculatorResults.breakdown.salesMix.dealIds}%</p>
-                <p><strong>Open Exchange:</strong> ${calculatorResults.breakdown.salesMix.openExchange}%</p>
-              ` : ''}
+              <p><strong>Current Addressability:</strong> ${formatPercentage(inputs.currentAddressability)}%</p>
+              <p><strong>Display/Video Split:</strong> ${formatPercentage(inputs.displayVideoSplit)}% Display</p>
+              <p><strong>Number of Domains:</strong> ${inputs.numDomains || 'N/A'}</p>
+              ${salesMixSection}
             </div>
           </div>
         </div>
@@ -223,17 +280,17 @@ const handler = async (req: Request): Promise<Response> => {
           
           <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px;">Current State Analysis</h4>
-            <p><strong>Unaddressable Inventory:</strong> ${formatPercentage(calculatorResults.unaddressableInventory?.percentage || 0)}% (${calculatorResults.unaddressableInventory?.impressions?.toLocaleString()} impressions)</p>
-            <p><strong>Monthly Revenue Loss:</strong> ${formatCurrency(calculatorResults.unaddressableInventory?.lostRevenue || 0)}</p>
-            <p><strong>Annual Revenue Loss:</strong> ${formatCurrency((calculatorResults.unaddressableInventory?.lostRevenue || 0) * 12)}</p>
+            <p><strong>Unaddressable Inventory:</strong> ${formatPercentage(unaddressableInventory.percentage)}% (${formatNumber(unaddressableInventory.impressions)} impressions)</p>
+            <p><strong>Monthly Revenue Loss:</strong> ${formatCurrency(unaddressableInventory.lostRevenue)}</p>
+            <p><strong>Annual Revenue Loss:</strong> ${formatCurrency((unaddressableInventory.lostRevenue || 0) * 12)}</p>
           </div>
 
           <div style="background: white; padding: 20px; border-radius: 8px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px;">AdFixus Opportunity</h4>
             <p><strong>Addressability Improvement:</strong> +${formatPercentage(addressabilityImprovement)}%</p>
-            <p><strong>Monthly Uplift:</strong> ${formatCurrency(calculatorResults.uplift?.totalMonthlyUplift || 0)}</p>
+            <p><strong>Monthly Uplift:</strong> ${formatCurrency(monthlyUplift)}</p>
             <p><strong>Annual Uplift:</strong> ${formatCurrency(revenueIncrease)}</p>
-            <p><strong>Revenue Increase:</strong> +${formatPercentage(calculatorResults.uplift?.percentageImprovement || 0)}%</p>
+            <p><strong>Revenue Increase:</strong> +${formatPercentage(percentageImprovement)}%</p>
           </div>
         </div>
 
@@ -243,11 +300,11 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="background: white; padding: 20px; border-radius: 8px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px;">Priority Initiatives</h4>
             <ul style="color: #374151; line-height: 1.6; padding-left: 20px;">
-              <li>Implement comprehensive identity resolution to address ${formatPercentage(calculatorResults.unaddressableInventory?.percentage || 0)}% unaddressable inventory</li>
-              <li>Focus on improving overall addressability from ${formatPercentage(calculatorResults.inputs?.currentAddressability || 0)}% to 100%</li>
-              <li>Optimize browser-specific strategies, especially for Safari (${formatPercentage(calculatorResults.inputs?.safariShare || 0)}% share)</li>
+              <li>Implement comprehensive identity resolution to address ${formatPercentage(unaddressableInventory.percentage)}% unaddressable inventory</li>
+              <li>Focus on improving overall addressability from ${formatPercentage(inputs.currentAddressability)}% to 100%</li>
+              <li>Optimize browser-specific strategies, especially for Safari (${formatPercentage(inputs.safariShare)}% share)</li>
               <li>Leverage privacy-compliant targeting to maximize CPMs and capture the ${formatCurrency(revenueIncrease)} annual opportunity</li>
-              <li>Implement real-time optimization for inventory management across ${calculatorResults.inputs?.numDomains || 0} domains</li>
+              <li>Implement real-time optimization for inventory management across ${inputs.numDomains || 0} domains</li>
             </ul>
           </div>
         </div>
@@ -266,6 +323,7 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     console.log("Attempting to send email with subject:", subjectLine);
+    console.log("Email HTML length:", emailHtml.length);
 
     const emailResponse = await resend.emails.send({
       from: "AdFixus Reports <onboarding@resend.dev>",
@@ -274,7 +332,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
-    console.log("Results email sent successfully:", emailResponse);
+    console.log("Email sent successfully:", emailResponse);
 
     return new Response(JSON.stringify({ success: true, data: emailResponse }), {
       status: 200,
@@ -284,9 +342,17 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: any) {
-    console.error("Error sending results email:", error);
+    console.error("=== EMAIL FUNCTION ERROR ===");
+    console.error("Error details:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        details: error.stack 
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

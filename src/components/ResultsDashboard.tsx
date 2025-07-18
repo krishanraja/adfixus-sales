@@ -36,7 +36,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qdGZuaHpxaGZzcHJlYnZwbXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDQwNDQsImV4cCI6MjA2ODEyMDA0NH0.4EQ-NFJWqu9v3VXzk21g_O-sEmNr7y6kDoYrgICc584'}`,
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qdGZuaHpxaGZzcHJlYnZwbXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDQwNDQsImV4cCI6MjA2ODEyMDA0NH0.4EQ-NFJWqu9v3VXzk21g_O-sEmNr7y6kDoYrgICc584`,
           },
           body: JSON.stringify({
             quizResults,
@@ -45,7 +45,9 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           }),
         });
 
+        console.log('Response status:', response.status);
         const result = await response.json();
+        console.log('Response result:', result);
         
         if (result.success) {
           console.log('Results email sent successfully to hello@krishraja.com');
@@ -57,7 +59,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           console.error('Failed to send results email:', result.error);
           toast({
             title: "Email Issue",
-            description: "Results saved locally but email notification failed.",
+            description: `Email failed: ${result.error}`,
             variant: "destructive",
           });
         }
@@ -66,7 +68,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         console.error('Error sending results email:', error);
         toast({
           title: "Connection Error",
-          description: "Unable to send results notification. Results are still available here.",
+          description: "Unable to send results notification. Please check console for details.",
           variant: "destructive",
         });
       }
