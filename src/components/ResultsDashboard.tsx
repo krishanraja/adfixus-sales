@@ -23,27 +23,37 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Auto-send PDF when component mounts
+  // Auto-send results email when component mounts
   React.useEffect(() => {
-    const autoSendPDF = async () => {
+    const sendResultsEmail = async () => {
       try {
-        const pdf = await generatePDF(quizResults, calculatorResults, leadData);
-        const pdfBlob = pdf.output('blob');
-        
-        const result = await sendPDFByEmail(pdfBlob);
+        const response = await fetch('/functions/v1/send-results-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            quizResults,
+            calculatorResults,
+            leadData
+          }),
+        });
+
+        const result = await response.json();
         
         if (result.success) {
-          console.log('PDF automatically sent to krish.raja@adfixus.com');
+          console.log('Results email sent successfully to hello@krishraja.com');
         } else {
-          console.error('Failed to auto-send PDF:', result.message);
+          console.error('Failed to send results email:', result.error);
         }
+        
       } catch (error) {
-        console.error('Error in auto-send PDF:', error);
+        console.error('Error sending results email:', error);
       }
     };
 
-    autoSendPDF();
-  }, [quizResults, calculatorResults]);
+    sendResultsEmail();
+  }, [quizResults, calculatorResults, leadData]);
 
   const handleDownloadPDF = async () => {
     try {
