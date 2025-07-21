@@ -1,6 +1,4 @@
-
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
   // Professional brand colors
@@ -23,13 +21,13 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
 
   // Professional typography scale
   const typography = {
-    title: 20,        // Main title
-    section: 14,      // Section headers
-    cardTitle: 10,    // Card titles
-    cardValue: 16,    // Card values
-    body: 10,         // Body text
-    small: 9,         // Small text
-    footer: 8         // Footer text
+    title: 20,
+    section: 14,
+    cardTitle: 10,
+    cardValue: 16,
+    body: 10,
+    small: 9,
+    footer: 8
   };
 
   // Grid-based layout system
@@ -47,26 +45,63 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     bulletIndent: 8
   };
 
-  // Helper functions with improved formatting
-  const formatCurrency = (amount: number): string => {
+  // Helper functions with comprehensive data handling
+  const formatCurrency = (amount: number | undefined | null): string => {
+    if (amount === null || amount === undefined || isNaN(Number(amount))) return '$0';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(Number(amount));
   };
+
+  const formatNumber = (num: number | undefined | null): string => {
+    if (num === null || num === undefined || isNaN(Number(num))) return '0';
+    return new Intl.NumberFormat('en-US').format(Number(num));
+  };
+
+  const formatPercentage = (value: number | undefined | null, decimals: number = 1): string => {
+    if (value === null || value === undefined || isNaN(Number(value))) return '0.0';
+    return Number(value).toFixed(decimals);
+  };
+
+  // Extract comprehensive data with fallbacks
+  const inputs = calculatorResults?.inputs || {};
+  const breakdown = calculatorResults?.breakdown || {};
+  const uplift = calculatorResults?.uplift || {};
+  const unaddressableInventory = calculatorResults?.unaddressableInventory || {};
+
+  // All user inputs
+  const monthlyPageviews = Number(inputs.monthlyPageviews) || 0;
+  const adImpressionsPerPage = Number(inputs.adImpressionsPerPage) || 0;
+  const webDisplayCPM = Number(inputs.webDisplayCPM) || 0;
+  const webVideoCPM = Number(inputs.webVideoCPM) || 0;
+  const displayVideoSplit = Number(inputs.displayVideoSplit) || 0;
+  const chromeShare = Number(inputs.chromeShare) || 0;
+  const edgeShare = Number(inputs.edgeShare) || 0;
+  const safariShare = 100 - chromeShare - edgeShare - 10; // Assuming 10% Firefox
+  const numDomains = Number(inputs.numDomains) || 1;
+  const currentAddressability = Number(inputs.currentAddressability) || 0;
+
+  // Revenue calculations
+  const monthlyRevenue = Number(calculatorResults?.currentRevenue) || 0;
+  const revenueIncrease = Number(uplift.totalAnnualUplift) || 0;
+  const monthlyUplift = Number(uplift.totalMonthlyUplift) || 0;
+  const percentageImprovement = Number(uplift.percentageImprovement) || 0;
+  const addressabilityImprovement = Number(breakdown.addressabilityImprovement) || 0;
+
+  // Traffic calculations
+  const totalAdImpressions = monthlyPageviews * adImpressionsPerPage;
 
   const addLogo = (doc: jsPDF) => {
     try {
-      // Proper logo aspect ratio (assuming 3:1 ratio for typical logo)
       const logoUrl = '/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png';
       const logoWidth = 36;
       const logoHeight = 12;
       const logoX = (layout.pageWidth - logoWidth) / 2;
       doc.addImage(logoUrl, 'PNG', logoX, 8, logoWidth, logoHeight);
     } catch (error) {
-      // Fallback text
       doc.setTextColor(brandColors.primary);
       doc.setFontSize(typography.section);
       doc.setFont('helvetica', 'bold');
@@ -75,20 +110,16 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   };
 
   const addHeader = (doc: jsPDF) => {
-    // Clean header background
     doc.setFillColor(brandColors.white);
     doc.rect(0, 0, layout.pageWidth, layout.headerHeight, 'F');
     
-    // Add logo
     addLogo(doc);
     
-    // Professional title
     doc.setTextColor(brandColors.gray[800]);
     doc.setFontSize(typography.title);
     doc.setFont('helvetica', 'bold');
-    doc.text('Identity Health Report', layout.pageWidth / 2, 28, { align: 'center' });
+    doc.text('Complete Identity Health Report', layout.pageWidth / 2, 28, { align: 'center' });
     
-    // Clean border
     doc.setDrawColor(brandColors.gray[300]);
     doc.setLineWidth(0.5);
     doc.line(layout.margin, layout.headerHeight, layout.pageWidth - layout.margin, layout.headerHeight);
@@ -99,18 +130,15 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     const textColor = isHighlight ? brandColors.white : brandColors.gray[800];
     const valueColor = isHighlight ? brandColors.white : brandColors.primary;
     
-    // Professional card
     doc.setFillColor(cardColor);
     doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'F');
     
-    // Clean border for white cards
     if (!isHighlight) {
       doc.setDrawColor(brandColors.gray[300]);
       doc.setLineWidth(0.5);
       doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'S');
     }
     
-    // Title with consistent typography
     doc.setTextColor(textColor);
     doc.setFontSize(typography.cardTitle);
     doc.setFont('helvetica', 'normal');
@@ -122,7 +150,6 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
       doc.text(line, x + layout.cardWidth / 2, titleStartY + (index * layout.lineHeight), { align: 'center' });
     });
     
-    // Value with consistent typography
     doc.setTextColor(valueColor);
     doc.setFontSize(typography.cardValue);
     doc.setFont('helvetica', 'bold');
@@ -140,106 +167,123 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     doc.text(title, layout.margin + 8, y + 9);
   };
 
+  const addDataSection = (doc: jsPDF, y: number, title: string, data: Array<{label: string, value: string}>) => {
+    addSectionHeader(doc, y, title);
+    let currentY = y + 18;
+    
+    data.forEach((item, index) => {
+      if (currentY > 260) return; // Page limit check
+      
+      doc.setTextColor(brandColors.gray[800]);
+      doc.setFontSize(typography.small);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${item.label}: ${item.value}`, layout.margin, currentY);
+      currentY += 6;
+    });
+    
+    return currentY + 8;
+  };
 
-  // Create PDF with professional settings
+  // Create PDF with comprehensive data
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4'
   });
   
-  // Add header
   addHeader(doc);
   
   let yPosition = layout.headerHeight + layout.sectionSpacing;
   const maxPageHeight = 270;
   
-  // Professional space management
   const ensureSpace = (requiredHeight: number) => {
     if (yPosition + requiredHeight > maxPageHeight) {
       yPosition = Math.max(layout.headerHeight + layout.sectionSpacing, maxPageHeight - requiredHeight);
     }
   };
   
-  // Revenue Impact section
+  // Contact Information
+  if (leadData) {
+    ensureSpace(30);
+    yPosition = addDataSection(doc, yPosition, 'Contact Information', [
+      { label: 'Name', value: `${leadData.firstName || ''} ${leadData.lastName || ''}`.trim() },
+      { label: 'Email', value: leadData.email || 'N/A' },
+      { label: 'Company', value: leadData.company || 'N/A' },
+      { label: 'Job Title', value: leadData.jobTitle || 'N/A' }
+    ]);
+  }
+  
+  // Revenue Impact Overview
   ensureSpace(50);
   addSectionHeader(doc, yPosition, 'Revenue Impact Overview');
   yPosition += 15;
   
-  // Move cards down 1cm (10mm)
   yPosition += 10;
   
-  // Centered card layout with reduced spacing (half of original cardSpacing)
   const reducedCardSpacing = layout.cardSpacing / 2;
   const totalCardsWidth = 4 * layout.cardWidth + 3 * reducedCardSpacing;
   const startX = (layout.pageWidth - totalCardsWidth) / 2;
   
-  // Professional metric cards
   addMetricCard(doc, startX, yPosition, 
-    'Current Monthly Revenue', formatCurrency(calculatorResults.currentRevenue), false);
+    'Current Monthly Revenue', formatCurrency(monthlyRevenue), false);
   addMetricCard(doc, startX + layout.cardWidth + reducedCardSpacing, yPosition,
-    'Lost Revenue (Unaddressable)', formatCurrency(calculatorResults.unaddressableInventory.lostRevenue), false);
+    'Lost Revenue', formatCurrency(unaddressableInventory.lostRevenue || 0), false);
   addMetricCard(doc, startX + 2 * (layout.cardWidth + reducedCardSpacing), yPosition,
-    'Monthly Uplift Potential', formatCurrency(calculatorResults.uplift.totalMonthlyUplift), true);
+    'Monthly Uplift', formatCurrency(monthlyUplift), true);
   addMetricCard(doc, startX + 3 * (layout.cardWidth + reducedCardSpacing), yPosition,
-    'Annual Uplift Potential', formatCurrency(calculatorResults.uplift.totalAnnualUplift), true);
+    'Annual Opportunity', formatCurrency(revenueIncrease), true);
   
   yPosition += layout.cardHeight + layout.sectionSpacing;
+
+  // User Input Data
+  ensureSpace(80);
+  yPosition = addDataSection(doc, yPosition, 'Complete User Input Data', [
+    { label: 'Monthly Pageviews', value: formatNumber(monthlyPageviews) },
+    { label: 'Ad Impressions/Page', value: adImpressionsPerPage.toFixed(1) },
+    { label: 'Total Monthly Impressions', value: formatNumber(totalAdImpressions) },
+    { label: 'Display CPM', value: formatCurrency(webDisplayCPM) },
+    { label: 'Video CPM', value: formatCurrency(webVideoCPM) },
+    { label: 'Display/Video Split', value: `${formatPercentage(displayVideoSplit)}% / ${formatPercentage(100 - displayVideoSplit)}%` },
+    { label: 'Chrome Share', value: `${formatPercentage(chromeShare)}%` },
+    { label: 'Edge Share', value: `${formatPercentage(edgeShare)}%` },
+    { label: 'Safari Share (calc)', value: `${formatPercentage(safariShare)}%` },
+    { label: 'Number of Domains', value: numDomains.toString() },
+    { label: 'Current Addressability', value: `${formatPercentage(currentAddressability)}%` }
+  ]);
+
+  // Identity Health Assessment
+  ensureSpace(40);
+  yPosition = addDataSection(doc, yPosition, 'Identity Health Assessment', [
+    { label: 'Overall Grade', value: quizResults?.overallGrade || 'N/A' },
+    { label: 'Overall Score', value: `${formatPercentage(quizResults?.overallScore)}/4.0` }
+  ]);
+
+  // Revenue Analysis
+  ensureSpace(40);
+  yPosition = addDataSection(doc, yPosition, 'Revenue Analysis Results', [
+    { label: 'Unaddressable Inventory', value: `${formatPercentage(unaddressableInventory.percentage)}%` },
+    { label: 'Monthly Revenue Loss', value: formatCurrency(unaddressableInventory.lostRevenue || 0) },
+    { label: 'Addressability Improvement', value: `+${formatPercentage(addressabilityImprovement)}%` },
+    { label: 'Monthly Uplift Potential', value: formatCurrency(monthlyUplift) },
+    { label: 'Annual Uplift Potential', value: formatCurrency(revenueIncrease) },
+    { label: 'Revenue Increase %', value: `+${formatPercentage(percentageImprovement)}%` }
+  ]);
   
-  // Identity Health Scorecard
-  ensureSpace(60);
-  addSectionHeader(doc, yPosition, 'Identity Health Scorecard');
-  yPosition += 18;
-  
-  // Move scorecard body text down 1cm (10mm)
-  yPosition += 10;
-  
-  // Clean category summaries
-  const categories = Object.keys(quizResults.scores).filter(category => category !== 'sales-mix');
-  
-  categories.forEach((category) => {
-    const categoryName = getCategoryName(category);
-    const summary = getCategorySummary(category, quizResults);
-    
-    // Category name
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.body);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${categoryName}:`, layout.margin, yPosition);
-    
-    // Concise summary with proper spacing
-    doc.setTextColor(brandColors.gray[600]);
-    doc.setFontSize(typography.small);
-    doc.setFont('helvetica', 'normal');
-    const summaryLines = doc.splitTextToSize(summary, layout.pageWidth - layout.margin * 2 - 8);
-    summaryLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, layout.margin + 8, yPosition + 6 + (lineIndex * 4));
-    });
-    
-    yPosition += Math.max(summaryLines.length * 4 + 12, 16);
-  });
-  
-  yPosition += layout.sectionSpacing;
-  
-  // Move footer to absolute bottom of page
+  // Footer
   yPosition = maxPageHeight - 22;
-  
-  // Professional footer
   doc.setFillColor(brandColors.gray[100]);
   doc.rect(0, yPosition, layout.pageWidth, 22, 'F');
   
-  // Call to action
   doc.setTextColor(brandColors.gray[800]);
   doc.setFontSize(typography.body);
   doc.setFont('helvetica', 'bold');
-  doc.text('Email krish.raja@adfixus.com to discuss an identity-led revenue strategy for your business.', 
+  doc.text('Email krish.raja@adfixus.com to discuss comprehensive identity strategy.', 
     layout.pageWidth / 2, yPosition + 12, { align: 'center' });
   
-  // Clean branding
   doc.setTextColor(brandColors.gray[600]);
   doc.setFontSize(typography.footer);
   doc.setFont('helvetica', 'normal');
-  doc.text('Generated by AdFixus Identity ROI Simulator', 
+  doc.text(`Complete Assessment Report - AI Analysis Ready | ${new Date().toLocaleDateString()}`, 
     layout.pageWidth / 2, yPosition + 18, { align: 'center' });
   
   return doc;
@@ -304,7 +348,6 @@ const getCategorySummary = (category: string, quizResults: any) => {
 };
 
 export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
-  // Create FormData to send the PDF
   const formData = new FormData();
   formData.append('pdf', pdfBlob, 'identity-roi-report.pdf');
   formData.append('recipientEmail', 'krish.raja@adfixus.com');

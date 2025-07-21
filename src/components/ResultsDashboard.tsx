@@ -22,14 +22,16 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Auto-send results email when component mounts
+  // Auto-send comprehensive results email when component mounts
   React.useEffect(() => {
     const sendResultsEmail = async () => {
       try {
-        console.log('Sending results email with data:', {
+        console.log('Sending comprehensive results email with complete data:', {
           quizResults,
           calculatorResults,
-          leadData
+          leadData,
+          hasInputs: !!calculatorResults?.inputs,
+          inputKeys: calculatorResults?.inputs ? Object.keys(calculatorResults.inputs) : []
         });
 
         const response = await fetch('https://ojtfnhzqhfsprebvpmvx.supabase.co/functions/v1/send-results-email', {
@@ -50,25 +52,25 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         console.log('Response result:', result);
         
         if (result.success) {
-          console.log('Results email sent successfully to hello@krishraja.com');
+          console.log('Comprehensive results email sent successfully to hello@krishraja.com');
           toast({
-            title: "Results Sent",
-            description: "Your assessment results have been sent to our team for review.",
+            title: "Complete Report Sent",
+            description: "Your comprehensive assessment report with all inputs and results has been sent for AI analysis.",
           });
         } else {
-          console.error('Failed to send results email:', result.error);
+          console.error('Failed to send comprehensive results email:', result.error);
           toast({
             title: "Email Issue",
-            description: `Email failed: ${result.error}`,
+            description: `Report delivery failed: ${result.error}`,
             variant: "destructive",
           });
         }
         
       } catch (error) {
-        console.error('Error sending results email:', error);
+        console.error('Error sending comprehensive results email:', error);
         toast({
           title: "Connection Error",
-          description: "Unable to send results notification. Please check console for details.",
+          description: "Unable to send comprehensive report. Please check console for details.",
           variant: "destructive",
         });
       }
@@ -80,24 +82,24 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   const handleDownloadPDF = async () => {
     try {
       toast({
-        title: "Generating PDF...",
-        description: "Please wait while we prepare your report.",
+        title: "Generating Comprehensive PDF...",
+        description: "Please wait while we prepare your complete report with all inputs and results.",
       });
 
       const pdf = await generatePDF(quizResults, calculatorResults, leadData);
       
       // Download the PDF
-      pdf.save('identity-roi-analysis-report.pdf');
+      pdf.save('comprehensive-identity-roi-analysis-report.pdf');
       
       toast({
-        title: "PDF Downloaded",
-        description: "Your Identity ROI Analysis report has been downloaded successfully.",
+        title: "Complete PDF Downloaded",
+        description: "Your comprehensive Identity ROI Analysis report with all user inputs has been downloaded successfully.",
       });
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error generating comprehensive PDF:', error);
       toast({
         title: "Error",
-        description: "Failed to generate PDF. Please try again.",
+        description: "Failed to generate comprehensive PDF. Please try again.",
         variant: "destructive",
       });
     }
@@ -126,11 +128,9 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     return names[category] || category;
   };
 
-  // Generate comprehensive recommendations based on data
   const generateKeyRecommendations = () => {
     const recommendations = [];
     
-    // Always include based on unaddressable inventory percentage
     if (calculatorResults.unaddressableInventory.percentage > 20) {
       recommendations.push('• Implement comprehensive identity resolution to address significant unaddressable inventory');
     } else if (calculatorResults.unaddressableInventory.percentage > 10) {
@@ -139,7 +139,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       recommendations.push('• Fine-tune identity resolution for maximum addressability rates');
     }
 
-    // Browser-specific recommendations
     if (calculatorResults.inputs.safariShare > 25) {
       recommendations.push('• Implement Safari-specific optimization strategies');
     }
@@ -147,12 +146,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       recommendations.push('• Enhance Firefox browser compatibility');
     }
     
-    // Addressability recommendations
     if (calculatorResults.inputs.currentAddressability < 70) {
       recommendations.push('• Priority focus on improving overall addressability rates');
     }
     
-    // Sales mix recommendations
     if (calculatorResults.breakdown.salesMix) {
       const { directSales, dealIds, openExchange } = calculatorResults.breakdown.salesMix;
       if (openExchange > 50) {
@@ -163,19 +160,16 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       }
     }
     
-    // Video vs display recommendations
     if (calculatorResults.inputs.displayVideoSplit < 20) {
       recommendations.push('• Optimize video inventory monetization strategies');
     } else if (calculatorResults.inputs.displayVideoSplit > 90) {
       recommendations.push('• Consider expanding video inventory opportunities');
     }
     
-    // Cross-domain recommendations
     if (calculatorResults.inputs.numDomains > 3) {
       recommendations.push('• Implement cross-domain identity resolution for multi-domain operations');
     }
     
-    // Ensure we always have at least 3 recommendations
     if (recommendations.length < 3) {
       recommendations.push('• Leverage privacy-compliant targeting to maximize CPMs');
       if (recommendations.length < 3) {
@@ -183,10 +177,9 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       }
     }
     
-    return recommendations.slice(0, 6); // Max 6 recommendations for readability
+    return recommendations.slice(0, 6);
   };
 
-  // Prepare data for charts
   const totalAdImpressions = calculatorResults.breakdown.totalAdImpressions;
   const inventoryData = [
     {
@@ -209,26 +202,23 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     }
   ];
 
-  // Generate realistic 12-month projection with gradual ramp-up and fluctuations
   const monthlyProjectionData = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
     const baseCurrentRevenue = calculatorResults.currentRevenue;
     const maxUplift = calculatorResults.uplift.totalMonthlyUplift;
     
-    // Ramp-up factors: slow start, full effect by month 3
     let rampFactor;
     if (month === 1) {
-      rampFactor = 0.15; // 15% of full uplift in month 1
+      rampFactor = 0.15;
     } else if (month === 2) {
-      rampFactor = 0.35; // 35% of full uplift in month 2
+      rampFactor = 0.35;
     } else {
-      rampFactor = 1.0; // Full uplift from month 3 onwards
+      rampFactor = 1.0;
     }
     
-    // Add realistic monthly fluctuations (±5% variation)
-    const fluctuationSeed = Math.sin(month * 0.8) * 0.05; // Deterministic fluctuation
-    const currentFluctuation = 1 + (fluctuationSeed * 0.5); // ±2.5% for current
-    const adFixusFluctuation = 1 + fluctuationSeed; // ±5% for AdFixus
+    const fluctuationSeed = Math.sin(month * 0.8) * 0.05;
+    const currentFluctuation = 1 + (fluctuationSeed * 0.5);
+    const adFixusFluctuation = 1 + fluctuationSeed;
     
     const currentRevenue = baseCurrentRevenue * currentFluctuation;
     const upliftAmount = maxUplift * rampFactor * adFixusFluctuation;
@@ -263,10 +253,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       {/* Page Header */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold text-gray-900">
-          Your Identity ROI Analysis Results
+          Your Complete Identity ROI Analysis Results
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Complete analysis of your identity health and revenue optimization opportunities
+          Comprehensive analysis with all user inputs, identity health assessment, and revenue optimization opportunities
         </p>
       </div>
 
@@ -351,7 +341,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid md:grid-cols-5 gap-6">
-            {/* Overall Grade */}
             <div className="text-center">
               <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full text-3xl font-bold border-2 ${getGradeColor(quizResults.overallGrade)}`}>
                 {quizResults.overallGrade}
@@ -362,7 +351,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                 </p>
             </div>
 
-            {/* Category Grades - exclude sales-mix from visual display */}
             {Object.entries(quizResults.scores)
               .filter(([category]) => category !== 'sales-mix')
               .map(([category, data]: [string, any]) => (
@@ -380,7 +368,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             ))}
           </div>
 
-          {/* Sales Mix Display */}
           {calculatorResults.breakdown.salesMix && (
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <h4 className="font-semibold text-gray-900 mb-2">Sales Mix Breakdown</h4>
@@ -407,7 +394,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             </div>
           )}
 
-          {/* Key Recommendations - Always Present */}
           <div className="mt-8 p-4 bg-yellow-50 rounded-lg">
             <div className="flex items-start space-x-2">
               <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
@@ -426,7 +412,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Inventory Breakdown */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Inventory Addressability</CardTitle>
@@ -482,7 +467,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         </Card>
       </div>
 
-      {/* 12-Month Projection */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>12-Month Revenue Projection</CardTitle>
@@ -513,7 +497,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         </CardContent>
       </Card>
 
-      {/* Action Items */}
       <Card className="shadow-lg bg-gradient-to-r from-cyan-50 to-teal-50 border-0">
         <CardContent className="p-8 text-center">
           <h3 className="text-2xl font-bold text-gray-900 mb-4">
@@ -534,7 +517,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             </Button>
             <Button size="lg" variant="outline" onClick={handleDownloadPDF} className="px-8">
               <Download className="w-4 h-4 mr-2" />
-              Download PDF Report
+              Download Complete PDF Report
             </Button>
             <Button size="lg" variant="outline" onClick={onReset} className="px-8">
               Run New Analysis
