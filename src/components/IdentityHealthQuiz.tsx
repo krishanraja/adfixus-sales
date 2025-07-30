@@ -36,7 +36,7 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
     {
       id: 'cross-domain-visibility',
       category: 'cross-domain',
-      question: 'How well can you track users across your different domains/subdomains?',
+      question: 'What user tracking across domains/subdomains are you able to support?',
       options: [
         { value: 'single-domain', label: 'Single domain only', score: 1 },
         { value: 'limited-cross', label: 'Limited cross-domain capability', score: 2 },
