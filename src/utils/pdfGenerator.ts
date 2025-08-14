@@ -1,352 +1,517 @@
 import jsPDF from 'jspdf';
 
 export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
-  // Professional brand colors
+  // Professional brand colors and design system
   const brandColors = {
     primary: '#0066CC',
-    secondary: '#00A3E0',
+    secondary: '#00A3E0', 
     success: '#22C55E',
     warning: '#F59E0B',
     danger: '#EF4444',
     gray: {
       50: '#F8FAFC',
       100: '#F1F5F9',
+      200: '#E2E8F0',
       300: '#CBD5E1',
+      400: '#94A3B8',
+      500: '#64748B',
       600: '#475569',
+      700: '#334155',
       800: '#1E293B',
       900: '#0F172A'
     },
     white: '#FFFFFF'
   };
 
-  // Professional typography scale
+  // Typography hierarchy
   const typography = {
-    title: 20,
-    section: 14,
+    hero: 24,
+    title: 18,
+    sectionTitle: 14,
     cardTitle: 10,
-    cardValue: 16,
+    cardValue: 14,
     body: 10,
-    small: 9,
-    footer: 8
+    caption: 8,
+    footer: 7
   };
 
-  // Grid-based layout system
+  // Layout system
   const layout = {
     pageWidth: 210,
     pageHeight: 297,
     margin: 20,
-    headerHeight: 45,
-    cardWidth: 40,
-    cardHeight: 30,
-    cardSpacing: 10,
-    sectionSpacing: 18,
-    lineHeight: 5,
-    bulletSize: 1.5,
-    bulletIndent: 8
+    contentWidth: 170,
+    headerHeight: 50,
+    footerHeight: 25,
+    sectionSpacing: 20,
+    cardSpacing: 8,
+    lineHeight: 6,
+    bulletIndent: 12
   };
 
-  // Helper functions with comprehensive data handling
+  // Smart formatting functions
   const formatCurrency = (amount: number | undefined | null): string => {
     if (amount === null || amount === undefined || isNaN(Number(amount))) return '$0';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Number(amount));
+    const num = Number(amount);
+    if (num < 1000) return `$${num.toFixed(0)}`;
+    if (num < 1000000) return `$${(num / 1000).toFixed(1)}K`;
+    return `$${(num / 1000000).toFixed(1)}M`;
   };
 
   const formatNumber = (num: number | undefined | null): string => {
     if (num === null || num === undefined || isNaN(Number(num))) return '0';
-    return new Intl.NumberFormat('en-US').format(Number(num));
+    const value = Number(num);
+    if (value < 1000) return value.toFixed(0);
+    if (value < 1000000) return `${(value / 1000).toFixed(1)}K`;
+    return `${(value / 1000000).toFixed(1)}M`;
   };
 
-  const formatPercentage = (value: number | undefined | null, decimals: number = 1): string => {
-    if (value === null || value === undefined || isNaN(Number(value))) return '0.0';
-    return Number(value).toFixed(decimals);
+  const formatPercentage = (value: number | undefined | null): string => {
+    if (value === null || value === undefined || isNaN(Number(value))) return '0%';
+    const rounded = Number(value).toFixed(0);
+    return `${rounded}%`;
   };
 
-  // Extract comprehensive data with fallbacks
+  // Extract data with smart defaults
   const inputs = calculatorResults?.inputs || {};
   const breakdown = calculatorResults?.breakdown || {};
   const uplift = calculatorResults?.uplift || {};
   const unaddressableInventory = calculatorResults?.unaddressableInventory || {};
 
-  // All user inputs
-  const monthlyPageviews = Number(inputs.monthlyPageviews) || 0;
-  const adImpressionsPerPage = Number(inputs.adImpressionsPerPage) || 0;
-  const webDisplayCPM = Number(inputs.webDisplayCPM) || 0;
-  const webVideoCPM = Number(inputs.webVideoCPM) || 0;
-  const displayVideoSplit = Number(inputs.displayVideoSplit) || 0;
-  const chromeShare = Number(inputs.chromeShare) || 0;
-  const edgeShare = Number(inputs.edgeShare) || 0;
-  const safariShare = 100 - chromeShare - edgeShare - 10; // Assuming 10% Firefox
-  const numDomains = Number(inputs.numDomains) || 1;
-  const currentAddressability = Number(inputs.currentAddressability) || 0;
-
-  // Revenue calculations
   const monthlyRevenue = Number(calculatorResults?.currentRevenue) || 0;
-  const revenueIncrease = Number(uplift.totalAnnualUplift) || 0;
   const monthlyUplift = Number(uplift.totalMonthlyUplift) || 0;
-  const percentageImprovement = Number(uplift.percentageImprovement) || 0;
-  const addressabilityImprovement = Number(breakdown.addressabilityImprovement) || 0;
+  const annualOpportunity = Number(uplift.totalAnnualUplift) || 0;
+  const lostRevenue = Number(unaddressableInventory.lostRevenue) || 0;
+  const improvementPercent = Number(uplift.percentageImprovement) || 0;
+  const unaddressablePercent = Number(unaddressableInventory.percentage) || 0;
 
-  // Traffic calculations
-  const totalAdImpressions = monthlyPageviews * adImpressionsPerPage;
+  // Create PDF document
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm', 
+    format: 'a4'
+  });
 
-  const addLogo = (doc: jsPDF) => {
-    try {
-      const logoUrl = '/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png';
-      const logoWidth = 36;
-      const logoHeight = 12;
-      const logoX = (layout.pageWidth - logoWidth) / 2;
-      doc.addImage(logoUrl, 'PNG', logoX, 8, logoWidth, logoHeight);
-    } catch (error) {
-      doc.setTextColor(brandColors.primary);
-      doc.setFontSize(typography.section);
-      doc.setFont('helvetica', 'bold');
-      doc.text('AdFixus', layout.pageWidth / 2, 16, { align: 'center' });
+  let currentY = layout.margin;
+
+  // Helper function to add new page if needed
+  const checkPageBreak = (requiredHeight: number) => {
+    if (currentY + requiredHeight > layout.pageHeight - layout.footerHeight) {
+      doc.addPage();
+      currentY = layout.margin;
+      addPageHeader();
     }
   };
 
-  const addHeader = (doc: jsPDF) => {
-    doc.setFillColor(brandColors.white);
+  // Add page header
+  const addPageHeader = () => {
+    // Company branding
+    doc.setFillColor('#F8FAFC');
     doc.rect(0, 0, layout.pageWidth, layout.headerHeight, 'F');
     
-    addLogo(doc);
-    
-    doc.setTextColor(brandColors.gray[800]);
+    // Logo area (placeholder)
+    doc.setTextColor(brandColors.primary);
     doc.setFontSize(typography.title);
     doc.setFont('helvetica', 'bold');
-    doc.text('Complete Identity Health Report', layout.pageWidth / 2, 28, { align: 'center' });
+    doc.text('ADFIXUS', layout.margin, 20);
     
+    // Report title
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(typography.hero);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Identity Revenue Impact Report', layout.margin, 35);
+    
+    // Divider line
     doc.setDrawColor(brandColors.gray[300]);
     doc.setLineWidth(0.5);
     doc.line(layout.margin, layout.headerHeight, layout.pageWidth - layout.margin, layout.headerHeight);
+    
+    currentY = layout.headerHeight + layout.sectionSpacing;
   };
 
-  const addMetricCard = (doc: jsPDF, x: number, y: number, title: string, value: string, isHighlight: boolean = false) => {
-    const cardColor = isHighlight ? brandColors.primary : brandColors.white;
-    const textColor = isHighlight ? brandColors.white : brandColors.gray[800];
-    const valueColor = isHighlight ? brandColors.white : brandColors.primary;
+  // Add footer
+  const addFooter = () => {
+    const footerY = layout.pageHeight - layout.footerHeight;
     
-    doc.setFillColor(cardColor);
-    doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'F');
+    doc.setFillColor(brandColors.gray[50]);
+    doc.rect(0, footerY, layout.pageWidth, layout.footerHeight, 'F');
     
-    if (!isHighlight) {
-      doc.setDrawColor(brandColors.gray[300]);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(x, y, layout.cardWidth, layout.cardHeight, 2, 2, 'S');
-    }
-    
-    doc.setTextColor(textColor);
-    doc.setFontSize(typography.cardTitle);
+    doc.setTextColor(brandColors.gray[600]);
+    doc.setFontSize(typography.footer);
     doc.setFont('helvetica', 'normal');
     
-    const titleLines = doc.splitTextToSize(title, layout.cardWidth - 4);
-    const titleStartY = y + 6;
+    const confidentialText = 'CONFIDENTIAL - For Internal Use Only';
+    doc.text(confidentialText, layout.margin, footerY + 8);
     
-    titleLines.forEach((line: string, index: number) => {
-      doc.text(line, x + layout.cardWidth / 2, titleStartY + (index * layout.lineHeight), { align: 'center' });
-    });
+    const dateText = `Generated: ${new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })}`;
+    doc.text(dateText, layout.pageWidth - layout.margin, footerY + 8, { align: 'right' });
     
-    doc.setTextColor(valueColor);
-    doc.setFontSize(typography.cardValue);
-    doc.setFont('helvetica', 'bold');
-    
-    const valueY = y + layout.cardHeight - 6;
-    doc.text(value, x + layout.cardWidth / 2, valueY, { align: 'center' });
+    const contactText = 'Questions? Contact krish.raja@adfixus.com';
+    doc.text(contactText, layout.pageWidth / 2, footerY + 16, { align: 'center' });
   };
 
-  const addSectionHeader = (doc: jsPDF, y: number, title: string) => {
-    doc.setFillColor(brandColors.gray[100]);
-    doc.rect(layout.margin, y, layout.pageWidth - (layout.margin * 2), 14, 'F');
+  // Executive Summary Card
+  const addExecutiveSummary = () => {
+    checkPageBreak(80);
+    
+    // Section header
+    doc.setFillColor(brandColors.primary);
+    doc.rect(layout.margin, currentY, layout.contentWidth, 12, 'F');
+    
+    doc.setTextColor(brandColors.white);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EXECUTIVE SUMMARY', layout.margin + 5, currentY + 8);
+    
+    currentY += 18;
+    
+    // Key findings box
+    doc.setFillColor(brandColors.gray[50]);
+    doc.rect(layout.margin, currentY, layout.contentWidth, 45, 'F');
+    doc.setDrawColor(brandColors.gray[200]);
+    doc.setLineWidth(0.5);
+    doc.rect(layout.margin, currentY, layout.contentWidth, 45, 'S');
+    
     doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.section);
-    doc.setFont('helvetica', 'bold');
-    doc.text(title, layout.margin + 8, y + 9);
-  };
-
-  const addDataSection = (doc: jsPDF, y: number, title: string, data: Array<{label: string, value: string}>) => {
-    addSectionHeader(doc, y, title);
-    let currentY = y + 18;
+    doc.setFontSize(typography.body);
+    doc.setFont('helvetica', 'normal');
     
-    data.forEach((item, index) => {
-      if (currentY > 260) return; // Page limit check
-      
-      doc.setTextColor(brandColors.gray[800]);
-      doc.setFontSize(typography.small);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${item.label}: ${item.value}`, layout.margin, currentY);
-      currentY += 6;
+    const summaryText = [
+      `Your current identity strategy is leaving ${formatCurrency(annualOpportunity)} annually on the table.`,
+      '',
+      `• ${formatPercentage(unaddressablePercent)} of your inventory is unaddressable`,
+      `• Lost revenue: ${formatCurrency(lostRevenue)} per month`,
+      `• Potential uplift: ${formatCurrency(monthlyUplift)} monthly (+${formatPercentage(improvementPercent)})`,
+      '',
+      'AdFixus can help you recover this lost revenue through advanced identity resolution.'
+    ];
+    
+    summaryText.forEach((line, index) => {
+      if (line.startsWith('•')) {
+        doc.setFont('helvetica', 'normal');
+        doc.text('•', layout.margin + 5, currentY + 6 + (index * layout.lineHeight));
+        doc.text(line.substring(2), layout.margin + 10, currentY + 6 + (index * layout.lineHeight));
+      } else if (line === '') {
+        // Skip empty lines
+      } else {
+        doc.setFont(index === 0 ? 'bold' : 'normal');
+        doc.text(line, layout.margin + 5, currentY + 6 + (index * layout.lineHeight));
+      }
     });
     
-    return currentY + 8;
+    currentY += 55;
   };
 
-  // Create PDF with comprehensive data
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
-  
-  addHeader(doc);
-  
-  let yPosition = layout.headerHeight + layout.sectionSpacing;
-  const maxPageHeight = 270;
-  
-  const ensureSpace = (requiredHeight: number) => {
-    if (yPosition + requiredHeight > maxPageHeight) {
-      yPosition = Math.max(layout.headerHeight + layout.sectionSpacing, maxPageHeight - requiredHeight);
+  // Revenue Impact Cards
+  const addRevenueCards = () => {
+    checkPageBreak(60);
+    
+    // Section header
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REVENUE IMPACT ANALYSIS', layout.margin, currentY);
+    currentY += 15;
+    
+    // Card dimensions
+    const cardWidth = (layout.contentWidth - layout.cardSpacing) / 2;
+    const cardHeight = 35;
+    
+    // Revenue Loss Card (Problem)
+    doc.setFillColor('#FEE2E2'); // Light red
+    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'F');
+    doc.setDrawColor('#EF4444');
+    doc.setLineWidth(2);
+    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'S');
+    
+    doc.setTextColor('#DC2626');
+    doc.setFontSize(typography.cardTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MONTHLY REVENUE LOSS', layout.margin + 5, currentY + 8);
+    
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(lostRevenue), layout.margin + 5, currentY + 20);
+    
+    doc.setFontSize(typography.caption);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${formatPercentage(unaddressablePercent)} unaddressable inventory`, layout.margin + 5, currentY + 28);
+    
+    // Revenue Opportunity Card (Solution) 
+    const card2X = layout.margin + cardWidth + layout.cardSpacing;
+    doc.setFillColor('#DCFCE7'); // Light green
+    doc.rect(card2X, currentY, cardWidth, cardHeight, 'F');
+    doc.setDrawColor('#22C55E');
+    doc.setLineWidth(2);
+    doc.rect(card2X, currentY, cardWidth, cardHeight, 'S');
+    
+    doc.setTextColor('#16A34A');
+    doc.setFontSize(typography.cardTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MONTHLY OPPORTUNITY', card2X + 5, currentY + 8);
+    
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(monthlyUplift), card2X + 5, currentY + 20);
+    
+    doc.setFontSize(typography.caption);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`+${formatPercentage(improvementPercent)} revenue increase`, card2X + 5, currentY + 28);
+    
+    currentY += cardHeight + 10;
+    
+    // Annual projection
+    doc.setFillColor(brandColors.primary);
+    doc.rect(layout.margin, currentY, layout.contentWidth, 20, 'F');
+    
+    doc.setTextColor(brandColors.white);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`ANNUAL OPPORTUNITY: ${formatCurrency(annualOpportunity)}`, layout.margin + 5, currentY + 13);
+    
+    currentY += 30;
+  };
+
+  // Identity Health Scorecard
+  const addIdentityHealth = () => {
+    checkPageBreak(80);
+    
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('IDENTITY HEALTH SCORECARD', layout.margin, currentY);
+    currentY += 15;
+    
+    // Overall grade - prominent display
+    const gradeBoxSize = 25;
+    const gradeX = layout.margin + (layout.contentWidth - gradeBoxSize) / 2;
+    
+    const overallGrade = quizResults?.overallGrade || 'F';
+    const gradeColor = getGradeColor(overallGrade);
+    
+    doc.setFillColor(gradeColor.bg);
+    doc.rect(gradeX, currentY, gradeBoxSize, gradeBoxSize, 'F');
+    doc.setDrawColor(gradeColor.border);
+    doc.setLineWidth(2);
+    doc.rect(gradeX, currentY, gradeBoxSize, gradeBoxSize, 'S');
+    
+    doc.setTextColor(gradeColor.text);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text(overallGrade, gradeX + gradeBoxSize/2, currentY + gradeBoxSize/2 + 3, { align: 'center' });
+    
+    doc.setTextColor(brandColors.gray[700]);
+    doc.setFontSize(typography.body);
+    doc.setFont('helvetica', 'bold');
+    doc.text('OVERALL GRADE', layout.pageWidth/2, currentY + gradeBoxSize + 8, { align: 'center' });
+    
+    currentY += gradeBoxSize + 20;
+    
+    // Category breakdown
+    if (quizResults?.scores) {
+      const categories = Object.entries(quizResults.scores)
+        .filter(([key]) => key !== 'sales-mix')
+        .slice(0, 4); // Limit to 4 categories for space
+      
+      const categoryWidth = layout.contentWidth / 4;
+      
+      categories.forEach(([category, data]: [string, any], index) => {
+        const x = layout.margin + (index * categoryWidth);
+        const categoryGrade = data.grade || 'F';
+        const categoryColor = getGradeColor(categoryGrade);
+        
+        // Small grade box
+        doc.setFillColor(categoryColor.bg);
+        doc.rect(x + 5, currentY, 15, 15, 'F');
+        doc.setDrawColor(categoryColor.border);
+        doc.setLineWidth(1);
+        doc.rect(x + 5, currentY, 15, 15, 'S');
+        
+        doc.setTextColor(categoryColor.text);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(categoryGrade, x + 12.5, currentY + 10, { align: 'center' });
+        
+        // Category name
+        doc.setTextColor(brandColors.gray[700]);
+        doc.setFontSize(typography.caption);
+        doc.setFont('helvetica', 'normal');
+        const categoryName = getCategoryName(category);
+        const nameLines = doc.splitTextToSize(categoryName, categoryWidth - 10);
+        nameLines.forEach((line: string, lineIndex: number) => {
+          doc.text(line, x + categoryWidth/2, currentY + 20 + (lineIndex * 4), { align: 'center' });
+        });
+      });
+      
+      currentY += 35;
     }
   };
-  
-  // Contact Information
-  if (leadData) {
-    ensureSpace(30);
-    yPosition = addDataSection(doc, yPosition, 'Contact Information', [
-      { label: 'Name', value: `${leadData.firstName || ''} ${leadData.lastName || ''}`.trim() },
-      { label: 'Email', value: leadData.email || 'N/A' },
-      { label: 'Company', value: leadData.company || 'N/A' },
-      { label: 'Job Title', value: leadData.jobTitle || 'N/A' }
-    ]);
-  }
-  
-  // Revenue Impact Overview
-  ensureSpace(50);
-  addSectionHeader(doc, yPosition, 'Revenue Impact Overview');
-  yPosition += 15;
-  
-  yPosition += 10;
-  
-  const reducedCardSpacing = layout.cardSpacing / 2;
-  const totalCardsWidth = 4 * layout.cardWidth + 3 * reducedCardSpacing;
-  const startX = (layout.pageWidth - totalCardsWidth) / 2;
-  
-  addMetricCard(doc, startX, yPosition, 
-    'Current Monthly Revenue', formatCurrency(monthlyRevenue), false);
-  addMetricCard(doc, startX + layout.cardWidth + reducedCardSpacing, yPosition,
-    'Lost Revenue', formatCurrency(unaddressableInventory.lostRevenue || 0), false);
-  addMetricCard(doc, startX + 2 * (layout.cardWidth + reducedCardSpacing), yPosition,
-    'Monthly Uplift', formatCurrency(monthlyUplift), true);
-  addMetricCard(doc, startX + 3 * (layout.cardWidth + reducedCardSpacing), yPosition,
-    'Annual Opportunity', formatCurrency(revenueIncrease), true);
-  
-  yPosition += layout.cardHeight + layout.sectionSpacing;
 
-  // User Input Data
-  ensureSpace(80);
-  yPosition = addDataSection(doc, yPosition, 'Complete User Input Data', [
-    { label: 'Monthly Pageviews', value: formatNumber(monthlyPageviews) },
-    { label: 'Ad Impressions/Page', value: adImpressionsPerPage.toFixed(1) },
-    { label: 'Total Monthly Impressions', value: formatNumber(totalAdImpressions) },
-    { label: 'Display CPM', value: formatCurrency(webDisplayCPM) },
-    { label: 'Video CPM', value: formatCurrency(webVideoCPM) },
-    { label: 'Display/Video Split', value: `${formatPercentage(displayVideoSplit)}% / ${formatPercentage(100 - displayVideoSplit)}%` },
-    { label: 'Chrome Share', value: `${formatPercentage(chromeShare)}%` },
-    { label: 'Edge Share', value: `${formatPercentage(edgeShare)}%` },
-    { label: 'Safari Share (calc)', value: `${formatPercentage(safariShare)}%` },
-    { label: 'Number of Domains', value: numDomains.toString() },
-    { label: 'Current Addressability', value: `${formatPercentage(currentAddressability)}%` }
-  ]);
+  // Action Plan & Recommendations
+  const addActionPlan = () => {
+    checkPageBreak(70);
+    
+    doc.setFillColor('#FEF3C7'); // Light amber
+    doc.rect(layout.margin, currentY, layout.contentWidth, 12, 'F');
+    
+    doc.setTextColor('#B45309');
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECOMMENDED ACTION PLAN', layout.margin + 5, currentY + 8);
+    
+    currentY += 18;
+    
+    const recommendations = [
+      {
+        priority: 'HIGH',
+        action: 'Implement AdFixus Identity Resolution',
+        impact: `Recover ${formatCurrency(monthlyUplift)} monthly`,
+        timeline: '30-45 days'
+      },
+      {
+        priority: 'MEDIUM', 
+        action: 'Optimize Safari/Firefox Targeting',
+        impact: `Address ${formatPercentage(unaddressablePercent)} unaddressable inventory`,
+        timeline: '60 days'
+      },
+      {
+        priority: 'HIGH',
+        action: 'Cross-Domain Identity Linking',
+        impact: 'Improve user journey tracking',
+        timeline: '45-60 days'
+      }
+    ];
+    
+    recommendations.forEach((rec, index) => {
+      const priorityColor = rec.priority === 'HIGH' ? '#DC2626' : '#F59E0B';
+      
+      // Priority badge
+      doc.setFillColor(priorityColor);
+      doc.rect(layout.margin, currentY, 20, 6, 'F');
+      doc.setTextColor(brandColors.white);
+      doc.setFontSize(typography.caption);
+      doc.setFont('helvetica', 'bold');
+      doc.text(rec.priority, layout.margin + 10, currentY + 4, { align: 'center' });
+      
+      // Action details
+      doc.setTextColor(brandColors.gray[800]);
+      doc.setFontSize(typography.body);
+      doc.setFont('helvetica', 'bold');
+      doc.text(rec.action, layout.margin + 25, currentY + 4);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Impact: ${rec.impact}`, layout.margin + 5, currentY + 10);
+      doc.text(`Timeline: ${rec.timeline}`, layout.margin + 5, currentY + 16);
+      
+      currentY += 22;
+    });
+  };
 
-  // Identity Health Assessment
-  ensureSpace(40);
-  yPosition = addDataSection(doc, yPosition, 'Identity Health Assessment', [
-    { label: 'Overall Grade', value: quizResults?.overallGrade || 'N/A' },
-    { label: 'Overall Score', value: `${formatPercentage(quizResults?.overallScore)}/4.0` }
-  ]);
+  // Technical details section
+  const addTechnicalDetails = () => {
+    checkPageBreak(80);
+    
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TECHNICAL ANALYSIS', layout.margin, currentY);
+    currentY += 15;
+    
+    // Two-column layout for technical data
+    const leftCol = layout.margin;
+    const rightCol = layout.margin + (layout.contentWidth / 2) + 5;
+    const colWidth = (layout.contentWidth / 2) - 5;
+    
+    // Input parameters
+    doc.setTextColor(brandColors.gray[700]);
+    doc.setFontSize(typography.body);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Input Parameters:', leftCol, currentY);
+    currentY += 8;
+    
+    const inputData = [
+      ['Monthly Pageviews', formatNumber(inputs.monthlyPageviews || 0)],
+      ['Ad Impressions/Page', (inputs.adImpressionsPerPage || 0).toFixed(1)],
+      ['Display CPM', formatCurrency(inputs.webDisplayCPM || 0)],
+      ['Video CPM', formatCurrency(inputs.webVideoCPM || 0)],
+      ['Chrome Share', formatPercentage(inputs.chromeShare || 0)]
+    ];
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(typography.caption);
+    inputData.forEach(([label, value]) => {
+      doc.text(`${label}: ${value}`, leftCol, currentY);
+      currentY += 5;
+    });
+    
+    // Reset for right column
+    currentY -= (inputData.length * 5) + 8;
+    
+    // Calculated results
+    doc.setTextColor(brandColors.gray[700]);
+    doc.setFontSize(typography.body);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Calculated Results:', rightCol, currentY);
+    currentY += 8;
+    
+    const resultData = [
+      ['Total Impressions', formatNumber((inputs.monthlyPageviews || 0) * (inputs.adImpressionsPerPage || 0))],
+      ['Current Revenue', formatCurrency(monthlyRevenue)],
+      ['Unaddressable %', formatPercentage(unaddressablePercent)],
+      ['Monthly Uplift', formatCurrency(monthlyUplift)],
+      ['ROI Improvement', formatPercentage(improvementPercent)]
+    ];
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(typography.caption);
+    resultData.forEach(([label, value]) => {
+      doc.text(`${label}: ${value}`, rightCol, currentY);
+      currentY += 5;
+    });
+    
+    currentY += 15;
+  };
 
-  // Revenue Analysis
-  ensureSpace(40);
-  yPosition = addDataSection(doc, yPosition, 'Revenue Analysis Results', [
-    { label: 'Unaddressable Inventory', value: `${formatPercentage(unaddressableInventory.percentage)}%` },
-    { label: 'Monthly Revenue Loss', value: formatCurrency(unaddressableInventory.lostRevenue || 0) },
-    { label: 'Addressability Improvement', value: `+${formatPercentage(addressabilityImprovement)}%` },
-    { label: 'Monthly Uplift Potential', value: formatCurrency(monthlyUplift) },
-    { label: 'Annual Uplift Potential', value: formatCurrency(revenueIncrease) },
-    { label: 'Revenue Increase %', value: `+${formatPercentage(percentageImprovement)}%` }
-  ]);
-  
-  // Footer
-  yPosition = maxPageHeight - 22;
-  doc.setFillColor(brandColors.gray[100]);
-  doc.rect(0, yPosition, layout.pageWidth, 22, 'F');
-  
-  doc.setTextColor(brandColors.gray[800]);
-  doc.setFontSize(typography.body);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Email krish.raja@adfixus.com to discuss comprehensive identity strategy.', 
-    layout.pageWidth / 2, yPosition + 12, { align: 'center' });
-  
-  doc.setTextColor(brandColors.gray[600]);
-  doc.setFontSize(typography.footer);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Complete Assessment Report - AI Analysis Ready | ${new Date().toLocaleDateString()}`, 
-    layout.pageWidth / 2, yPosition + 18, { align: 'center' });
-  
+  // Helper function for grade colors
+  const getGradeColor = (grade: string) => {
+    const colors = {
+      'A+': { bg: '#DCFCE7', text: '#166534', border: '#22C55E' },
+      'A': { bg: '#DCFCE7', text: '#166534', border: '#22C55E' },
+      'B': { bg: '#DBEAFE', text: '#1E40AF', border: '#3B82F6' },
+      'C': { bg: '#FEF3C7', text: '#B45309', border: '#F59E0B' },
+      'D': { bg: '#FED7AA', text: '#C2410C', border: '#FB923C' },
+      'F': { bg: '#FEE2E2', text: '#DC2626', border: '#EF4444' }
+    };
+    return colors[grade] || colors['F'];
+  };
+
+  const getCategoryName = (category: string) => {
+    const names = {
+      'durability': 'Identity Durability',
+      'cross-domain': 'Cross-Domain Visibility', 
+      'privacy': 'Privacy & Compliance',
+      'browser': 'Browser Resilience'
+    };
+    return names[category] || category;
+  };
+
+  // Build the PDF
+  addPageHeader();
+  addExecutiveSummary();
+  addRevenueCards();
+  addIdentityHealth();
+  addActionPlan();
+  addTechnicalDetails();
+  addFooter();
+
   return doc;
 };
 
-const getCategoryName = (category: string) => {
-  const names = {
-    'durability': 'Identity Durability',
-    'cross-domain': 'Cross-Domain Visibility',
-    'privacy': 'Privacy & Compliance',
-    'browser': 'Browser Resilience'
-  };
-  return names[category] || category;
-};
-
-const getCategorySummary = (category: string, quizResults: any) => {
-  const answers = quizResults.answers || {};
-  const summaries = {
-    'durability': () => {
-      const durabilityQuestions = Object.keys(answers).filter(q => q.includes('durability') || q.includes('session'));
-      const hasWeakDurability = durabilityQuestions.some(q => 
-        answers[q]?.toLowerCase().includes('cookie') || 
-        answers[q]?.toLowerCase().includes('limited')
-      );
-      return hasWeakDurability 
-        ? "Identity strategy needs improvement for session continuity."
-        : "Strong identity persistence across extended sessions.";
-    },
-    'cross-domain': () => {
-      const crossDomainQuestions = Object.keys(answers).filter(q => q.includes('domain') || q.includes('cross'));
-      const hasLimitedCrossDomain = crossDomainQuestions.some(q => 
-        answers[q]?.toLowerCase().includes('single') || 
-        answers[q]?.toLowerCase().includes('limited')
-      );
-      return hasLimitedCrossDomain
-        ? "Limited cross-domain tracking reduces addressability."
-        : "Good cross-domain tracking enables comprehensive insights.";
-    },
-    'privacy': () => {
-      const privacyQuestions = Object.keys(answers).filter(q => q.includes('privacy') || q.includes('consent'));
-      const hasBasicPrivacy = privacyQuestions.some(q => 
-        answers[q]?.toLowerCase().includes('basic') || 
-        answers[q]?.toLowerCase().includes('minimal')
-      );
-      return hasBasicPrivacy
-        ? "Basic compliance framework could benefit from enhancement."
-        : "Comprehensive privacy-first approach balances compliance and targeting.";
-    },
-    'browser': () => {
-      const browserQuestions = Object.keys(answers).filter(q => q.includes('browser') || q.includes('safari'));
-      const hasLimitedBrowser = browserQuestions.some(q => 
-        answers[q]?.toLowerCase().includes('struggling') || 
-        answers[q]?.toLowerCase().includes('limited')
-      );
-      return hasLimitedBrowser
-        ? "Struggling to monetize Safari and Firefox traffic effectively. Only Chrome + Edge traffic currently addressable."
-        : "Effective cross-browser strategies maintain consistent performance across Chrome, Edge, Safari, and Firefox.";
-    }
-  };
-  
-  return summaries[category] ? summaries[category]() : "Assessment data needs review for analysis.";
-};
-
+// Keep the email sending function unchanged
 export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
   const formData = new FormData();
   formData.append('pdf', pdfBlob, 'identity-roi-report.pdf');
