@@ -18,6 +18,7 @@ interface RevenueCalculatorProps {
 export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete, quizResults, onLeadCapture }) => {
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [calculationResults, setCalculationResults] = useState<any>(null);
   const [formData, setFormData] = useState({
     monthlyPageviews: 5000000,
     adImpressionsPerPage: 3.2, // Average ad impressions per page view
@@ -203,27 +204,21 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
   const handleSubmit = () => {
     const results = calculateRevenue();
-    console.log('Revenue calculation results:', results);
     setShowLeadModal(true);
-    // Store results temporarily to use after lead capture
-    (window as any)._tempCalculatorResults = results;
+    // Store results in state instead of window
+    setCalculationResults(results);
   };
 
   const handleLeadSubmit = (leadData: any) => {
-    const results = (window as any)._tempCalculatorResults;
     setShowLeadModal(false);
-    // Call onLeadCapture first to store lead data
     onLeadCapture(leadData);
-    // Then call onComplete with results to move to results page
-    onComplete(results);
-    // Clean up temp storage
-    delete (window as any)._tempCalculatorResults;
+    onComplete(calculationResults!);
+    setCalculationResults(null);
   };
 
   const handleModalClose = () => {
     setShowLeadModal(false);
-    // Clean up temp storage if modal is closed without submitting
-    delete (window as any)._tempCalculatorResults;
+    setCalculationResults(null);
   };
 
   return (

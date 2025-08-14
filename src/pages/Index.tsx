@@ -5,30 +5,26 @@ import { RevenueCalculator } from '../components/RevenueCalculator';
 import { ResultsDashboard } from '../components/ResultsDashboard';
 import { Navigation } from '../components/Navigation';
 import { Hero } from '../components/Hero';
-import { LeadCaptureForm } from '../components/LeadCaptureForm';
+import type { StepType, QuizResults, CalculatorResults, LeadData } from '@/types';
 
 const Index = () => {
-  const [currentStep, setCurrentStep] = useState('hero'); // hero, leadCapture, quiz, calculator, results
-  const [quizResults, setQuizResults] = useState(null);
-  const [calculatorResults, setCalculatorResults] = useState(null);
-  const [leadData, setLeadData] = useState(null);
+  const [currentStep, setCurrentStep] = useState<StepType>('hero');
+  const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
+  const [calculatorResults, setCalculatorResults] = useState<CalculatorResults | null>(null);
+  const [leadData, setLeadData] = useState<LeadData | null>(null);
 
-  const handleLeadCapture = (data) => {
-    console.log('Lead captured:', data);
+  const handleLeadCapture = (data: LeadData) => {
     setLeadData(data);
     setCurrentStep('results');
   };
 
-  const handleQuizComplete = (results) => {
-    console.log('Quiz completed:', results);
+  const handleQuizComplete = (results: QuizResults) => {
     setQuizResults(results);
     setCurrentStep('calculator');
   };
 
-  const handleCalculatorComplete = (results) => {
-    console.log('Calculator completed:', results);
+  const handleCalculatorComplete = (results: CalculatorResults) => {
     setCalculatorResults(results);
-    // Skip leadCapture step since it's handled in modal
     setCurrentStep('results');
   };
 

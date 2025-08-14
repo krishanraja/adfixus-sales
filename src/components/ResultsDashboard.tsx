@@ -6,11 +6,13 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar } from 'lucide-react';
 import { generatePDF, sendPDFByEmail } from '../utils/pdfGenerator';
 import { useToast } from '@/hooks/use-toast';
+import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatting';
+import type { QuizResults, CalculatorResults, LeadData } from '@/types';
 
 interface ResultsDashboardProps {
-  quizResults: any;
-  calculatorResults: any;
-  leadData?: any;
+  quizResults: QuizResults;
+  calculatorResults: CalculatorResults;
+  leadData?: LeadData;
   onReset: () => void;
 }
 
@@ -26,14 +28,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   React.useEffect(() => {
     const sendResultsEmail = async () => {
       try {
-        console.log('Sending comprehensive results email with complete data:', {
-          quizResults,
-          calculatorResults,
-          leadData,
-          hasInputs: !!calculatorResults?.inputs,
-          inputKeys: calculatorResults?.inputs ? Object.keys(calculatorResults.inputs) : []
-        });
-
         const response = await fetch('https://ojtfnhzqhfsprebvpmvx.supabase.co/functions/v1/send-results-email', {
           method: 'POST',
           headers: {
@@ -46,19 +40,15 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             leadData
           }),
         });
-
-        console.log('Response status:', response.status);
+        
         const result = await response.json();
-        console.log('Response result:', result);
         
         if (result.success) {
-          console.log('Comprehensive results email sent successfully to hello@krishraja.com');
           toast({
             title: "Complete Report Sent",
             description: "Your comprehensive assessment report with all inputs and results has been sent for AI analysis.",
           });
         } else {
-          console.error('Failed to send comprehensive results email:', result.error);
           toast({
             title: "Email Issue",
             description: `Report delivery failed: ${result.error}`,
@@ -67,7 +57,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         }
         
       } catch (error) {
-        console.error('Error sending comprehensive results email:', error);
         toast({
           title: "Connection Error",
           description: "Unable to send comprehensive report. Please check console for details.",
@@ -96,7 +85,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         description: "Your comprehensive Identity ROI Analysis report with all user inputs has been downloaded successfully.",
       });
     } catch (error) {
-      console.error('Error generating comprehensive PDF:', error);
       toast({
         title: "Error",
         description: "Failed to generate comprehensive PDF. Please try again.",
@@ -139,23 +127,22 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       recommendations.push('• Fine-tune identity resolution for maximum addressability rates');
     }
 
-    if (calculatorResults.inputs.safariShare > 25) {
-      recommendations.push('• Implement Safari-specific optimization strategies');
-    }
-    if (calculatorResults.inputs.firefoxShare > 10) {
-      recommendations.push('• Enhance Firefox browser compatibility');
+    // Calculate Safari/Firefox share from Chrome share
+    const safariFirefoxShare = 100 - calculatorResults.inputs.chromeShare;
+    if (safariFirefoxShare > 25) {
+      recommendations.push('• Implement Safari/Firefox-specific optimization strategies');
     }
     
-    if (calculatorResults.inputs.currentAddressability < 70) {
+    if (calculatorResults.breakdown.currentAddressability < 70) {
       recommendations.push('• Priority focus on improving overall addressability rates');
     }
     
     if (calculatorResults.breakdown.salesMix) {
-      const { directSales, dealIds, openExchange } = calculatorResults.breakdown.salesMix;
+      const { direct, dealIds, openExchange } = calculatorResults.breakdown.salesMix;
       if (openExchange > 50) {
         recommendations.push('• Consider increasing direct sales and deal ID usage to improve margins');
       }
-      if (directSales < 30) {
+      if (direct < 30) {
         recommendations.push('• Explore opportunities to grow direct sales relationships');
       }
     }
@@ -231,39 +218,6 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     };
   });
 
-  const formatCurrency = (amount: number) => {
-    if (amount < 1000) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      }).format(amount);
-    } else if (amount < 1000000) {
-      const kValue = amount / 1000;
-      return `$${kValue % 1 === 0 ? kValue.toFixed(0) : kValue.toFixed(1)}K`;
-    } else {
-      const mValue = amount / 1000000;
-      return `$${mValue % 1 === 0 ? mValue.toFixed(0) : mValue.toFixed(1)}M`;
-    }
-  };
-
-  const formatNumber = (num: number) => {
-    if (num < 1000) {
-      return new Intl.NumberFormat('en-US').format(num);
-    } else if (num < 1000000) {
-      const kValue = num / 1000;
-      return `${kValue % 1 === 0 ? kValue.toFixed(0) : kValue.toFixed(1)}K`;
-    } else {
-      const mValue = num / 1000000;
-      return `${mValue % 1 === 0 ? mValue.toFixed(0) : mValue.toFixed(1)}M`;
-    }
-  };
-
-  const formatPercentage = (num: number, decimals: number = 0) => {
-    const rounded = Number(num).toFixed(decimals);
-    return rounded.endsWith('.0') && decimals > 0 ? rounded.slice(0, -2) : rounded;
-  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
