@@ -95,26 +95,44 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   let currentY = layout.margin;
 
   // Helper function to add new page if needed
-  const checkPageBreak = (requiredHeight: number) => {
+  const checkPageBreak = async (requiredHeight: number) => {
     if (currentY + requiredHeight > layout.pageHeight - layout.footerHeight) {
       doc.addPage();
       currentY = layout.margin;
-      addPageHeader();
+      await addPageHeader();
     }
   };
 
+  // Helper function to calculate logo dimensions with proper aspect ratio
+  const getLogoDimensions = async (): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxHeight = 12; // Maximum height in mm
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        const height = maxHeight;
+        const width = height * aspectRatio;
+        resolve({ width, height });
+      };
+      img.onerror = () => {
+        // Fallback dimensions if image fails to load
+        resolve({ width: 30, height: 12 });
+      };
+      img.src = '/lovable-uploads/a2cd355f-5007-4938-9578-9d7e966a1d64.png';
+    });
+  };
+
   // Add page header
-  const addPageHeader = () => {
+  const addPageHeader = async () => {
     // Company branding
     doc.setFillColor('#F8FAFC');
     doc.rect(0, 0, layout.pageWidth, layout.headerHeight, 'F');
     
-    // Logo - left justified
+    // Logo - left justified with proper aspect ratio
     try {
       const logoUrl = '/lovable-uploads/a2cd355f-5007-4938-9578-9d7e966a1d64.png';
-      const logoWidth = 45;
-      const logoHeight = 15;
-      doc.addImage(logoUrl, 'PNG', layout.margin, 12, logoWidth, logoHeight);
+      const { width: logoWidth, height: logoHeight } = await getLogoDimensions();
+      doc.addImage(logoUrl, 'PNG', layout.margin, 14, logoWidth, logoHeight);
     } catch (error) {
       doc.setTextColor(brandColors.primary);
       doc.setFontSize(typography.title);
@@ -162,8 +180,8 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   };
 
   // Executive Summary Card
-  const addExecutiveSummary = () => {
-    checkPageBreak(80);
+  const addExecutiveSummary = async () => {
+    await checkPageBreak(80);
     
     // Section header
     doc.setFillColor(brandColors.primary);
@@ -214,8 +232,8 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   };
 
   // Revenue Impact Cards
-  const addRevenueCards = () => {
-    checkPageBreak(60);
+  const addRevenueCards = async () => {
+    await checkPageBreak(60);
     
     // Section header
     doc.setTextColor(brandColors.gray[800]);
@@ -284,8 +302,8 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   };
 
   // Identity Health Scorecard
-  const addIdentityHealth = () => {
-    checkPageBreak(80);
+  const addIdentityHealth = async () => {
+    await checkPageBreak(80);
     
     doc.setTextColor(brandColors.gray[800]);
     doc.setFontSize(typography.sectionTitle);
@@ -359,8 +377,8 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   };
 
   // Action Plan & Recommendations
-  const addActionPlan = () => {
-    checkPageBreak(70);
+  const addActionPlan = async () => {
+    await checkPageBreak(70);
     
     doc.setFillColor('#FEF3C7'); // Light amber
     doc.rect(layout.margin, currentY, layout.contentWidth, 12, 'F');
@@ -419,8 +437,8 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   };
 
   // Technical details section
-  const addTechnicalDetails = () => {
-    checkPageBreak(80);
+  const addTechnicalDetails = async () => {
+    await checkPageBreak(80);
     
     doc.setTextColor(brandColors.gray[800]);
     doc.setFontSize(typography.sectionTitle);
@@ -507,12 +525,12 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
   };
 
   // Build the PDF
-  addPageHeader();
-  addExecutiveSummary();
-  addRevenueCards();
-  addIdentityHealth();
-  addActionPlan();
-  addTechnicalDetails();
+  await addPageHeader();
+  await addExecutiveSummary();
+  await addRevenueCards();
+  await addIdentityHealth();
+  await addActionPlan();
+  await addTechnicalDetails();
   addFooter();
 
   return doc;
