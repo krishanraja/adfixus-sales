@@ -224,10 +224,10 @@ const handler = async (req: Request): Promise<Response> => {
         <!-- VISUAL HEADER -->
         <div style="text-align: center; margin-bottom: 40px; padding: 25px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-radius: 12px; color: white;">
           <h1 style="color: white; font-size: 28px; margin-bottom: 8px; font-weight: bold;">AdFixus Identity Health Assessment</h1>
-          <h2 style="color: #e0e7ff; font-size: 20px; margin-bottom: 15px; font-weight: normal;">Complete Revenue Impact Analysis</h2>
+          <h2 style="color: white; font-size: 20px; margin-bottom: 15px; font-weight: normal;">Complete Revenue Impact Analysis</h2>
           <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; display: inline-block;">
-            <p style="color: #e0e7ff; font-size: 16px; margin: 0;"><strong>Annual Revenue Opportunity: ${formatCurrency(revenueIncrease)}</strong></p>
-            <p style="color: #e0e7ff; font-size: 14px; margin: 5px 0 0 0;">Generated: ${new Date().toLocaleString()}</p>
+            <p style="color: white; font-size: 16px; margin: 0;"><strong>Annual Revenue Opportunity: ${formatCurrency(revenueIncrease)}</strong></p>
+            <p style="color: white; font-size: 14px; margin: 5px 0 0 0;">Generated: ${new Date().toLocaleString()}</p>
           </div>
         </div>
 
