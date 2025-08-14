@@ -474,7 +474,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <BarChart data={revenueComparisonData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
-                <YAxis tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}K`} />
+                <YAxis tickFormatter={formatCurrency} />
                 <Tooltip formatter={(value: number) => formatCurrency(value)} />
                 <Bar dataKey="current" fill="#6b7280" name="Current" />
                 <Bar dataKey="withAdFixus" fill="#22c55e" name="With AdFixus" />
@@ -493,7 +493,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <LineChart data={monthlyProjectionData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}K`} />
+              <YAxis tickFormatter={formatCurrency} />
               <Tooltip formatter={(value: number) => formatCurrency(value)} />
               <Line 
                 type="monotone" 
