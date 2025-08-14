@@ -109,11 +109,18 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     doc.setFillColor('#F8FAFC');
     doc.rect(0, 0, layout.pageWidth, layout.headerHeight, 'F');
     
-    // Logo area (placeholder)
-    doc.setTextColor(brandColors.primary);
-    doc.setFontSize(typography.title);
-    doc.setFont('helvetica', 'bold');
-    doc.text('ADFIXUS', layout.margin, 20);
+    // Logo - left justified
+    try {
+      const logoUrl = '/lovable-uploads/a2cd355f-5007-4938-9578-9d7e966a1d64.png';
+      const logoWidth = 45;
+      const logoHeight = 15;
+      doc.addImage(logoUrl, 'PNG', layout.margin, 12, logoWidth, logoHeight);
+    } catch (error) {
+      doc.setTextColor(brandColors.primary);
+      doc.setFontSize(typography.title);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ADFIXUS', layout.margin, 20);
+    }
     
     // Report title
     doc.setTextColor(brandColors.gray[800]);
@@ -150,7 +157,7 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     })}`;
     doc.text(dateText, layout.pageWidth - layout.margin, footerY + 8, { align: 'right' });
     
-    const contactText = 'Questions? Contact krish.raja@adfixus.com';
+    const contactText = 'Questions? Contact sales@adfixus.com';
     doc.text(contactText, layout.pageWidth / 2, footerY + 16, { align: 'center' });
   };
 
