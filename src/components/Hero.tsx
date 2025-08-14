@@ -98,6 +98,9 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
             <div className="text-gray-600 text-sm">Average Yield Uplift</div>
           </div>
         </div>
+        <p className="text-xs italic text-gray-500 mt-4">
+          *Sources: StatCounter (Safari share, Jul 2025); Piano "Subscription Performance Benchmarks 2024"; Clearcode; PubMatic; Amazon Publisher Services.
+        </p>
       </div>
     </div>
   );
