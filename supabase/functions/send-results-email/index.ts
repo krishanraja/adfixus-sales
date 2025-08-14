@@ -283,12 +283,12 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px; font-weight: bold;">Traffic & Inventory Metrics</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Monthly Pageviews:</strong> ${formatNumber(monthlyPageviews)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Ad Impressions/Page:</strong> ${adImpressionsPerPage.toFixed(1)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Total Monthly Ad Impressions:</strong> ${formatNumber(totalAdImpressions)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Display Inventory:</strong> ${formatNumber(displayImpressions)} (${formatPercentage(displayVideoSplit)}%)</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Video Inventory:</strong> ${formatNumber(videoImpressions)} (${formatPercentage(100 - displayVideoSplit)}%)</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Number of Domains:</strong> ${numDomains}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Monthly Pageviews:</strong> ${formatNumber(monthlyPageviews)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Ad Impressions/Page:</strong> ${adImpressionsPerPage.toFixed(1)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Total Monthly Ad Impressions:</strong> ${formatNumber(totalAdImpressions)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Display Inventory:</strong> ${formatNumber(displayImpressions)} (${formatPercentage(displayVideoSplit)}%)</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Video Inventory:</strong> ${formatNumber(videoImpressions)} (${formatPercentage(100 - displayVideoSplit)}%)</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Number of Domains:</strong> ${numDomains}</p>
             </div>
           </div>
 
@@ -296,11 +296,11 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px; font-weight: bold;">Monetization Data</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Web Display CPM:</strong> ${formatCurrency(webDisplayCPM)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Web Video CPM:</strong> ${formatCurrency(webVideoCPM)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Current Monthly Revenue:</strong> ${formatCurrency(monthlyRevenue)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Current Annual Revenue:</strong> ${formatCurrency(totalRevenue)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Current Addressability:</strong> ${formatPercentage(currentAddressability)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Web Display CPM:</strong> ${formatCurrency(webDisplayCPM)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Web Video CPM:</strong> ${formatCurrency(webVideoCPM)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Current Monthly Revenue:</strong> ${formatCurrency(monthlyRevenue)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Current Annual Revenue:</strong> ${formatCurrency(totalRevenue)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Current Addressability:</strong> ${formatPercentage(currentAddressability)}%</p>
             </div>
           </div>
 
@@ -308,10 +308,10 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px; font-weight: bold;">Browser Distribution</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Chrome Share:</strong> ${formatPercentage(chromeShare)}%</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Edge Share:</strong> ${formatPercentage(edgeShare)}%</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Safari Share:</strong> ${formatPercentage(safariShare)}% (calculated)</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Firefox Share:</strong> ${formatPercentage(firefoxShare)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Chrome Share:</strong> ${formatPercentage(chromeShare)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Edge Share:</strong> ${formatPercentage(edgeShare)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Safari Share:</strong> ${formatPercentage(safariShare)}% (calculated)</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Firefox Share:</strong> ${formatPercentage(firefoxShare)}%</p>
             </div>
           </div>
 
@@ -319,9 +319,9 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="background: white; padding: 20px; border-radius: 8px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px; font-weight: bold;">Sales Mix Distribution</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Direct Sales:</strong> ${formatPercentage(directSales)}%</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Deal IDs/PMP:</strong> ${formatPercentage(dealIds)}%</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Open Exchange:</strong> ${formatPercentage(openExchange)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Direct Sales:</strong> ${formatPercentage(directSales)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Deal IDs/PMP:</strong> ${formatPercentage(dealIds)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Open Exchange:</strong> ${formatPercentage(openExchange)}%</p>
             </div>
           </div>
         </div>
@@ -354,23 +354,23 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px;">Current State Analysis</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Addressable Impressions:</strong> ${formatNumber((totalAdImpressions || 0) - (unaddressableInventory.impressions || 0))}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Unaddressable Impressions:</strong> ${formatNumber(unaddressableInventory.impressions || 0)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Unaddressable Percentage:</strong> ${formatPercentage(unaddressableInventory.percentage)}%</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Monthly Revenue Loss:</strong> ${formatCurrency(unaddressableInventory.lostRevenue || 0)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Annual Revenue Loss:</strong> ${formatCurrency((unaddressableInventory.lostRevenue || 0) * 12)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Addressable Impressions:</strong> ${formatNumber((totalAdImpressions || 0) - (unaddressableInventory.impressions || 0))}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Unaddressable Impressions:</strong> ${formatNumber(unaddressableInventory.impressions || 0)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Unaddressable Percentage:</strong> ${formatPercentage(unaddressableInventory.percentage)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Monthly Revenue Loss:</strong> ${formatCurrency(unaddressableInventory.lostRevenue || 0)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Annual Revenue Loss:</strong> ${formatCurrency((unaddressableInventory.lostRevenue || 0) * 12)}</p>
             </div>
           </div>
 
           <div style="background: white; padding: 20px; border-radius: 8px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px;">AdFixus Opportunity Projection</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Addressability Improvement:</strong> +${formatPercentage(addressabilityImprovement)}%</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Monthly Revenue Uplift:</strong> ${formatCurrency(monthlyUplift)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Annual Revenue Uplift:</strong> ${formatCurrency(revenueIncrease)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>Revenue Increase Percentage:</strong> +${formatPercentage(percentageImprovement)}%</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>New Monthly Total:</strong> ${formatCurrency(monthlyRevenue + monthlyUplift)}</p>
-              <p style="margin: 4px 0; font-size: 14px;"><strong>New Annual Total:</strong> ${formatCurrency((monthlyRevenue + monthlyUplift) * 12)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Addressability Improvement:</strong> +${formatPercentage(addressabilityImprovement)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Monthly Revenue Uplift:</strong> ${formatCurrency(monthlyUplift)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Annual Revenue Uplift:</strong> ${formatCurrency(revenueIncrease)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>Revenue Increase Percentage:</strong> +${formatPercentage(percentageImprovement)}%</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>New Monthly Total:</strong> ${formatCurrency(monthlyRevenue + monthlyUplift)}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #1f2937;"><strong>New Annual Total:</strong> ${formatCurrency((monthlyRevenue + monthlyUplift) * 12)}</p>
             </div>
           </div>
         </div>
@@ -380,13 +380,13 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #166534; font-size: 20px; margin-bottom: 20px; font-weight: bold;">🎯 STRATEGIC RECOMMENDATIONS</h2>
           <div style="background: white; padding: 20px; border-radius: 8px;">
             <h4 style="color: #1f2937; font-size: 16px; margin-bottom: 15px;">Priority Initiatives Based on Assessment</h4>
-            <ul style="color: #374151; line-height: 1.8; padding-left: 20px; font-size: 14px;">
-              <li><strong>Address ${formatPercentage(unaddressableInventory.percentage)}% unaddressable inventory</strong> - implement comprehensive identity resolution to capture ${formatCurrency((unaddressableInventory.lostRevenue || 0) * 12)} in annual lost revenue</li>
-              <li><strong>Improve overall addressability</strong> from ${formatPercentage(currentAddressability)}% to 100% for maximum revenue capture</li>
-              <li><strong>Optimize Safari/Firefox monetization</strong> - ${formatPercentage(safariShare + firefoxShare)}% of traffic needs privacy-compliant targeting</li>
-              <li><strong>Leverage cross-domain identity resolution</strong> across ${numDomains} domain${numDomains > 1 ? 's' : ''} for unified user understanding</li>
-              <li><strong>Enhance sales mix optimization</strong> - current ${formatPercentage(openExchange)}% open exchange could benefit from more direct sales (${formatPercentage(directSales)}%)</li>
-              <li><strong>Implement real-time CPM optimization</strong> to maximize ${formatNumber(totalAdImpressions)} monthly impressions</li>
+            <ul style="color: #1f2937; line-height: 1.8; padding-left: 20px; font-size: 14px;">
+              <li style="color: #1f2937;"><strong>Address ${formatPercentage(unaddressableInventory.percentage)}% unaddressable inventory</strong> - implement comprehensive identity resolution to capture ${formatCurrency((unaddressableInventory.lostRevenue || 0) * 12)} in annual lost revenue</li>
+              <li style="color: #1f2937;"><strong>Improve overall addressability</strong> from ${formatPercentage(currentAddressability)}% to 100% for maximum revenue capture</li>
+              <li style="color: #1f2937;"><strong>Optimize Safari/Firefox monetization</strong> - ${formatPercentage(safariShare + firefoxShare)}% of traffic needs privacy-compliant targeting</li>
+              <li style="color: #1f2937;"><strong>Leverage cross-domain identity resolution</strong> across ${numDomains} domain${numDomains > 1 ? 's' : ''} for unified user understanding</li>
+              <li style="color: #1f2937;"><strong>Enhance sales mix optimization</strong> - current ${formatPercentage(openExchange)}% open exchange could benefit from more direct sales (${formatPercentage(directSales)}%)</li>
+              <li style="color: #1f2937;"><strong>Implement real-time CPM optimization</strong> to maximize ${formatNumber(totalAdImpressions)} monthly impressions</li>
             </ul>
           </div>
         </div>
