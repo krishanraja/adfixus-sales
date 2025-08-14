@@ -233,16 +233,16 @@ const handler = async (req: Request): Promise<Response> => {
 
         <!-- CONTACT INFORMATION SECTION -->
         ${leadData ? `
-        <div style="background: #f1f5f9; padding: 25px; border-radius: 12px; margin-bottom: 30px; border-left: 5px solid #3b82f6;">
+        <div style="background: #f1f5f9; padding: 25px; border-radius: 12px; margin-bottom: 30px; border-left: 5px solid #3b82f6; color: #1f2937;">
           <h2 style="color: #1e40af; font-size: 20px; margin-bottom: 20px; font-weight: bold;">📋 CONTACT INFORMATION</h2>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
             <div>
-              <p style="margin: 8px 0; font-size: 14px;"><strong>Full Name:</strong> ${leadData.firstName || 'N/A'} ${leadData.lastName || 'N/A'}</p>
-              <p style="margin: 8px 0; font-size: 14px;"><strong>Email:</strong> ${leadData.email || 'N/A'}</p>
+              <p style="margin: 8px 0; font-size: 14px; color: #1f2937;"><strong>Full Name:</strong> ${leadData.firstName || 'N/A'} ${leadData.lastName || 'N/A'}</p>
+              <p style="margin: 8px 0; font-size: 14px; color: #1f2937;"><strong>Email:</strong> ${leadData.email || 'N/A'}</p>
             </div>
             <div>
-              <p style="margin: 8px 0; font-size: 14px;"><strong>Company:</strong> ${leadData.company || 'N/A'}</p>
-              <p style="margin: 8px 0; font-size: 14px;"><strong>Job Title:</strong> ${leadData.jobTitle || 'N/A'}</p>
+              <p style="margin: 8px 0; font-size: 14px; color: #1f2937;"><strong>Company:</strong> ${leadData.company || 'N/A'}</p>
+              <p style="margin: 8px 0; font-size: 14px; color: #1f2937;"><strong>Job Title:</strong> ${leadData.jobTitle || 'N/A'}</p>
             </div>
           </div>
         </div>
