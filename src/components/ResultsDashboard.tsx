@@ -232,20 +232,37 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   });
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
+    if (amount < 1000) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount);
+    } else if (amount < 1000000) {
+      const kValue = amount / 1000;
+      return `$${kValue % 1 === 0 ? kValue.toFixed(0) : kValue.toFixed(1)}K`;
+    } else {
+      const mValue = amount / 1000000;
+      return `$${mValue % 1 === 0 ? mValue.toFixed(0) : mValue.toFixed(1)}M`;
+    }
   };
 
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
+    if (num < 1000) {
+      return new Intl.NumberFormat('en-US').format(num);
+    } else if (num < 1000000) {
+      const kValue = num / 1000;
+      return `${kValue % 1 === 0 ? kValue.toFixed(0) : kValue.toFixed(1)}K`;
+    } else {
+      const mValue = num / 1000000;
+      return `${mValue % 1 === 0 ? mValue.toFixed(0) : mValue.toFixed(1)}M`;
+    }
   };
 
-  const formatPercentage = (num: number, decimals: number = 1) => {
-    return Number(num).toFixed(decimals);
+  const formatPercentage = (num: number, decimals: number = 0) => {
+    const rounded = Number(num).toFixed(decimals);
+    return rounded.endsWith('.0') && decimals > 0 ? rounded.slice(0, -2) : rounded;
   };
 
   return (
