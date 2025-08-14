@@ -448,14 +448,14 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
 
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <Label htmlFor="domains">Number of Domains/Subdomains</Label>
+                <Label htmlFor="domains">Number of Domains</Label>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
                       <HelpCircle className="w-4 h-4 text-gray-400" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>How many different domains/subdomains you operate</p>
+                      <p>How many different domains you operate</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
