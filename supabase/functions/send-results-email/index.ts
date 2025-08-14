@@ -222,12 +222,12 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
 
         <!-- VISUAL HEADER -->
-        <div style="text-align: center; margin-bottom: 40px; padding: 25px; background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); border-radius: 12px; color: white;">
-          <h1 style="color: #ffffff !important; font-size: 28px; margin-bottom: 8px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">AdFixus Identity Health Assessment</h1>
-          <h2 style="color: #ffffff !important; font-size: 20px; margin-bottom: 15px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">Complete Revenue Impact Analysis</h2>
-          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; display: inline-block; border: 1px solid rgba(255,255,255,0.2);">
-            <p style="color: #ffffff !important; font-size: 16px; margin: 0; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">Annual Revenue Opportunity: ${formatCurrency(revenueIncrease)}</p>
-            <p style="color: #ffffff !important; font-size: 14px; margin: 5px 0 0 0; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">Generated: ${new Date().toLocaleString()}</p>
+        <div style="text-align: center; margin-bottom: 40px; padding: 25px; background: #ffffff; border-radius: 12px; border: 2px solid #1e40af;">
+          <h1 style="color: #000000 !important; font-size: 28px; margin-bottom: 8px; font-weight: bold;">AdFixus Identity Health Assessment</h1>
+          <h2 style="color: #000000 !important; font-size: 20px; margin-bottom: 15px; font-weight: 600;">Complete Revenue Impact Analysis</h2>
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; display: inline-block; border: 1px solid #dee2e6;">
+            <p style="color: #000000 !important; font-size: 16px; margin: 0; font-weight: bold;">Annual Revenue Opportunity: ${formatCurrency(revenueIncrease)}</p>
+            <p style="color: #000000 !important; font-size: 14px; margin: 5px 0 0 0;">Generated: ${new Date().toLocaleString()}</p>
           </div>
         </div>
 
