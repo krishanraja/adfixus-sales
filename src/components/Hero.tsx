@@ -19,7 +19,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
             ID Simulator
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Discover how much revenue you're losing to dark inventory and ID durability gaps. 
+            Discover how much revenue you're losing to non-addressable inventory and ID durability gaps. 
             Get your Identity Health Score and calculate your potential uplift.
           </p>
         </div>
