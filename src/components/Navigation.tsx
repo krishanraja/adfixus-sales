@@ -1,9 +1,10 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { BarChart3, Home, Calculator, FileText } from 'lucide-react';
+import type { StepType } from '@/types';
 
 interface NavigationProps {
-  currentStep: string;
+  currentStep: StepType;
   onReset: () => void;
 }
 
@@ -16,7 +17,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
   ];
 
   return (
-    <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
+    <nav className="bg-card shadow-sm border-b sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
@@ -37,16 +38,16 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
                 <div key={step.id} className="flex items-center space-x-2">
                   <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
                     isActive 
-                      ? 'bg-cyan-100 text-cyan-700 font-medium' 
+                      ? 'bg-primary/20 text-primary font-medium' 
                       : isCompleted 
-                        ? 'text-teal-600' 
-                        : 'text-gray-400'
+                        ? 'text-accent' 
+                        : 'text-muted-foreground'
                   }`}>
                     <Icon className="w-4 h-4" />
                     <span>{step.label}</span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`w-8 h-0.5 ${isCompleted ? 'bg-teal-400' : 'bg-gray-200'}`} />
+                    <div className={`w-8 h-0.5 ${isCompleted ? 'bg-accent' : 'bg-border'}`} />
                   )}
                 </div>
               );
@@ -57,7 +58,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
             variant="outline" 
             size="sm" 
             onClick={onReset}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-muted-foreground hover:text-foreground"
           >
             Reset
           </Button>

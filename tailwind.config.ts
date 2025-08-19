@@ -52,6 +52,19 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				// Semantic brand colors
+				brand: {
+					DEFAULT: 'hsl(var(--brand-primary))',
+					secondary: 'hsl(var(--brand-secondary))',
+				},
+				success: 'hsl(var(--success))',
+				warning: 'hsl(var(--warning))',
+				error: 'hsl(var(--error))',
+				// Status-specific colors
+				revenue: {
+					loss: 'hsl(var(--revenue-loss))',
+					gain: 'hsl(var(--revenue-gain))',
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
