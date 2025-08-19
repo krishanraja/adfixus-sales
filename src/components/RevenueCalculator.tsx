@@ -144,6 +144,38 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     const totalMonthlyUplift = potentialUplift + cpmUplift;
     const totalAnnualUplift = totalMonthlyUplift * 12;
 
+    // ID Bloat Reduction Calculations
+    // Estimate unique users from pageviews (typical 2.5 pages per session)
+    const estimatedMonthlyUsers = monthlyPageviews / 2.5;
+    
+    // Calculate ID multiplication factor based on current strategy
+    let idMultiplierFactor = 1;
+    
+    // Base multiplication from cross-domain fragmentation
+    if (numDomains > 1) {
+      idMultiplierFactor += (numDomains - 1) * 0.3; // 30% more IDs per additional domain
+    }
+    
+    // Additional multiplication from browser fragmentation
+    if (safariStrategy !== 'optimized') {
+      // Poor browser strategy leads to more ID fragmentation
+      idMultiplierFactor += (100 - chromeShare) / 100 * 0.4; // 40% more IDs for non-Chrome traffic
+    }
+    
+    // Sales mix complexity adds to ID bloat
+    const salesComplexity = (salesMix.direct + salesMix.dealIds) / 100;
+    idMultiplierFactor += salesComplexity * 0.2; // 20% more IDs for complex sales mix
+    
+    const currentMonthlyIds = Math.round(estimatedMonthlyUsers * idMultiplierFactor);
+    const idReductionPercentage = 20; // 20% reduction as specified
+    const idsReduced = Math.round(currentMonthlyIds * (idReductionPercentage / 100));
+    const optimizedMonthlyIds = currentMonthlyIds - idsReduced;
+    
+    // CDP cost savings at $0.004 per ID reduced
+    const costPerIdReduction = 0.004;
+    const monthlyCdpSavings = idsReduced * costPerIdReduction;
+    const annualCdpSavings = monthlyCdpSavings * 12;
+
     return {
       inputs: formData,
       currentRevenue,
@@ -182,6 +214,15 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           impressions: unaddressableVideo,
           lostRevenue: lostVideoRevenue
         }
+      },
+      idBloatReduction: {
+        currentMonthlyIds,
+        optimizedMonthlyIds,
+        idsReduced,
+        costPerIdReduction,
+        monthlyCdpSavings,
+        annualCdpSavings,
+        reductionPercentage: idReductionPercentage
       },
       uplift: {
         newlyAddressableImpressions: newlyAddressable,

@@ -64,6 +64,15 @@ export interface CalculatorResults {
       lostRevenue: number;
     };
   };
+  idBloatReduction: {
+    currentMonthlyIds: number;
+    optimizedMonthlyIds: number;
+    idsReduced: number;
+    costPerIdReduction: number;
+    monthlyCdpSavings: number;
+    annualCdpSavings: number;
+    reductionPercentage: number;
+  };
   uplift: {
     newlyAddressableImpressions: number;
     monthlyRevenue: number;

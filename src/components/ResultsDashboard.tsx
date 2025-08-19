@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar, Database } from 'lucide-react';
 import { generatePDF, sendPDFByEmail } from '../utils/pdfGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatting';
@@ -232,7 +232,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       </div>
 
       {/* Revenue Impact Overview */}
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-5 gap-6">
         <Card className="shadow-lg border-l-4 border-l-red-500">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -297,6 +297,23 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             </div>
             <p className="text-xs text-gray-500 mt-2">
               From {formatPercentage(calculatorResults.breakdown.currentAddressability)}% to 100%
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-l-4 border-l-emerald-500">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Monthly CDP Savings</p>
+                <p className="text-2xl font-bold text-emerald-600">
+                  {formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}
+                </p>
+              </div>
+              <Database className="w-8 h-8 text-emerald-500" />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)}% ID bloat reduction
             </p>
           </CardContent>
         </Card>
@@ -375,6 +392,107 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                     <li key={index}>{recommendation}</li>
                   ))}
                 </ul>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ID Bloat Reduction Analysis */}
+      <Card className="shadow-lg border-0">
+        <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50">
+          <CardTitle className="flex items-center space-x-2">
+            <Database className="w-6 h-6 text-emerald-600" />
+            <span>ID Bloat Reduction & CDP Cost Savings</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-4">Current State: Identity Fragmentation</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Estimated Monthly Unique Users:</span>
+                  <span className="font-medium">{formatNumber(calculatorResults.inputs.monthlyPageviews / 2.5)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Current Monthly ID Count:</span>
+                  <span className="font-medium text-red-600">{formatNumber(calculatorResults.idBloatReduction.currentMonthlyIds)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">ID Multiplication Factor:</span>
+                  <span className="font-medium text-orange-600">
+                    {(calculatorResults.idBloatReduction.currentMonthlyIds / (calculatorResults.inputs.monthlyPageviews / 2.5)).toFixed(2)}x
+                  </span>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-red-700">
+                  <strong>Problem:</strong> Cross-browser fragmentation and poor identity resolution creates 
+                  duplicate IDs that must be manually stitched together, inflating CDP costs.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-4">With AdFixus: Unified Identity</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Optimized Monthly ID Count:</span>
+                  <span className="font-medium text-green-600">{formatNumber(calculatorResults.idBloatReduction.optimizedMonthlyIds)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">IDs Eliminated:</span>
+                  <span className="font-medium text-emerald-600">
+                    -{formatNumber(calculatorResults.idBloatReduction.idsReduced)} ({formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)}%)
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Monthly CDP Savings:</span>
+                  <span className="font-bold text-emerald-600 text-lg">
+                    {formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Annual CDP Savings:</span>
+                  <span className="font-bold text-emerald-600 text-xl">
+                    {formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
+                <p className="text-sm text-emerald-700">
+                  <strong>Solution:</strong> AdFixus reduces computational ID bloat by ~20%, 
+                  saving ${calculatorResults.idBloatReduction.costPerIdReduction} per eliminated ID while improving data quality.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-gradient-to-r from-emerald-100 to-green-100 rounded-lg">
+            <div className="text-center">
+              <h4 className="font-bold text-emerald-800 text-lg mb-2">Total Combined ROI Impact</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-emerald-700 font-medium">Revenue Uplift (Annual)</p>
+                  <p className="text-2xl font-bold text-emerald-800">
+                    {formatCurrency(calculatorResults.uplift.totalAnnualUplift)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-emerald-700 font-medium">CDP Cost Savings (Annual)</p>
+                  <p className="text-2xl font-bold text-emerald-800">
+                    {formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-emerald-700 font-medium">Total Annual Value</p>
+                  <p className="text-3xl font-bold text-emerald-900">
+                    {formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -474,8 +592,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             Ready to Unlock Your Revenue Potential?
           </h3>
           <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-            You're potentially leaving <strong>{formatCurrency(calculatorResults.uplift.totalAnnualUplift)}</strong> on the table annually. 
-            Let's discuss how AdFixus can help you capture this opportunity.
+            You're potentially leaving <strong>{formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)}</strong> on the table annually. 
+            This includes <strong>{formatCurrency(calculatorResults.uplift.totalAnnualUplift)}</strong> in revenue uplift and <strong>{formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}</strong> in CDP cost savings.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

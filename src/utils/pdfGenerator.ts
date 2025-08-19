@@ -206,13 +206,14 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     doc.setFont('helvetica', 'normal');
     
     const summaryText = [
-      `Your current identity strategy is leaving ${formatCurrency(annualOpportunity)} annually on the table.`,
+      `Your current identity strategy is leaving ${formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)} annually on the table.`,
       '',
       `• ${formatPercentage(unaddressablePercent)} of your inventory is unaddressable`,
       `• Lost revenue: ${formatCurrency(lostRevenue)} per month`,
-      `• Potential uplift: ${formatCurrency(monthlyUplift)} monthly (+${formatPercentage(improvementPercent)})`,
+      `• Potential revenue uplift: ${formatCurrency(monthlyUplift)} monthly (+${formatPercentage(improvementPercent)})`,
+      `• CDP cost savings: ${formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)} monthly`,
       '',
-      'AdFixus can help you recover this lost revenue through advanced identity resolution.'
+      'AdFixus can help you recover this lost revenue and reduce operational costs through advanced identity resolution.'
     ];
     
     summaryText.forEach((line, index) => {
@@ -297,6 +298,97 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     doc.setFontSize(typography.sectionTitle);
     doc.setFont('helvetica', 'bold');
     doc.text(`ANNUAL OPPORTUNITY: ${formatCurrency(annualOpportunity)}`, layout.margin + 5, currentY + 13);
+    
+    currentY += 30;
+  };
+
+  // ID Bloat Reduction Analysis
+  const addIdBloatAnalysis = async () => {
+    await checkPageBreak(80);
+    
+    doc.setTextColor(brandColors.gray[800]);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ID BLOAT REDUCTION & CDP COST SAVINGS', layout.margin, currentY);
+    currentY += 15;
+    
+    // Current vs Optimized ID counts
+    const cardWidth = (layout.contentWidth - layout.cardSpacing) / 2;
+    const cardHeight = 45;
+    
+    // Current State Card
+    doc.setFillColor('#FEF3C7'); // Light yellow/orange
+    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'F');
+    doc.setDrawColor('#F59E0B');
+    doc.setLineWidth(2);
+    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'S');
+    
+    doc.setTextColor('#D97706');
+    doc.setFontSize(typography.cardTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CURRENT: ID FRAGMENTATION', layout.margin + 5, currentY + 8);
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatNumber(calculatorResults.idBloatReduction.currentMonthlyIds), layout.margin + 5, currentY + 20);
+    
+    doc.setFontSize(typography.caption);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Monthly IDs (bloated)', layout.margin + 5, currentY + 28);
+    
+    const multiplier = (calculatorResults.idBloatReduction.currentMonthlyIds / (calculatorResults.inputs.monthlyPageviews / 2.5)).toFixed(1);
+    doc.text(`${multiplier}x multiplication factor`, layout.margin + 5, currentY + 36);
+    
+    // Optimized State Card
+    const card2X = layout.margin + cardWidth + layout.cardSpacing;
+    doc.setFillColor('#DCFCE7'); // Light green
+    doc.rect(card2X, currentY, cardWidth, cardHeight, 'F');
+    doc.setDrawColor('#22C55E');
+    doc.setLineWidth(2);
+    doc.rect(card2X, currentY, cardWidth, cardHeight, 'S');
+    
+    doc.setTextColor('#16A34A');
+    doc.setFontSize(typography.cardTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('WITH ADFIXUS: UNIFIED IDENTITY', card2X + 5, currentY + 8);
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatNumber(calculatorResults.idBloatReduction.optimizedMonthlyIds), card2X + 5, currentY + 20);
+    
+    doc.setFontSize(typography.caption);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Monthly IDs (optimized)', card2X + 5, currentY + 28);
+    doc.text(`-${formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)} ID bloat`, card2X + 5, currentY + 36);
+    
+    currentY += cardHeight + 15;
+    
+    // CDP Cost Savings highlight
+    doc.setFillColor('#065F46'); // Dark green
+    doc.rect(layout.margin, currentY, layout.contentWidth, 25, 'F');
+    
+    doc.setTextColor(brandColors.white);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CDP COST SAVINGS:', layout.margin + 5, currentY + 10);
+    
+    doc.setFontSize(16);
+    doc.text(`${formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}/month`, layout.margin + 5, currentY + 20);
+    
+    doc.text(`${formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}/year`, layout.margin + 90, currentY + 20);
+    
+    currentY += 35;
+    
+    // Combined ROI Summary
+    const totalAnnualValue = calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings;
+    
+    doc.setFillColor('#1E40AF'); // Blue
+    doc.rect(layout.margin, currentY, layout.contentWidth, 20, 'F');
+    
+    doc.setTextColor(brandColors.white);
+    doc.setFontSize(typography.sectionTitle);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL ANNUAL ROI: ${formatCurrency(totalAnnualValue)}`, layout.margin + 5, currentY + 13);
     
     currentY += 30;
   };
@@ -524,14 +616,15 @@ export const generatePDF = async (quizResults: any, calculatorResults: any, lead
     return names[category] || category;
   };
 
-  // Build the PDF
-  await addPageHeader();
-  await addExecutiveSummary();
-  await addRevenueCards();
-  await addIdentityHealth();
-  await addActionPlan();
-  await addTechnicalDetails();
-  addFooter();
+   // Build the PDF
+   await addPageHeader();
+   await addExecutiveSummary();
+   await addRevenueCards();
+   await addIdBloatAnalysis();
+   await addIdentityHealth();
+   await addActionPlan();
+   await addTechnicalDetails();
+   addFooter();
 
   return doc;
 };
