@@ -67,7 +67,7 @@ export const buildAdfixusProposalPdf = async (
             margin: [40, 20, 0, 0]
           },
           {
-            text: 'AdFixus - CAPI Proposal for Publishers',
+            text: 'AdFixus - Identity ROI Proposal',
             style: 'reportTitle',
             alignment: 'right',
             margin: [0, 25, 40, 0]
@@ -309,7 +309,7 @@ export const buildAdfixusProposalPdf = async (
             margin: [0, 0, 0, 10]
           },
           {
-            text: 'Email: partnerships@adfixus.com | Phone: +1 (555) 123-4567',
+            text: 'Email: sales@adfixus.com | Phone: +1 (555) 123-4567',
             style: 'body',
             italics: true
           }
@@ -372,7 +372,7 @@ export const buildAdfixusProposalPdf = async (
   };
 
   // Generate and download PDF
-  pdfMake.createPdf(docDefinition).download('AdFixus - CAPI Proposal for Publishers.pdf');
+  pdfMake.createPdf(docDefinition).download('AdFixus - Identity ROI Proposal.pdf');
 };
 
 // Legacy function for backward compatibility
