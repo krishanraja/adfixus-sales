@@ -1,649 +1,386 @@
-import jsPDF from 'jspdf';
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+import { formatCurrency, formatNumber, formatPercentage } from './formatting';
+import { generateKeyRecommendations } from './recommendations';
+import { getGrade } from './grading';
 
-export const generatePDF = async (quizResults: any, calculatorResults: any, leadData?: any) => {
-  // Professional brand colors and design system
-  const brandColors = {
-    primary: '#0066CC',
-    secondary: '#00A3E0', 
-    success: '#22C55E',
-    warning: '#F59E0B',
-    danger: '#EF4444',
-    gray: {
-      50: '#F8FAFC',
-      100: '#F1F5F9',
-      200: '#E2E8F0',
-      300: '#CBD5E1',
-      400: '#94A3B8',
-      500: '#64748B',
-      600: '#475569',
-      700: '#334155',
-      800: '#1E293B',
-      900: '#0F172A'
-    },
-    white: '#FFFFFF'
-  };
+// Initialize pdfMake fonts
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
-  // Typography hierarchy
-  const typography = {
-    hero: 24,
-    title: 18,
-    sectionTitle: 14,
-    cardTitle: 10,
-    cardValue: 14,
-    body: 10,
-    caption: 8,
-    footer: 7
-  };
-
-  // Layout system
-  const layout = {
-    pageWidth: 210,
-    pageHeight: 297,
-    margin: 20,
-    contentWidth: 170,
-    headerHeight: 50,
-    footerHeight: 25,
-    sectionSpacing: 20,
-    cardSpacing: 8,
-    lineHeight: 6,
-    bulletIndent: 12
-  };
-
-  // Smart formatting functions
-  const formatCurrency = (amount: number | undefined | null): string => {
-    if (amount === null || amount === undefined || isNaN(Number(amount))) return '$0';
-    const num = Number(amount);
-    if (num < 1000) return `$${num.toFixed(0)}`;
-    if (num < 1000000) return `$${(num / 1000).toFixed(1)}K`;
-    return `$${(num / 1000000).toFixed(1)}M`;
-  };
-
-  const formatNumber = (num: number | undefined | null): string => {
-    if (num === null || num === undefined || isNaN(Number(num))) return '0';
-    const value = Number(num);
-    if (value < 1000) return value.toFixed(0);
-    if (value < 1000000) return `${(value / 1000).toFixed(1)}K`;
-    return `${(value / 1000000).toFixed(1)}M`;
-  };
-
-  const formatPercentage = (value: number | undefined | null): string => {
-    if (value === null || value === undefined || isNaN(Number(value))) return '0%';
-    const rounded = Number(value).toFixed(0);
-    return `${rounded}%`;
-  };
-
-  // Extract data with smart defaults
-  const inputs = calculatorResults?.inputs || {};
-  const breakdown = calculatorResults?.breakdown || {};
-  const uplift = calculatorResults?.uplift || {};
-  const unaddressableInventory = calculatorResults?.unaddressableInventory || {};
-
-  const monthlyRevenue = Number(calculatorResults?.currentRevenue) || 0;
-  const monthlyUplift = Number(uplift.totalMonthlyUplift) || 0;
-  const annualOpportunity = Number(uplift.totalAnnualUplift) || 0;
-  const lostRevenue = Number(unaddressableInventory.lostRevenue) || 0;
-  const improvementPercent = Number(uplift.percentageImprovement) || 0;
-  const unaddressablePercent = Number(unaddressableInventory.percentage) || 0;
-
-  // Create PDF document
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm', 
-    format: 'a4'
-  });
-
-  let currentY = layout.margin;
-
-  // Helper function to add new page if needed
-  const checkPageBreak = async (requiredHeight: number) => {
-    if (currentY + requiredHeight > layout.pageHeight - layout.footerHeight) {
-      doc.addPage();
-      currentY = layout.margin;
-      await addPageHeader();
-    }
-  };
-
-  // Helper function to calculate logo dimensions with proper aspect ratio
-  const getLogoDimensions = async (): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const maxHeight = 12; // Maximum height in mm
-        const aspectRatio = img.naturalWidth / img.naturalHeight;
-        const height = maxHeight;
-        const width = height * aspectRatio;
-        resolve({ width, height });
-      };
-      img.onerror = () => {
-        // Fallback dimensions if image fails to load
-        resolve({ width: 30, height: 12 });
-      };
-      img.src = '/lovable-uploads/a2cd355f-5007-4938-9578-9d7e966a1d64.png';
+// Convert image to base64
+const convertImageToBase64 = async (imagePath: string): Promise<string> => {
+  try {
+    const response = await fetch(imagePath);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
-  };
-
-  // Add page header
-  const addPageHeader = async () => {
-    // Company branding
-    doc.setFillColor('#F8FAFC');
-    doc.rect(0, 0, layout.pageWidth, layout.headerHeight, 'F');
-    
-    // Logo - left justified with proper aspect ratio
-    try {
-      const logoUrl = '/lovable-uploads/a2cd355f-5007-4938-9578-9d7e966a1d64.png';
-      const { width: logoWidth, height: logoHeight } = await getLogoDimensions();
-      doc.addImage(logoUrl, 'PNG', layout.margin, 14, logoWidth, logoHeight);
-    } catch (error) {
-      doc.setTextColor(brandColors.primary);
-      doc.setFontSize(typography.title);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ADFIXUS', layout.margin, 20);
-    }
-    
-    // Report title
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.hero);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Identity Revenue Impact Report', layout.margin, 35);
-    
-    // Divider line
-    doc.setDrawColor(brandColors.gray[300]);
-    doc.setLineWidth(0.5);
-    doc.line(layout.margin, layout.headerHeight, layout.pageWidth - layout.margin, layout.headerHeight);
-    
-    currentY = layout.headerHeight + layout.sectionSpacing;
-  };
-
-  // Add footer
-  const addFooter = () => {
-    const footerY = layout.pageHeight - layout.footerHeight;
-    
-    doc.setFillColor(brandColors.gray[50]);
-    doc.rect(0, footerY, layout.pageWidth, layout.footerHeight, 'F');
-    
-    doc.setTextColor(brandColors.gray[600]);
-    doc.setFontSize(typography.footer);
-    doc.setFont('helvetica', 'normal');
-    
-    const confidentialText = 'CONFIDENTIAL - For Internal Use Only';
-    doc.text(confidentialText, layout.margin, footerY + 8);
-    
-    const dateText = `Generated: ${new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })}`;
-    doc.text(dateText, layout.pageWidth - layout.margin, footerY + 8, { align: 'right' });
-    
-    const contactText = 'Questions? Contact sales@adfixus.com';
-    doc.text(contactText, layout.pageWidth / 2, footerY + 16, { align: 'center' });
-  };
-
-  // Executive Summary Card
-  const addExecutiveSummary = async () => {
-    await checkPageBreak(80);
-    
-    // Section header
-    doc.setFillColor(brandColors.primary);
-    doc.rect(layout.margin, currentY, layout.contentWidth, 12, 'F');
-    
-    doc.setTextColor(brandColors.white);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('EXECUTIVE SUMMARY', layout.margin + 5, currentY + 8);
-    
-    currentY += 18;
-    
-    // Key findings box
-    doc.setFillColor(brandColors.gray[50]);
-    doc.rect(layout.margin, currentY, layout.contentWidth, 45, 'F');
-    doc.setDrawColor(brandColors.gray[200]);
-    doc.setLineWidth(0.5);
-    doc.rect(layout.margin, currentY, layout.contentWidth, 45, 'S');
-    
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.body);
-    doc.setFont('helvetica', 'normal');
-    
-    const summaryText = [
-      `Your current identity strategy is leaving ${formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)} annually on the table.`,
-      '',
-      `• ${formatPercentage(unaddressablePercent)} of your inventory is unaddressable`,
-      `• Lost revenue: ${formatCurrency(lostRevenue)} per month`,
-      `• Potential revenue uplift: ${formatCurrency(monthlyUplift)} monthly (+${formatPercentage(improvementPercent)})`,
-      `• CDP cost savings: ${formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)} monthly`,
-      '',
-      'AdFixus can help you recover this lost revenue and reduce operational costs through advanced identity resolution.'
-    ];
-    
-    summaryText.forEach((line, index) => {
-      if (line.startsWith('•')) {
-        doc.setFont('helvetica', 'normal');
-        doc.text('•', layout.margin + 5, currentY + 6 + (index * layout.lineHeight));
-        doc.text(line.substring(2), layout.margin + 10, currentY + 6 + (index * layout.lineHeight));
-      } else if (line === '') {
-        // Skip empty lines
-      } else {
-        doc.setFont(index === 0 ? 'bold' : 'normal');
-        doc.text(line, layout.margin + 5, currentY + 6 + (index * layout.lineHeight));
-      }
-    });
-    
-    currentY += 55;
-  };
-
-  // Revenue Impact Cards
-  const addRevenueCards = async () => {
-    await checkPageBreak(60);
-    
-    // Section header
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('REVENUE IMPACT ANALYSIS', layout.margin, currentY);
-    currentY += 15;
-    
-    // Card dimensions
-    const cardWidth = (layout.contentWidth - layout.cardSpacing) / 2;
-    const cardHeight = 35;
-    
-    // Revenue Loss Card (Problem)
-    doc.setFillColor('#FEE2E2'); // Light red
-    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'F');
-    doc.setDrawColor('#EF4444');
-    doc.setLineWidth(2);
-    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'S');
-    
-    doc.setTextColor('#DC2626');
-    doc.setFontSize(typography.cardTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('MONTHLY REVENUE LOSS', layout.margin + 5, currentY + 8);
-    
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(lostRevenue), layout.margin + 5, currentY + 20);
-    
-    doc.setFontSize(typography.caption);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${formatPercentage(unaddressablePercent)} unaddressable inventory`, layout.margin + 5, currentY + 28);
-    
-    // Revenue Opportunity Card (Solution) 
-    const card2X = layout.margin + cardWidth + layout.cardSpacing;
-    doc.setFillColor('#DCFCE7'); // Light green
-    doc.rect(card2X, currentY, cardWidth, cardHeight, 'F');
-    doc.setDrawColor('#22C55E');
-    doc.setLineWidth(2);
-    doc.rect(card2X, currentY, cardWidth, cardHeight, 'S');
-    
-    doc.setTextColor('#16A34A');
-    doc.setFontSize(typography.cardTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('MONTHLY OPPORTUNITY', card2X + 5, currentY + 8);
-    
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(monthlyUplift), card2X + 5, currentY + 20);
-    
-    doc.setFontSize(typography.caption);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`+${formatPercentage(improvementPercent)} revenue increase`, card2X + 5, currentY + 28);
-    
-    currentY += cardHeight + 10;
-    
-    // Annual projection
-    doc.setFillColor(brandColors.primary);
-    doc.rect(layout.margin, currentY, layout.contentWidth, 20, 'F');
-    
-    doc.setTextColor(brandColors.white);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`ANNUAL OPPORTUNITY: ${formatCurrency(annualOpportunity)}`, layout.margin + 5, currentY + 13);
-    
-    currentY += 30;
-  };
-
-  // ID Bloat Reduction Analysis
-  const addIdBloatAnalysis = async () => {
-    await checkPageBreak(80);
-    
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('ID BLOAT REDUCTION & CDP COST SAVINGS', layout.margin, currentY);
-    currentY += 15;
-    
-    // Current vs Optimized ID counts
-    const cardWidth = (layout.contentWidth - layout.cardSpacing) / 2;
-    const cardHeight = 45;
-    
-    // Current State Card
-    doc.setFillColor('#FEF3C7'); // Light yellow/orange
-    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'F');
-    doc.setDrawColor('#F59E0B');
-    doc.setLineWidth(2);
-    doc.rect(layout.margin, currentY, cardWidth, cardHeight, 'S');
-    
-    doc.setTextColor('#D97706');
-    doc.setFontSize(typography.cardTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('CURRENT: ID FRAGMENTATION', layout.margin + 5, currentY + 8);
-    
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatNumber(calculatorResults.idBloatReduction.currentMonthlyIds), layout.margin + 5, currentY + 20);
-    
-    doc.setFontSize(typography.caption);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Monthly IDs (bloated)', layout.margin + 5, currentY + 28);
-    
-    const multiplier = (calculatorResults.idBloatReduction.currentMonthlyIds / (calculatorResults.inputs.monthlyPageviews / 2.5)).toFixed(1);
-    doc.text(`${multiplier}x multiplication factor`, layout.margin + 5, currentY + 36);
-    
-    // Optimized State Card
-    const card2X = layout.margin + cardWidth + layout.cardSpacing;
-    doc.setFillColor('#DCFCE7'); // Light green
-    doc.rect(card2X, currentY, cardWidth, cardHeight, 'F');
-    doc.setDrawColor('#22C55E');
-    doc.setLineWidth(2);
-    doc.rect(card2X, currentY, cardWidth, cardHeight, 'S');
-    
-    doc.setTextColor('#16A34A');
-    doc.setFontSize(typography.cardTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('WITH ADFIXUS: UNIFIED IDENTITY', card2X + 5, currentY + 8);
-    
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatNumber(calculatorResults.idBloatReduction.optimizedMonthlyIds), card2X + 5, currentY + 20);
-    
-    doc.setFontSize(typography.caption);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Monthly IDs (optimized)', card2X + 5, currentY + 28);
-    doc.text(`-${formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)} ID bloat`, card2X + 5, currentY + 36);
-    
-    currentY += cardHeight + 15;
-    
-    // CDP Cost Savings highlight
-    doc.setFillColor('#065F46'); // Dark green
-    doc.rect(layout.margin, currentY, layout.contentWidth, 25, 'F');
-    
-    doc.setTextColor(brandColors.white);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('CDP COST SAVINGS:', layout.margin + 5, currentY + 10);
-    
-    doc.setFontSize(16);
-    doc.text(`${formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}/month`, layout.margin + 5, currentY + 20);
-    
-    doc.text(`${formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}/year`, layout.margin + 90, currentY + 20);
-    
-    currentY += 35;
-    
-    // Combined ROI Summary
-    const totalAnnualValue = calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings;
-    
-    doc.setFillColor('#1E40AF'); // Blue
-    doc.rect(layout.margin, currentY, layout.contentWidth, 20, 'F');
-    
-    doc.setTextColor(brandColors.white);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL ANNUAL ROI: ${formatCurrency(totalAnnualValue)}`, layout.margin + 5, currentY + 13);
-    
-    currentY += 30;
-  };
-
-  // Identity Health Scorecard
-  const addIdentityHealth = async () => {
-    await checkPageBreak(80);
-    
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('IDENTITY HEALTH SCORECARD', layout.margin, currentY);
-    currentY += 15;
-    
-    // Overall grade - prominent display
-    const gradeBoxSize = 25;
-    const gradeX = layout.margin + (layout.contentWidth - gradeBoxSize) / 2;
-    
-    const overallGrade = quizResults?.overallGrade || 'F';
-    const gradeColor = getGradeColor(overallGrade);
-    
-    doc.setFillColor(gradeColor.bg);
-    doc.rect(gradeX, currentY, gradeBoxSize, gradeBoxSize, 'F');
-    doc.setDrawColor(gradeColor.border);
-    doc.setLineWidth(2);
-    doc.rect(gradeX, currentY, gradeBoxSize, gradeBoxSize, 'S');
-    
-    doc.setTextColor(gradeColor.text);
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text(overallGrade, gradeX + gradeBoxSize/2, currentY + gradeBoxSize/2 + 3, { align: 'center' });
-    
-    doc.setTextColor(brandColors.gray[700]);
-    doc.setFontSize(typography.body);
-    doc.setFont('helvetica', 'bold');
-    doc.text('OVERALL GRADE', layout.pageWidth/2, currentY + gradeBoxSize + 8, { align: 'center' });
-    
-    currentY += gradeBoxSize + 20;
-    
-    // Category breakdown
-    if (quizResults?.scores) {
-      const categories = Object.entries(quizResults.scores)
-        .filter(([key]) => key !== 'sales-mix')
-        .slice(0, 4); // Limit to 4 categories for space
-      
-      const categoryWidth = layout.contentWidth / 4;
-      
-      categories.forEach(([category, data]: [string, any], index) => {
-        const x = layout.margin + (index * categoryWidth);
-        const categoryGrade = data.grade || 'F';
-        const categoryColor = getGradeColor(categoryGrade);
-        
-        // Small grade box
-        doc.setFillColor(categoryColor.bg);
-        doc.rect(x + 5, currentY, 15, 15, 'F');
-        doc.setDrawColor(categoryColor.border);
-        doc.setLineWidth(1);
-        doc.rect(x + 5, currentY, 15, 15, 'S');
-        
-        doc.setTextColor(categoryColor.text);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(categoryGrade, x + 12.5, currentY + 10, { align: 'center' });
-        
-        // Category name
-        doc.setTextColor(brandColors.gray[700]);
-        doc.setFontSize(typography.caption);
-        doc.setFont('helvetica', 'normal');
-        const categoryName = getCategoryName(category);
-        const nameLines = doc.splitTextToSize(categoryName, categoryWidth - 10);
-        nameLines.forEach((line: string, lineIndex: number) => {
-          doc.text(line, x + categoryWidth/2, currentY + 20 + (lineIndex * 4), { align: 'center' });
-        });
-      });
-      
-      currentY += 35;
-    }
-  };
-
-  // Action Plan & Recommendations
-  const addActionPlan = async () => {
-    await checkPageBreak(70);
-    
-    doc.setFillColor('#FEF3C7'); // Light amber
-    doc.rect(layout.margin, currentY, layout.contentWidth, 12, 'F');
-    
-    doc.setTextColor('#B45309');
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RECOMMENDED ACTION PLAN', layout.margin + 5, currentY + 8);
-    
-    currentY += 18;
-    
-    const recommendations = [
-      {
-        priority: 'HIGH',
-        action: 'Implement AdFixus Identity Resolution',
-        impact: `Recover ${formatCurrency(monthlyUplift)} monthly`,
-        timeline: '30-45 days'
-      },
-      {
-        priority: 'MEDIUM', 
-        action: 'Optimize Safari/Firefox Targeting',
-        impact: `Address ${formatPercentage(unaddressablePercent)} unaddressable inventory`,
-        timeline: '60 days'
-      },
-      {
-        priority: 'HIGH',
-        action: 'Cross-Domain Identity Linking',
-        impact: 'Improve user journey tracking',
-        timeline: '45-60 days'
-      }
-    ];
-    
-    recommendations.forEach((rec, index) => {
-      const priorityColor = rec.priority === 'HIGH' ? '#DC2626' : '#F59E0B';
-      
-      // Priority badge
-      doc.setFillColor(priorityColor);
-      doc.rect(layout.margin, currentY, 20, 6, 'F');
-      doc.setTextColor(brandColors.white);
-      doc.setFontSize(typography.caption);
-      doc.setFont('helvetica', 'bold');
-      doc.text(rec.priority, layout.margin + 10, currentY + 4, { align: 'center' });
-      
-      // Action details
-      doc.setTextColor(brandColors.gray[800]);
-      doc.setFontSize(typography.body);
-      doc.setFont('helvetica', 'bold');
-      doc.text(rec.action, layout.margin + 25, currentY + 4);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Impact: ${rec.impact}`, layout.margin + 5, currentY + 10);
-      doc.text(`Timeline: ${rec.timeline}`, layout.margin + 5, currentY + 16);
-      
-      currentY += 22;
-    });
-  };
-
-  // Technical details section
-  const addTechnicalDetails = async () => {
-    await checkPageBreak(80);
-    
-    doc.setTextColor(brandColors.gray[800]);
-    doc.setFontSize(typography.sectionTitle);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TECHNICAL ANALYSIS', layout.margin, currentY);
-    currentY += 15;
-    
-    // Two-column layout for technical data
-    const leftCol = layout.margin;
-    const rightCol = layout.margin + (layout.contentWidth / 2) + 5;
-    const colWidth = (layout.contentWidth / 2) - 5;
-    
-    // Input parameters
-    doc.setTextColor(brandColors.gray[700]);
-    doc.setFontSize(typography.body);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Input Parameters:', leftCol, currentY);
-    currentY += 8;
-    
-    const inputData = [
-      ['Monthly Pageviews', formatNumber(inputs.monthlyPageviews || 0)],
-      ['Ad Impressions/Page', (inputs.adImpressionsPerPage || 0).toFixed(1)],
-      ['Display CPM', formatCurrency(inputs.webDisplayCPM || 0)],
-      ['Video CPM', formatCurrency(inputs.webVideoCPM || 0)],
-      ['Chrome Share', formatPercentage(inputs.chromeShare || 0)]
-    ];
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(typography.caption);
-    inputData.forEach(([label, value]) => {
-      doc.text(`${label}: ${value}`, leftCol, currentY);
-      currentY += 5;
-    });
-    
-    // Reset for right column
-    currentY -= (inputData.length * 5) + 8;
-    
-    // Calculated results
-    doc.setTextColor(brandColors.gray[700]);
-    doc.setFontSize(typography.body);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Calculated Results:', rightCol, currentY);
-    currentY += 8;
-    
-    const resultData = [
-      ['Total Impressions', formatNumber((inputs.monthlyPageviews || 0) * (inputs.adImpressionsPerPage || 0))],
-      ['Current Revenue', formatCurrency(monthlyRevenue)],
-      ['Unaddressable %', formatPercentage(unaddressablePercent)],
-      ['Monthly Uplift', formatCurrency(monthlyUplift)],
-      ['ROI Improvement', formatPercentage(improvementPercent)]
-    ];
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(typography.caption);
-    resultData.forEach(([label, value]) => {
-      doc.text(`${label}: ${value}`, rightCol, currentY);
-      currentY += 5;
-    });
-    
-    currentY += 15;
-  };
-
-  // Helper function for grade colors
-  const getGradeColor = (grade: string) => {
-    const colors = {
-      'A+': { bg: '#DCFCE7', text: '#166534', border: '#22C55E' },
-      'A': { bg: '#DCFCE7', text: '#166534', border: '#22C55E' },
-      'B': { bg: '#DBEAFE', text: '#1E40AF', border: '#3B82F6' },
-      'C': { bg: '#FEF3C7', text: '#B45309', border: '#F59E0B' },
-      'D': { bg: '#FED7AA', text: '#C2410C', border: '#FB923C' },
-      'F': { bg: '#FEE2E2', text: '#DC2626', border: '#EF4444' }
-    };
-    return colors[grade] || colors['F'];
-  };
-
-  const getCategoryName = (category: string) => {
-    const names = {
-      'durability': 'Identity Durability',
-      'cross-domain': 'Cross-Domain Visibility', 
-      'privacy': 'Privacy & Compliance',
-      'browser': 'Browser Resilience'
-    };
-    return names[category] || category;
-  };
-
-   // Build the PDF
-   await addPageHeader();
-   await addExecutiveSummary();
-   await addRevenueCards();
-   await addIdBloatAnalysis();
-   await addIdentityHealth();
-   await addActionPlan();
-   await addTechnicalDetails();
-   addFooter();
-
-  return doc;
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return '';
+  }
 };
 
-// Keep the email sending function unchanged
-export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
-  const formData = new FormData();
-  formData.append('pdf', pdfBlob, 'identity-roi-report.pdf');
-  formData.append('recipientEmail', 'krish.raja@adfixus.com');
-  formData.append('userEmail', userEmail || 'Unknown');
-  formData.append('timestamp', new Date().toISOString());
+export const buildAdfixusProposalPdf = async (
+  quizResults: any,
+  calculatorResults: any,
+  leadData?: any
+) => {
+  const logoDataUrl = await convertImageToBase64('/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png');
   
-  try {
-    console.log('PDF would be sent to krish.raja@adfixus.com');
-    console.log('PDF blob size:', pdfBlob.size);
-    
-    return { success: true, message: 'PDF sent successfully' };
-  } catch (error) {
-    console.error('Error sending PDF:', error);
-    return { success: false, message: 'Failed to send PDF' };
+  // Calculate key metrics
+  const monthlyRevenueLoss = calculatorResults?.monthlyRevenueLoss || 0;
+  const potentialRevenue = calculatorResults?.potentialRevenue || 0;
+  const currentIdentities = calculatorResults?.currentIdentities || 0;
+  const optimizedIdentities = calculatorResults?.optimizedIdentities || 0;
+  const cdpCostSavings = calculatorResults?.cdpCostSavings || 0;
+  // Calculate overall grade based on quiz results
+  let totalScore = 0;
+  let categoryCount = 0;
+  
+  if (quizResults) {
+    Object.values(quizResults).forEach((score: any) => {
+      if (typeof score === 'number') {
+        totalScore += score;
+        categoryCount++;
+      }
+    });
   }
+  
+  const averageScore = categoryCount > 0 ? totalScore / categoryCount : 70;
+  const overallGrade = getGrade(averageScore);
+  const recommendations = generateKeyRecommendations(calculatorResults);
+
+  const docDefinition = {
+    pageSize: 'A4',
+    pageMargins: [40, 60, 40, 60],
+    
+    header: function(currentPage: number) {
+      return {
+        columns: [
+          {
+            image: logoDataUrl,
+            fit: [120, 32],
+            margin: [40, 20, 0, 0]
+          },
+          {
+            text: 'AdFixus - CAPI Proposal for Publishers',
+            style: 'reportTitle',
+            alignment: 'right',
+            margin: [0, 25, 40, 0]
+          }
+        ]
+      };
+    },
+
+    footer: function(currentPage: number, pageCount: number) {
+      return {
+        columns: [
+          {
+            text: 'CONFIDENTIAL - Executive Use Only',
+            style: 'footer',
+            margin: [40, 0, 0, 0]
+          },
+          {
+            text: `${currentPage} of ${pageCount}`,
+            style: 'footer',
+            alignment: 'right',
+            margin: [0, 0, 40, 0]
+          }
+        ]
+      };
+    },
+
+    content: [
+      // Page 1: Executive Summary
+      {
+        unbreakable: true,
+        stack: [
+          {
+            text: 'Executive Summary',
+            style: 'h1',
+            margin: [0, 20, 0, 20]
+          },
+          {
+            text: 'Current Challenge',
+            style: 'h2',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            text: `Your current identity resolution system is losing ${formatCurrency(monthlyRevenueLoss)} per month due to fragmented customer data and suboptimal targeting. Identity bloat is causing inefficient ad spend and missed revenue opportunities.`,
+            style: 'body',
+            margin: [0, 0, 0, 15]
+          },
+          {
+            text: 'AdFixus Solution',
+            style: 'h2',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            text: 'AdFixus CAPI provides unified identity resolution, reducing identity bloat while maximizing revenue through improved targeting and data quality. Our solution delivers immediate ROI through optimized customer data platforms and enhanced advertising effectiveness.',
+            style: 'body',
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Key Performance Indicators',
+            style: 'h2',
+            margin: [0, 0, 0, 15]
+          },
+          {
+            columns: [
+              {
+                width: '33%',
+                table: {
+                  body: [
+                    [{ text: 'Monthly Revenue Loss', style: 'kpiHeader' }],
+                    [{ text: formatCurrency(monthlyRevenueLoss), style: 'kpiValue' }],
+                    [{ text: 'Current inefficiency', style: 'kpiSubtext' }]
+                  ]
+                },
+                layout: 'noBorders'
+              },
+              {
+                width: '33%',
+                table: {
+                  body: [
+                    [{ text: 'Revenue Opportunity', style: 'kpiHeader' }],
+                    [{ text: formatCurrency(potentialRevenue), style: 'kpiValue' }],
+                    [{ text: 'With AdFixus CAPI', style: 'kpiSubtext' }]
+                  ]
+                },
+                layout: 'noBorders'
+              },
+              {
+                width: '33%',
+                table: {
+                  body: [
+                    [{ text: 'Identity Health Grade', style: 'kpiHeader' }],
+                    [{ text: overallGrade, style: 'kpiValue' }],
+                    [{ text: 'Current assessment', style: 'kpiSubtext' }]
+                  ]
+                },
+                layout: 'noBorders'
+              }
+            ]
+          }
+        ]
+      },
+
+      // Page 2: Detailed Revenue Analysis
+      {
+        pageBreak: 'before',
+        unbreakable: true,
+        stack: [
+          {
+            text: 'Detailed Revenue Analysis',
+            style: 'h1',
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Identity Resolution Impact',
+            style: 'h2',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            text: 'Our analysis reveals significant revenue leakage due to identity fragmentation. The following breakdown shows current performance versus AdFixus-optimized results:',
+            style: 'body',
+            margin: [0, 0, 0, 20]
+          },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 'auto', 'auto', 'auto'],
+              body: [
+                [
+                  { text: 'Metric', style: 'tableHeader' },
+                  { text: 'Current State', style: 'tableHeader' },
+                  { text: 'With AdFixus', style: 'tableHeader' },
+                  { text: 'Monthly Impact', style: 'tableHeader' }
+                ],
+                [
+                  'Monthly Revenue',
+                  formatCurrency(potentialRevenue - monthlyRevenueLoss),
+                  formatCurrency(potentialRevenue),
+                  `+${formatCurrency(monthlyRevenueLoss)}`
+                ],
+                [
+                  'Identity Count',
+                  formatNumber(currentIdentities),
+                  formatNumber(optimizedIdentities),
+                  `${formatPercentage(((optimizedIdentities - currentIdentities) / currentIdentities) * 100, 1)} reduction`
+                ],
+                [
+                  'CDP Platform Costs',
+                  formatCurrency(cdpCostSavings + (cdpCostSavings * 0.3)),
+                  formatCurrency(cdpCostSavings * 0.3),
+                  `-${formatCurrency(cdpCostSavings)}`
+                ],
+                [
+                  'Combined ROI',
+                  '-',
+                  '-',
+                  `+${formatCurrency(monthlyRevenueLoss + cdpCostSavings)}`
+                ]
+              ]
+            },
+            layout: {
+              fillColor: function (rowIndex: number) {
+                return rowIndex === 0 ? '#F8FAFC' : (rowIndex % 2 === 0 ? '#F8FAFC' : null);
+              }
+            },
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Annual Revenue Projection',
+            style: 'h2',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            text: `Based on current inefficiencies, AdFixus CAPI implementation would generate an additional ${formatCurrency((monthlyRevenueLoss + cdpCostSavings) * 12)} annually through improved identity resolution and reduced platform costs.`,
+            style: 'body'
+          }
+        ]
+      },
+
+      // Page 3: Strategic Action Plan
+      {
+        pageBreak: 'before',
+        unbreakable: true,
+        stack: [
+          {
+            text: 'Strategic Action Plan',
+            style: 'h1',
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Priority Recommendations',
+            style: 'h2',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            ul: recommendations.slice(0, 3).map(rec => ({
+              text: rec,
+              style: 'body',
+              margin: [0, 0, 0, 5]
+            })),
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Implementation Timeline',
+            style: 'h2',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            ol: [
+              'Week 1-2: Technical integration and API setup',
+              'Week 3-4: Data migration and identity mapping',
+              'Week 5-6: Testing and optimization',
+              'Week 7-8: Full deployment and monitoring setup',
+              'Week 9+: Ongoing optimization and performance tracking'
+            ].map(item => ({ text: item, style: 'body', margin: [0, 0, 0, 5] })),
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Next Steps',
+            style: 'h2',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            ol: [
+              'Schedule technical consultation with AdFixus engineering team',
+              'Conduct detailed API compatibility assessment',
+              'Develop custom integration roadmap based on your current tech stack',
+              'Begin pilot program with subset of traffic for validation',
+              'Scale to full implementation upon successful pilot results'
+            ].map(item => ({ text: item, style: 'body', margin: [0, 0, 0, 5] })),
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Contact Information',
+            style: 'h2',
+            margin: [0, 10, 0, 10]
+          },
+          {
+            text: 'Ready to unlock your revenue potential? Contact the AdFixus team to schedule your implementation consultation.',
+            style: 'body',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            text: 'Email: partnerships@adfixus.com | Phone: +1 (555) 123-4567',
+            style: 'body',
+            italics: true
+          }
+        ]
+      }
+    ],
+
+    styles: {
+      reportTitle: {
+        fontSize: 12,
+        bold: true,
+        color: '#1E293B'
+      },
+      h1: {
+        fontSize: 16,
+        bold: true,
+        color: '#1E293B'
+      },
+      h2: {
+        fontSize: 13,
+        bold: true,
+        color: '#1E293B'
+      },
+      body: {
+        fontSize: 10,
+        color: '#475569',
+        lineHeight: 1.4
+      },
+      footer: {
+        fontSize: 8,
+        color: '#64748B'
+      },
+      tableHeader: {
+        fontSize: 10,
+        bold: true,
+        color: '#1E293B',
+        fillColor: '#F8FAFC'
+      },
+      kpiHeader: {
+        fontSize: 9,
+        bold: true,
+        color: '#1E293B',
+        alignment: 'center',
+        margin: [5, 8, 5, 3]
+      },
+      kpiValue: {
+        fontSize: 14,
+        bold: true,
+        color: '#059669',
+        alignment: 'center',
+        margin: [5, 3, 5, 3]
+      },
+      kpiSubtext: {
+        fontSize: 8,
+        color: '#64748B',
+        alignment: 'center',
+        margin: [5, 3, 5, 8]
+      }
+    }
+  };
+
+  // Generate and download PDF
+  pdfMake.createPdf(docDefinition).download('AdFixus - CAPI Proposal for Publishers.pdf');
+};
+
+// Legacy function for backward compatibility
+export const generatePDF = buildAdfixusProposalPdf;
+
+// Email sending functionality (placeholder)
+export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
+  console.log('PDF email functionality would send PDF to:', userEmail);
+  console.log('PDF blob size:', pdfBlob.size, 'bytes');
+  // Implement actual email sending logic here
 };

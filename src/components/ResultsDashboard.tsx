@@ -75,10 +75,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         description: "Please wait while we prepare your complete report with all inputs and results.",
       });
 
-      const pdf = await generatePDF(quizResults, calculatorResults, leadData);
-      
-      // Download the PDF
-      pdf.save('comprehensive-identity-roi-analysis-report.pdf');
+      // Generate the PDF (pdfmake handles download automatically)
+      await generatePDF(quizResults, calculatorResults, leadData);
       
       toast({
         title: "Complete PDF Downloaded",
