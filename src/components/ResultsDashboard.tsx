@@ -28,20 +28,15 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   React.useEffect(() => {
     const sendResultsEmail = async () => {
       try {
-        const response = await fetch('https://ojtfnhzqhfsprebvpmvx.supabase.co/functions/v1/send-results-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qdGZuaHpxaGZzcHJlYnZwbXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NDQwNDQsImV4cCI6MjA2ODEyMDA0NH0.4EQ-NFJWqu9v3VXzk21g_O-sEmNr7y6kDoYrgICc584`,
-          },
-          body: JSON.stringify({
+        const { data, error } = await supabase.functions.invoke('send-results-email', {
+          body: {
             quizResults,
             calculatorResults,
             leadData
-          }),
+          }
         });
-        
-        const result = await response.json();
+
+        if (error) throw error;
         
         if (result.success) {
           toast({

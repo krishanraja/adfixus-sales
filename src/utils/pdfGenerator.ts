@@ -380,7 +380,6 @@ export const generatePDF = buildAdfixusProposalPdf;
 
 // Email sending functionality (placeholder)
 export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
-  console.log('PDF email functionality would send PDF to:', userEmail);
-  console.log('PDF blob size:', pdfBlob.size, 'bytes');
-  // Implement actual email sending logic here
+  // TODO: Implement actual email sending logic here
+  // Development note: PDF would be sent to userEmail, size: pdfBlob.size bytes
 };
