@@ -4,7 +4,7 @@ import { formatCurrency, formatNumber, formatPercentage } from './formatting';
 import { generateKeyRecommendations } from './recommendations';
 import { getGrade } from './grading';
 
-// Initialize pdfMake fonts
+// Initialize pdfMake fonts (forcing cache refresh)
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 // Convert image to base64
