@@ -4,8 +4,8 @@ import { formatCurrency, formatNumber, formatPercentage } from './formatting';
 import { generateKeyRecommendations } from './recommendations';
 import { getGrade } from './grading';
 
-// Initialize pdfMake fonts (forcing cache refresh)
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+// Initialize pdfMake fonts with correct VFS structure
+pdfMake.vfs = pdfFonts.vfs;
 
 // Convert image to base64
 const convertImageToBase64 = async (imagePath: string): Promise<string> => {
