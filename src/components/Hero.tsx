@@ -17,7 +17,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
         <div className="mb-8">
           <BarChart3 className="w-16 h-16 text-primary mx-auto mb-4" />
           <h1 className="text-5xl font-black text-foreground mb-4 whitespace-nowrap">
-            ID Simulator
+            Identity Readiness Simulator
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
             Discover how much revenue you're losing to non-addressable inventory and ID durability gaps. 
