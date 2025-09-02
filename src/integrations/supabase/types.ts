@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      email_logs: {
+        Row: {
+          calculator_results: Json | null
+          created_at: string
+          id: string
+          lead_data: Json | null
+          quiz_results: Json | null
+          sent_at: string
+          status: string | null
+        }
+        Insert: {
+          calculator_results?: Json | null
+          created_at?: string
+          id?: string
+          lead_data?: Json | null
+          quiz_results?: Json | null
+          sent_at?: string
+          status?: string | null
+        }
+        Update: {
+          calculator_results?: Json | null
+          created_at?: string
+          id?: string
+          lead_data?: Json | null
+          quiz_results?: Json | null
+          sent_at?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           company: string
@@ -49,7 +79,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      send_results_email_secure: {
+        Args: { calculator_results: Json; lead_data: Json; quiz_results: Json }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

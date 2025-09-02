@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar, Database } from 'lucide-react';
 import { generatePDF, sendPDFByEmail } from '../utils/pdfGenerator';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatting';
 import type { QuizResults, CalculatorResults, LeadData } from '@/types';
@@ -38,7 +39,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
         if (error) throw error;
         
-        if (result.success) {
+        if (data?.success) {
           toast({
             title: "Complete Report Sent",
             description: "Your comprehensive assessment report with all inputs and results has been sent for AI analysis.",
@@ -46,7 +47,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         } else {
           toast({
             title: "Email Issue",
-            description: `Report delivery failed: ${result.error}`,
+            description: `Report delivery failed: ${data?.error || 'Unknown error'}`,
             variant: "destructive",
           });
         }
