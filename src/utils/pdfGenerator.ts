@@ -306,12 +306,18 @@ export const buildAdfixusProposalPdf = async (
           {
             text: 'Ready to unlock your revenue potential? Contact the AdFixus team to schedule your implementation consultation.',
             style: 'body',
+            margin: [0, 0, 0, 15]
+          },
+          {
+            text: 'Email: sales@adfixus.com',
+            style: 'body',
             margin: [0, 0, 0, 10]
           },
           {
-            text: 'Book a call: https://outlook.office.com/book/SalesTeambooking@adfixus.com | Email: sales@adfixus.com',
-            style: 'body',
-            italics: true
+            text: 'Book A Call',
+            style: 'buttonStyle',
+            link: 'https://outlook.office.com/book/SalesTeambooking@adfixus.com',
+            margin: [0, 0, 0, 10]
           }
         ]
       }
@@ -367,6 +373,17 @@ export const buildAdfixusProposalPdf = async (
         color: '#64748B',
         alignment: 'center',
         margin: [5, 3, 5, 8]
+      },
+      buttonStyle: {
+        fontSize: 11,
+        bold: true,
+        color: '#FFFFFF',
+        background: '#0891b2',
+        alignment: 'center',
+        margin: [0, 8, 0, 8],
+        fillColor: '#0891b2',
+        decoration: 'underline',
+        decorationColor: '#FFFFFF'
       }
     }
   };
