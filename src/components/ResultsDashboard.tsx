@@ -367,7 +367,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                   <p className="text-sm text-gray-600">Deal IDs</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-orange-600">
+                  <p className="text-2xl font-bold text-gray-900">
                     {calculatorResults.breakdown.salesMix.openExchange}%
                   </p>
                   <p className="text-sm text-gray-600">Open Exchange</p>

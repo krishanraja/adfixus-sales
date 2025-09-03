@@ -31,12 +31,16 @@ export const buildAdfixusProposalPdf = async (
 ) => {
   const logoDataUrl = await convertImageToBase64('/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png');
   
-  // Calculate key metrics
-  const monthlyRevenueLoss = calculatorResults?.monthlyRevenueLoss || 0;
-  const potentialRevenue = calculatorResults?.potentialRevenue || 0;
-  const currentIdentities = calculatorResults?.currentIdentities || 0;
-  const optimizedIdentities = calculatorResults?.optimizedIdentities || 0;
-  const cdpCostSavings = calculatorResults?.cdpCostSavings || 0;
+  // Extract data from actual calculator results
+  const monthlyRevenueLoss = calculatorResults?.unaddressableInventory?.lostRevenue || 0;
+  const potentialRevenue = calculatorResults?.uplift?.totalMonthlyUplift || 0;
+  const currentIdentities = calculatorResults?.idBloatReduction?.currentMonthlyIds || 0;
+  const optimizedIdentities = calculatorResults?.idBloatReduction?.optimizedMonthlyIds || 0;
+  const cdpCostSavings = calculatorResults?.idBloatReduction?.monthlyCdpSavings || 0;
+  const annualOpportunity = (potentialRevenue * 12) || 0;
+  const currentAddressability = calculatorResults?.breakdown?.currentAddressability || 0;
+  const targetAddressability = calculatorResults?.breakdown?.addressabilityImprovement || 0;
+  const salesMix = calculatorResults?.breakdown?.salesMix || { direct: 0, dealIds: 0, openExchange: 0 };
   // Calculate overall grade based on quiz results
   let totalScore = 0;
   let categoryCount = 0;
@@ -379,7 +383,7 @@ export const buildAdfixusProposalPdf = async (
         bold: true,
         color: '#FFFFFF',
         background: '#0891b2',
-        alignment: 'center',
+        alignment: 'left',
         margin: [0, 8, 0, 8],
         fillColor: '#0891b2',
         decoration: 'underline',
