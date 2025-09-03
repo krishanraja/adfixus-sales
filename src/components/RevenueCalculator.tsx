@@ -512,7 +512,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           <CardContent>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="p-4 bg-primary/10 rounded-lg">
-                <div className="text-2xl font-bold text-primary">{getSalesMix().direct}%</div>
+                <div className="text-2xl font-bold text-brand">{getSalesMix().direct}%</div>
                 <div className="text-sm text-muted-foreground">Direct Sales</div>
               </div>
               <div className="p-4 bg-secondary/10 rounded-lg">
@@ -520,7 +520,7 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
                 <div className="text-sm text-muted-foreground">Deal IDs</div>
               </div>
               <div className="p-4 bg-accent/10 rounded-lg">
-                <div className="text-2xl font-bold text-accent-foreground">{getSalesMix().openExchange}%</div>
+                <div className="text-2xl font-bold text-brand">{getSalesMix().openExchange}%</div>
                 <div className="text-sm text-muted-foreground">Open Exchange</div>
               </div>
             </div>
