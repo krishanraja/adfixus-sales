@@ -594,7 +594,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <Button 
               size="lg" 
               className="bg-cyan-600 hover:bg-cyan-700 text-white px-8"
-              onClick={() => window.open('https://calendly.com/krish-raja', '_blank')}
+              onClick={() => window.open('https://outlook.office.com/book/SalesTeambooking@adfixus.com', '_blank')}
             >
               Book a Demo
             </Button>

@@ -309,7 +309,7 @@ export const buildAdfixusProposalPdf = async (
             margin: [0, 0, 0, 10]
           },
           {
-            text: 'Email: sales@adfixus.com | Phone: +1 (555) 123-4567',
+            text: 'Book a call: https://outlook.office.com/book/SalesTeambooking@adfixus.com | Email: sales@adfixus.com',
             style: 'body',
             italics: true
           }
