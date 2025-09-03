@@ -355,19 +355,19 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <h4 className="font-semibold text-gray-900 mb-2">Sales Mix Breakdown</h4>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-primary">
                     {calculatorResults.breakdown.salesMix.direct}%
                   </p>
                   <p className="text-sm text-gray-600">Direct Sales</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-success">
                     {calculatorResults.breakdown.salesMix.dealIds}%
                   </p>
                   <p className="text-sm text-gray-600">Deal IDs</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-primary">
                     {calculatorResults.breakdown.salesMix.openExchange}%
                   </p>
                   <p className="text-sm text-gray-600">Open Exchange</p>
