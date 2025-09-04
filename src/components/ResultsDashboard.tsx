@@ -328,9 +328,9 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                 {quizResults.overallGrade}
               </div>
               <h3 className="font-semibold text-gray-900 mt-2">Overall Grade</h3>
-                <p className="text-sm text-gray-600">
-                  Score: {formatPercentage(quizResults.overallScore)}/4.0
-                </p>
+                 <p className="text-sm text-gray-600">
+                   Score: {Math.round(quizResults.overallScore)}/4
+                 </p>
             </div>
 
             {Object.entries(quizResults.scores)
@@ -344,7 +344,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                   {getCategoryName(category)}
                 </h4>
                 <p className="text-xs text-gray-600">
-                  {formatPercentage(data.score)}/4.0
+                  {Math.round(data.score)}/4
                 </p>
               </div>
             ))}
