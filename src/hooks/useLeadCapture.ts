@@ -1,7 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { LeadData } from '@/types';
 
@@ -27,16 +26,8 @@ export const useLeadCapture = (onSuccess: (data: LeadData) => void) => {
 
   const onSubmit = async (data: LeadData) => {
     try {
-      const { error } = await supabase
-        .from('leads')
-        .insert({
-          first_name: data.firstName,
-          last_name: data.lastName,
-          email: data.email,
-          company: data.company,
-        });
-
-      if (error) throw error;
+      // Store lead data in localStorage for PDF generation
+      localStorage.setItem('leadData', JSON.stringify(data));
 
       toast({
         title: 'Information saved',

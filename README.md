@@ -1,73 +1,130 @@
-# Welcome to your Lovable project
+# AdFixus Identity ROI Calculator
 
-## Project info
+A React-based web application that helps businesses calculate their potential revenue impact from improved identity resolution. Users complete a quiz, input their data, and receive a comprehensive report with PDF export capabilities.
 
-**URL**: https://lovable.dev/projects/f41c2dd1-a9a4-431e-b4b9-ce957a14ef11
+## 🚀 Quick Start
 
-## How can I edit this code?
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-There are several ways of editing your application.
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your meeting booking URL
+   ```
 
-**Use Lovable**
+3. **Start development server:**
+   ```bash
+   npm run dev
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/f41c2dd1-a9a4-431e-b4b9-ce957a14ef11) and start prompting.
+4. **Build for production:**
+   ```bash
+   npm run build
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+5. **Preview production build:**
+   ```bash
+   npm run preview
+   ```
 
-**Use your preferred IDE**
+## 🛠 Tech Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Frontend Framework**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS with custom design tokens
+- **UI Components**: Radix UI primitives (Button, Card, Dialog, Form, etc.)
+- **Forms**: React Hook Form with Zod validation
+- **Charts**: Recharts for data visualization
+- **PDF Generation**: pdfmake for client-side PDF creation
+- **Routing**: React Router DOM
+- **Icons**: Lucide React
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📋 Environment Variables
 
-Follow these steps:
+| Variable | Description | Default Value |
+|----------|-------------|---------------|
+| `VITE_MEETING_BOOKING_URL` | URL for booking meetings/demos | `https://outlook.office.com/book/SalesTeambooking@adfixus.com` |
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🔗 Changing the Meeting URL
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+To update the meeting booking link:
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. **Environment Variable (Recommended):**
+   ```bash
+   # In .env file
+   VITE_MEETING_BOOKING_URL=https://your-booking-system.com/book
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+2. **Code Changes (Alternative):**
+   - Update `src/components/ResultsDashboard.tsx` line 565
+   - Update `src/utils/pdfGenerator.ts` line 323
+
+## 🚀 Deployment
+
+### Static Hosting (Recommended)
+This is a client-side only application suitable for static hosting:
+
+- **Netlify**: Connect your Git repository, build command: `npm run build`, publish directory: `dist`
+- **Vercel**: Import your Git repository, framework preset: Vite, build command: `npm run build`
+- **GitHub Pages**: Use GitHub Actions with build artifact deployment
+- **AWS S3 + CloudFront**: Upload `dist` folder contents to S3 bucket
+
+### Build Process
+```bash
+npm run build
+# Outputs to ./dist directory
+# Serve ./dist with any static file server
 ```
 
-**Edit a file directly in GitHub**
+### Environment Variables in Production
+Set `VITE_MEETING_BOOKING_URL` in your hosting platform's environment configuration.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📁 Project Structure
 
-**Use GitHub Codespaces**
+```
+src/
+├── components/           # React components
+│   ├── ui/              # Reusable UI components (Radix UI)
+│   ├── shared/          # Shared business components
+│   ├── calculator/      # Calculator-specific components
+│   ├── Hero.tsx         # Landing page hero
+│   ├── IdentityHealthQuiz.tsx
+│   ├── RevenueCalculator.tsx
+│   ├── ResultsDashboard.tsx
+│   └── ...
+├── hooks/               # Custom React hooks
+├── utils/               # Utility functions
+│   ├── calculationEngine.ts
+│   ├── pdfGenerator.ts
+│   ├── formatting.ts
+│   ├── grading.ts
+│   └── recommendations.ts
+├── constants/           # Application constants
+├── types/              # TypeScript type definitions
+├── pages/              # Page components
+└── assets/             # Static assets (images, etc.)
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🔧 Development
 
-## What technologies are used for this project?
+### Available Scripts
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run build:dev` - Build with development settings
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
 
-This project is built with:
+### Key Features
+1. **Identity Health Quiz**: Multi-step questionnaire with scoring
+2. **Revenue Calculator**: Interactive calculator with real-time results
+3. **Results Dashboard**: Comprehensive analysis with charts and metrics
+4. **PDF Export**: Client-side PDF generation with custom branding
+5. **Lead Capture**: User information collection (stored in localStorage)
+6. **Responsive Design**: Mobile-first approach with Tailwind CSS
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📄 License
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/f41c2dd1-a9a4-431e-b4b9-ce957a14ef11) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Private - AdFixus Internal Use

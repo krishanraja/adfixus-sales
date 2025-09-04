@@ -320,7 +320,7 @@ export const buildAdfixusProposalPdf = async (
           {
             text: 'Book A Call',
             style: 'buttonStyle',
-            link: 'https://outlook.office.com/book/SalesTeambooking@adfixus.com',
+            link: import.meta.env.VITE_MEETING_BOOKING_URL || 'https://outlook.office.com/book/SalesTeambooking@adfixus.com',
             margin: [0, 0, 0, 10]
           }
         ]

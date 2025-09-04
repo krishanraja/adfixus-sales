@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar, Database } from 'lucide-react';
-import { generatePDF, sendPDFByEmail } from '../utils/pdfGenerator';
-import { supabase } from '@/integrations/supabase/client';
+import { generatePDF } from '../utils/pdfGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatting';
 import type { QuizResults, CalculatorResults, LeadData } from '@/types';
@@ -25,44 +24,13 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Auto-send comprehensive results email when component mounts
+  // Show welcome message when component mounts
   React.useEffect(() => {
-    const sendResultsEmail = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('send-results-email', {
-          body: {
-            quizResults,
-            calculatorResults,
-            leadData
-          }
-        });
-
-        if (error) throw error;
-        
-        if (data?.success) {
-          toast({
-            title: "Complete Report Sent",
-            description: "Your comprehensive assessment report with all inputs and results has been sent for AI analysis.",
-          });
-        } else {
-          toast({
-            title: "Email Issue",
-            description: `Report delivery failed: ${data?.error || 'Unknown error'}`,
-            variant: "destructive",
-          });
-        }
-        
-      } catch (error) {
-        toast({
-          title: "Connection Error",
-          description: "Unable to send comprehensive report. Please check console for details.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    sendResultsEmail();
-  }, [quizResults, calculatorResults, leadData, toast]);
+    toast({
+      title: "Analysis Complete",
+      description: "Your identity health report is ready. Download the PDF below or book a consultation.",
+    });
+  }, [toast]);
 
   const handleDownloadPDF = async () => {
     try {
@@ -594,7 +562,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <Button 
               size="lg" 
               className="bg-cyan-600 hover:bg-cyan-700 text-white px-8"
-              onClick={() => window.open('https://outlook.office.com/book/SalesTeambooking@adfixus.com', '_blank')}
+              onClick={() => window.open(import.meta.env.VITE_MEETING_BOOKING_URL || 'https://outlook.office.com/book/SalesTeambooking@adfixus.com', '_blank')}
             >
               Book a Demo
             </Button>
