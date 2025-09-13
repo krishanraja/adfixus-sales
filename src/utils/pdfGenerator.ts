@@ -446,8 +446,13 @@ export const generatePDF = buildAdfixusProposalPdf;
 // Email sending functionality
 export const sendPDFByEmail = async (pdfBase64: string, quizResults: any, calculatorResults: any, leadData?: any) => {
   try {
-    console.log('Attempting to send PDF via email...');
-    console.log('Lead data:', leadData);
+    console.log('Attempting to send PDF via email...', {
+      pdfLength: pdfBase64.length,
+      hasQuizResults: !!quizResults,
+      hasCalculatorResults: !!calculatorResults,
+      hasLeadData: !!leadData,
+      leadDataContent: leadData
+    });
     
     // Validate lead data structure
     if (!leadData || !leadData.email) {
@@ -470,6 +475,12 @@ export const sendPDFByEmail = async (pdfBase64: string, quizResults: any, calcul
 
     if (error) {
       console.error('Supabase function error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        context: error.context,
+        hint: error.hint,
+        details: error.details
+      });
       throw new Error(`Email service error: ${error.message || 'Unknown error'}`);
     }
 
@@ -477,6 +488,11 @@ export const sendPDFByEmail = async (pdfBase64: string, quizResults: any, calcul
     return data;
   } catch (error: any) {
     console.error('Error sending PDF email:', error);
+    console.error('Full error object:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     
     // Provide more specific error information
     const errorMessage = error.message || 'Failed to send email';

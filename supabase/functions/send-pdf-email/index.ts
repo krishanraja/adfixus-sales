@@ -27,6 +27,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     console.log("Send PDF Email function called");
+    console.log("Request method:", req.method);
+    console.log("Request headers:", Object.fromEntries(req.headers.entries()));
     
     // Validate RESEND_API_KEY
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -40,11 +42,18 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
+    console.log("RESEND_API_KEY found successfully");
 
     const resend = new Resend(resendApiKey);
     
     const requestBody = await req.json();
-    console.log("Request body received:", JSON.stringify(requestBody, null, 2));
+    console.log("Request body structure:", {
+      hasPdfBase64: !!requestBody.pdfBase64,
+      hasUserContactDetails: !!requestBody.userContactDetails,
+      hasQuizResults: !!requestBody.quizResults,
+      hasCalculatorResults: !!requestBody.calculatorResults,
+      pdfBase64Length: requestBody.pdfBase64?.length || 0
+    });
     
     const { pdfBase64, userContactDetails, quizResults, calculatorResults }: EmailRequest = requestBody;
 
