@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -28,12 +26,47 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { pdfBase64, userContactDetails, quizResults, calculatorResults }: EmailRequest = await req.json();
+    console.log("Send PDF Email function called");
+    
+    // Validate RESEND_API_KEY
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY not found in environment");
+      return new Response(
+        JSON.stringify({ error: "Email service not configured" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
+    const resend = new Resend(resendApiKey);
+    
+    const requestBody = await req.json();
+    console.log("Request body received:", JSON.stringify(requestBody, null, 2));
+    
+    const { pdfBase64, userContactDetails, quizResults, calculatorResults }: EmailRequest = requestBody;
+
+    // Validate required data
+    if (!pdfBase64) {
+      console.error("PDF data missing");
+      return new Response(
+        JSON.stringify({ error: "PDF data is required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    // Safely extract user information with fallbacks
     const userInfo = userContactDetails || {};
     const userName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Unknown User';
     const userCompany = userInfo.company || 'Unknown Company';
     const userEmail = userInfo.email || 'Unknown Email';
+    
+    console.log("Processing email for:", { userName, userCompany, userEmail });
 
     // Create email body with user contact details and PDF contents summary
     const emailBody = `
@@ -70,8 +103,22 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     // Convert base64 to buffer for attachment
-    const pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+    let pdfBuffer;
+    try {
+      pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+      console.log("PDF buffer created successfully, size:", pdfBuffer.length);
+    } catch (error) {
+      console.error("Error converting base64 to buffer:", error);
+      return new Response(
+        JSON.stringify({ error: "Invalid PDF data format" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
+    console.log("Attempting to send email with Resend...");
     const emailResponse = await resend.emails.send({
       from: "AdFixus ROI Calculator <onboarding@resend.dev>",
       to: ["hello@krishraja.com"],
@@ -96,10 +143,23 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in send-pdf-email function:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Return more specific error information
+    const errorMessage = error.message || "Unknown error occurred";
+    const statusCode = error.name === "ResendError" ? 400 : 500;
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: errorMessage,
+        details: error.name || "UnknownError"
+      }),
       {
-        status: 500,
+        status: statusCode,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );

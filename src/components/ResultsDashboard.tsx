@@ -9,6 +9,12 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatting';
 import type { QuizResults, CalculatorResults, LeadData } from '@/types';
 
+interface PDFGenerationResult {
+  pdfBase64: string;
+  emailSent?: boolean;
+  emailError?: string;
+}
+
 interface ResultsDashboardProps {
   quizResults: QuizResults;
   calculatorResults: CalculatorResults;
@@ -39,17 +45,28 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         description: "Please wait while we prepare your complete report and send it via email.",
       });
 
-      // Generate the PDF (pdfmake handles download automatically and sends email)
-      await generatePDF(quizResults, calculatorResults, leadData);
+      console.log('Starting PDF generation with lead data:', leadData);
       
+      // Generate the PDF (pdfmake handles download automatically and sends email)
+      const result = await generatePDF(quizResults, calculatorResults, leadData) as PDFGenerationResult;
+      
+      if (result.emailSent) {
+        toast({
+          title: "PDF Downloaded & Email Sent",
+          description: "Your comprehensive report has been downloaded and emailed to our sales team.",
+        });
+      } else {
+        toast({
+          title: "PDF Downloaded",
+          description: `Report downloaded successfully. ${result.emailError ? 'Email sending failed: ' + result.emailError : 'Email may have failed but our team has been notified.'}`,
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      console.error('PDF generation failed:', error);
       toast({
-        title: "PDF Downloaded & Email Sent",
-        description: "Your comprehensive report has been downloaded and emailed to our sales team.",
-      });
-    } catch (error) {
-      toast({
-        title: "PDF Downloaded",
-        description: "Report downloaded successfully. Email sending may have failed but our team has been notified.",
+        title: "PDF Generation Failed",
+        description: `Failed to generate PDF: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     }

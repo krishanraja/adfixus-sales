@@ -415,18 +415,26 @@ export const buildAdfixusProposalPdf = async (
   return new Promise((resolve, reject) => {
     pdfMake.createPdf(docDefinition).getBase64(async (base64Data) => {
       try {
-        // Download PDF for user
+        console.log('PDF generated successfully, attempting download and email...');
+        
+        // Download PDF for user first (this should always work)
         pdfMake.createPdf(docDefinition).download('AdFixus - Identity ROI Proposal.pdf');
+        console.log('PDF download initiated');
         
-        // Send email with PDF
-        await sendPDFByEmail(base64Data, quizResults, calculatorResults, leadData);
+        // Attempt to send email with PDF
+        try {
+          await sendPDFByEmail(base64Data, quizResults, calculatorResults, leadData);
+          console.log('Email sent successfully');
+          resolve({ pdfBase64: base64Data, emailSent: true });
+        } catch (emailError) {
+          console.error('Email sending failed, but PDF was downloaded:', emailError);
+          // Resolve anyway since PDF download succeeded
+          resolve({ pdfBase64: base64Data, emailSent: false, emailError: emailError.message });
+        }
         
-        resolve({ pdfBase64: base64Data });
       } catch (error) {
-        console.error('Error in PDF generation or email sending:', error);
-        // Still download PDF even if email fails
-        pdfMake.createPdf(docDefinition).download('AdFixus - Identity ROI Proposal.pdf');
-        resolve({ pdfBase64: base64Data });
+        console.error('Error in PDF generation:', error);
+        reject(error);
       }
     });
   });
@@ -438,22 +446,40 @@ export const generatePDF = buildAdfixusProposalPdf;
 // Email sending functionality
 export const sendPDFByEmail = async (pdfBase64: string, quizResults: any, calculatorResults: any, leadData?: any) => {
   try {
+    console.log('Attempting to send PDF via email...');
+    console.log('Lead data:', leadData);
+    
+    // Validate lead data structure
+    if (!leadData || !leadData.email) {
+      console.warn('No lead data or email found, using default values');
+    }
+    
     const { data, error } = await supabase.functions.invoke('send-pdf-email', {
       body: {
         pdfBase64,
-        userContactDetails: leadData,
+        userContactDetails: leadData || {
+          firstName: 'Unknown',
+          lastName: 'User',
+          email: 'unknown@example.com',
+          company: 'Unknown Company'
+        },
         quizResults,
         calculatorResults
       }
     });
 
     if (error) {
-      throw error;
+      console.error('Supabase function error:', error);
+      throw new Error(`Email service error: ${error.message || 'Unknown error'}`);
     }
 
+    console.log('Email sent successfully:', data);
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending PDF email:', error);
-    throw error;
+    
+    // Provide more specific error information
+    const errorMessage = error.message || 'Failed to send email';
+    throw new Error(`Email delivery failed: ${errorMessage}`);
   }
 };
