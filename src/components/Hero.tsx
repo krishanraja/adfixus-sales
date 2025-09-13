@@ -11,9 +11,10 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Hero Section */}
-      <div className="text-center mb-16">
+    <Card className="max-w-6xl mx-auto mt-12 shadow-lg bg-card/50 backdrop-blur-sm border border-border/50">
+      <CardContent className="p-8 lg:p-12">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
         <div className="mb-8">
           <BarChart3 className="w-16 h-16 text-primary mx-auto mb-4" />
           <h1 className="text-5xl font-black text-foreground mb-4 whitespace-nowrap">
@@ -103,6 +104,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
           *Sources: StatCounter (Safari share, Jul 2025); Piano "Subscription Performance Benchmarks 2024"; Clearcode; PubMatic; Amazon Publisher Services.
         </p>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
