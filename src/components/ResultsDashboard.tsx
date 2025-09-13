@@ -224,7 +224,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <TrendingDown className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              {formatPercentage(calculatorResults.unaddressableInventory.percentage)}% unaddressable inventory
+              {formatPercentage(calculatorResults.unaddressableInventory.percentage)} unaddressable inventory
             </p>
           </CardContent>
         </Card>
@@ -241,7 +241,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <TrendingUp className="w-8 h-8 text-teal-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              +{formatPercentage(calculatorResults.uplift.percentageImprovement)}% revenue increase
+              +{formatPercentage(calculatorResults.uplift.percentageImprovement)} revenue increase
             </p>
           </CardContent>
         </Card>
@@ -269,13 +269,13 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <div>
                 <p className="text-sm text-gray-600">Addressability Improvement</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  +{formatPercentage(calculatorResults.breakdown.addressabilityImprovement)}%
+                  +{formatPercentage(calculatorResults.breakdown.addressabilityImprovement)}
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-purple-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              From {formatPercentage(calculatorResults.breakdown.currentAddressability)}% to 100%
+              From {formatPercentage(calculatorResults.breakdown.currentAddressability)} to 100%
             </p>
           </CardContent>
         </Card>
@@ -292,7 +292,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <Database className="w-8 h-8 text-emerald-500" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              {formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)}% ID bloat reduction
+              {formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)} ID bloat reduction
             </p>
           </CardContent>
         </Card>
@@ -424,7 +424,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                 <div className="flex justify-between">
                   <span className="text-gray-600">IDs Eliminated:</span>
                   <span className="font-medium text-emerald-600">
-                    -{formatNumber(calculatorResults.idBloatReduction.idsReduced)} ({formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)}%)
+                    -{formatNumber(calculatorResults.idBloatReduction.idsReduced)} ({formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)})
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -494,7 +494,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${formatPercentage(percent * 100)}%`}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
                   {inventoryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
