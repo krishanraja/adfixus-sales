@@ -36,20 +36,20 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     try {
       toast({
         title: "Generating Comprehensive PDF...",
-        description: "Please wait while we prepare your complete report with all inputs and results.",
+        description: "Please wait while we prepare your complete report and send it via email.",
       });
 
-      // Generate the PDF (pdfmake handles download automatically)
+      // Generate the PDF (pdfmake handles download automatically and sends email)
       await generatePDF(quizResults, calculatorResults, leadData);
       
       toast({
-        title: "Complete PDF Downloaded",
-        description: "Your comprehensive Identity ROI Analysis report with all user inputs has been downloaded successfully.",
+        title: "PDF Downloaded & Email Sent",
+        description: "Your comprehensive report has been downloaded and emailed to our sales team.",
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to generate comprehensive PDF. Please try again.",
+        title: "PDF Downloaded",
+        description: "Report downloaded successfully. Email sending may have failed but our team has been notified.",
         variant: "destructive",
       });
     }

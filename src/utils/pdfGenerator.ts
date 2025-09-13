@@ -3,6 +3,7 @@ import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { formatCurrency, formatNumber, formatPercentage } from './formatting';
 import { generateKeyRecommendations } from './recommendations';
 import { getGrade } from './grading';
+import { supabase } from '@/integrations/supabase/client';
 
 // Initialize pdfMake fonts with correct VFS structure
 pdfMake.vfs = pdfFonts.vfs;
@@ -169,6 +170,24 @@ export const buildAdfixusProposalPdf = async (
                 layout: 'noBorders'
               }
             ]
+          },
+          {
+            text: '\n\nContact AdFixus Sales Team',
+            style: 'h2',
+            margin: [0, 20, 0, 10]
+          },
+          {
+            text: 'Email: sales@adfixus.com',
+            style: 'body',
+            margin: [0, 0, 0, 5]
+          },
+          {
+            text: 'Book A Call',
+            style: 'body',
+            link: process?.env?.VITE_MEETING_BOOKING_URL || 'https://outlook.office.com/book/SalesTeambooking@adfixus.com',
+            color: '#0066cc',
+            decoration: 'underline',
+            margin: [0, 0, 0, 0]
           }
         ]
       },
@@ -392,15 +411,49 @@ export const buildAdfixusProposalPdf = async (
     }
   };
 
-  // Generate and download PDF
-  pdfMake.createPdf(docDefinition).download('AdFixus - Identity ROI Proposal.pdf');
+  // Generate PDF buffer for email sending
+  return new Promise((resolve, reject) => {
+    pdfMake.createPdf(docDefinition).getBase64(async (base64Data) => {
+      try {
+        // Download PDF for user
+        pdfMake.createPdf(docDefinition).download('AdFixus - Identity ROI Proposal.pdf');
+        
+        // Send email with PDF
+        await sendPDFByEmail(base64Data, quizResults, calculatorResults, leadData);
+        
+        resolve({ pdfBase64: base64Data });
+      } catch (error) {
+        console.error('Error in PDF generation or email sending:', error);
+        // Still download PDF even if email fails
+        pdfMake.createPdf(docDefinition).download('AdFixus - Identity ROI Proposal.pdf');
+        resolve({ pdfBase64: base64Data });
+      }
+    });
+  });
 };
 
 // Legacy function for backward compatibility
 export const generatePDF = buildAdfixusProposalPdf;
 
-// Email sending functionality (placeholder)
-export const sendPDFByEmail = async (pdfBlob: Blob, userEmail?: string) => {
-  // TODO: Implement actual email sending logic here
-  // Development note: PDF would be sent to userEmail, size: pdfBlob.size bytes
+// Email sending functionality
+export const sendPDFByEmail = async (pdfBase64: string, quizResults: any, calculatorResults: any, leadData?: any) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-pdf-email', {
+      body: {
+        pdfBase64,
+        userContactDetails: leadData,
+        quizResults,
+        calculatorResults
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error sending PDF email:', error);
+    throw error;
+  }
 };

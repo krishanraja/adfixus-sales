@@ -54,14 +54,30 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
             })}
           </div>
           
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onReset}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Reset
-          </Button>
+          <div className="flex items-center space-x-3">
+            <Button 
+              variant="default" 
+              size="sm" 
+              asChild
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <a 
+                href={import.meta.env.VITE_MEETING_BOOKING_URL || "https://outlook.office.com/book/SalesTeambooking@adfixus.com"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Book a Call
+              </a>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onReset}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Reset
+            </Button>
+          </div>
         </div>
       </div>
     </nav>
