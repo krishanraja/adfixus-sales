@@ -52,13 +52,13 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
       
       if (result.emailSent) {
         toast({
-          title: "PDF Downloaded & Email Sent",
-          description: "Your comprehensive report has been downloaded and emailed to our sales team.",
+          title: "PDF Downloaded Successfully",
+          description: "Your comprehensive identity ROI report has been generated and downloaded.",
         });
       } else {
         toast({
           title: "PDF Downloaded",
-          description: `Report downloaded successfully. ${result.emailError ? 'Email sending failed: ' + result.emailError : 'Email may have failed but our team has been notified.'}`,
+          description: `Report downloaded successfully. ${result.emailError ? 'Note: Email delivery encountered an issue.' : 'Your analysis is complete and ready for review.'}`,
           variant: "default",
         });
       }
