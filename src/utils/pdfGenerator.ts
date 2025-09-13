@@ -462,6 +462,13 @@ export const sendPDFByEmail = async (pdfBase64: string, quizResults: any, calcul
     const { data, error } = await supabase.functions.invoke('send-pdf-email', {
       body: {
         pdfBase64,
+        // Send both formats for backward compatibility
+        contactForm: leadData || {
+          firstName: 'Unknown',
+          lastName: 'User',
+          email: 'unknown@example.com',
+          company: 'Unknown Company'
+        },
         userContactDetails: leadData || {
           firstName: 'Unknown',
           lastName: 'User',

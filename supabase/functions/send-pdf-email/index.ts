@@ -9,7 +9,14 @@ const corsHeaders = {
 
 interface EmailRequest {
   pdfBase64: string;
-  userContactDetails: {
+  // Support both formats for backward compatibility
+  userContactDetails?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    company?: string;
+  };
+  contactForm?: {
     firstName?: string;
     lastName?: string;
     email?: string;
@@ -47,15 +54,17 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
     
     const requestBody = await req.json();
+    console.log("Request body received:", JSON.stringify(requestBody, null, 2));
     console.log("Request body structure:", {
       hasPdfBase64: !!requestBody.pdfBase64,
       hasUserContactDetails: !!requestBody.userContactDetails,
+      hasContactForm: !!requestBody.contactForm,
       hasQuizResults: !!requestBody.quizResults,
       hasCalculatorResults: !!requestBody.calculatorResults,
       pdfBase64Length: requestBody.pdfBase64?.length || 0
     });
     
-    const { pdfBase64, userContactDetails, quizResults, calculatorResults }: EmailRequest = requestBody;
+    const { pdfBase64, userContactDetails, contactForm, quizResults, calculatorResults }: EmailRequest = requestBody;
 
     // Validate required data
     if (!pdfBase64) {
@@ -69,12 +78,25 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Support both contactForm and userContactDetails for backward compatibility
+    const userInfo = contactForm || userContactDetails;
+    if (!userInfo) {
+      console.error("Missing or invalid contactForm data:", userInfo);
+      return new Response(
+        JSON.stringify({ error: "Contact form data is required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
     // Safely extract user information with fallbacks
-    const userInfo = userContactDetails || {};
     const userName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Unknown User';
     const userCompany = userInfo.company || 'Unknown Company';
     const userEmail = userInfo.email || 'Unknown Email';
     
+    console.log("Sending PDF email for:", userEmail);
     console.log("Processing email for:", { userName, userCompany, userEmail });
 
     // Create email body with user contact details and PDF contents summary
