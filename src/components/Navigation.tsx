@@ -20,15 +20,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
     <nav className="bg-card shadow-sm border-b sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-4">
-            <img 
-              src="/lovable-uploads/e51c9dd5-2c62-4f48-83ea-2b4cb61eed6c.png" 
-              alt="AdFixus Logo" 
-              className="h-8 w-auto"
-            />
-          </div>
-          
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-6 flex-1">
             {steps.map((step, index) => {
               const Icon = step.icon;
               const isActive = currentStep === step.id;
@@ -38,7 +30,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
                 <div key={step.id} className="flex items-center space-x-2">
                   <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
                     isActive 
-                      ? 'bg-primary/20 text-primary font-medium' 
+                      ? 'bg-[rgba(7,192,248,0.2)] text-primary font-medium' 
                       : isCompleted 
                         ? 'text-accent' 
                         : 'text-muted-foreground'
@@ -56,24 +48,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
           
           <div className="flex items-center space-x-3">
             <Button 
-              variant="default" 
-              size="sm" 
-              asChild
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <a 
-                href={import.meta.env.VITE_MEETING_BOOKING_URL || "https://outlook.office.com/book/SalesTeambooking@adfixus.com"}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Book a Call
-              </a>
-            </Button>
-            <Button 
               variant="outline" 
               size="sm" 
               onClick={onReset}
-              className="text-muted-foreground hover:text-foreground"
             >
               Reset
             </Button>

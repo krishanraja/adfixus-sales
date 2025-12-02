@@ -1,13 +1,16 @@
 
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Identity Readiness Simulator</title>
     <meta name="description" content="ID Health Check" />
     <meta name="author" content="Lovable" />
     <link rel="icon" href="/lovable-uploads/6dd67a5e-06f5-44cb-b4da-17d1fb8030d8.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <meta property="og:title" content="ID Health Check" />
     <meta property="og:description" content="ID Health Check" />
@@ -22,5 +25,49 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+(function () {
+  const PARENT_ORIGIN = 'https://adfixus.com';
+
+  function getDocHeight() {
+    return Math.max(
+      document.documentElement.scrollHeight,
+      document.body.scrollHeight,
+      document.documentElement.clientHeight,
+      document.body.clientHeight
+    );
+  }
+
+  function sendHeight() {
+    const height = Math.round(getDocHeight());
+    // Send message to parent window
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'setHeight', height: height }, PARENT_ORIGIN);
+    }
+  }
+
+  // send height on load
+  window.addEventListener('load', sendHeight);
+
+  // observe DOM size changes
+  try {
+    const ro = new ResizeObserver(sendHeight);
+    ro.observe(document.documentElement);
+    ro.observe(document.body);
+  } catch (e) {
+    // ResizeObserver not available -> fallback to interval
+    setInterval(sendHeight, 1000);
+  }
+
+  // respond to explicit requests from parent
+  window.addEventListener('message', function (ev) {
+    // If you want to restrict requests, check ev.origin here
+    if (ev.data && ev.data.type === 'requestHeight') sendHeight();
+  });
+
+  // also try an initial delayed send (after images/fonts settle)
+  setTimeout(sendHeight, 500);
+})();
+    </script>
   </body>
 </html>

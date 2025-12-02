@@ -257,8 +257,8 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
     <div className="max-w-2xl mx-auto">
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">Identity Health Assessment</h2>
-          <span className="text-sm text-gray-500">
+          <h2 className="text-2xl font-bold text-foreground">Identity Health Assessment</h2>
+          <span className="text-sm text-muted-foreground">
             {currentQuestion + 1} of {totalQuestions}
           </span>
         </div>
@@ -281,7 +281,7 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
               className="space-y-3"
             >
               {currentQuestionData.options?.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div key={option.value} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-muted transition-colors">
                   <RadioGroupItem value={option.value} id={option.value} />
                   <Label 
                     htmlFor={option.value} 
@@ -305,7 +305,6 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
             <Button
               onClick={handleNext}
               disabled={!canProceed()}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               {isLastQuestion ? 'Complete Assessment' : 'Next Question'}
             </Button>
