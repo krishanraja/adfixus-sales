@@ -236,15 +236,10 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
           </div>
         </div>
 
-        <div className={`p-3 rounded-lg ${isValidTotal ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-          <div className="flex items-center space-x-2">
-            {isValidTotal ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-red-600" />
-            )}
-            <span className={`font-medium ${isValidTotal ? 'text-green-800' : 'text-red-800'}`}>
-              Total: {total}%
+        <div className={`p-3 rounded-lg border ${isValidTotal ? 'bg-muted/30 border-muted' : 'bg-muted/50 border-muted'}`}>
+          <div className="flex items-center justify-center space-x-2">
+            <span className="text-sm text-muted-foreground">
+              Total: <span className="font-medium text-foreground">{total}%</span>
               {!isValidTotal && ' (Must equal 100%)'}
             </span>
           </div>
@@ -254,63 +249,63 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-foreground">Identity Health Assessment</h2>
-          <span className="text-sm text-muted-foreground">
-            {currentQuestion + 1} of {totalQuestions}
-          </span>
+    <div className="max-w-2xl mx-auto animate-fade-in">
+      <div className="fixed top-12 left-0 right-0 z-40 bg-background/80 backdrop-blur-sm border-b border-border/30">
+        <div className="container mx-auto px-4 py-3">
+          <Progress value={(currentQuestion / totalQuestions) * 100} className="h-1" />
         </div>
-        <Progress value={(currentQuestion / totalQuestions) * 100} className="h-2" />
       </div>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl">
+      <div className="mt-8 space-y-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-foreground mb-2">
             {currentQuestionData.question}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Question {currentQuestion + 1} of {totalQuestions}
+          </p>
+        </div>
+
+        <div className="space-y-6">
           {currentQuestionData.type === 'sales-mix' ? (
             renderSalesMixQuestion()
           ) : (
-            <RadioGroup
-              value={answers[currentQuestionData.id] as string || ''}
-              onValueChange={(value) => handleAnswer(currentQuestionData.id, value)}
-              className="space-y-3"
-            >
+            <div className="space-y-3">
               {currentQuestionData.options?.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-muted transition-colors">
-                  <RadioGroupItem value={option.value} id={option.value} />
-                  <Label 
-                    htmlFor={option.value} 
-                    className="flex-1 cursor-pointer text-sm leading-relaxed"
-                  >
-                    {option.label}
-                  </Label>
-                </div>
+                <button
+                  key={option.value}
+                  onClick={() => handleAnswer(currentQuestionData.id, option.value)}
+                  className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
+                    answers[currentQuestionData.id] === option.value
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border hover:border-primary/50 hover:bg-muted/50 text-foreground'
+                  }`}
+                >
+                  {option.label}
+                </button>
               ))}
-            </RadioGroup>
+            </div>
           )}
 
-          <div className="flex justify-between pt-6">
+          <div className="flex justify-between pt-8">
             <Button
               onClick={() => setCurrentQuestion(prev => prev - 1)}
               disabled={currentQuestion === 0}
               variant="outline"
+              size="lg"
             >
               Previous
             </Button>
             <Button
               onClick={handleNext}
               disabled={!canProceed()}
+              size="lg"
             >
-              {isLastQuestion ? 'Complete Assessment' : 'Next Question'}
+              {isLastQuestion ? 'Complete' : 'Next'}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

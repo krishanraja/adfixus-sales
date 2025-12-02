@@ -263,162 +263,46 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-2xl mx-auto animate-fade-in">
       <div className="mb-8 text-center">
-        <Calculator className="w-12 h-12 text-primary mx-auto mb-4" />
-        <h2 className="text-3xl font-bold text-foreground mb-2">Revenue Impact Calculator</h2>
-        <p className="text-muted-foreground">
-          Input your traffic data to see how much revenue you're leaving on the table
-        </p>
+        <h2 className="text-3xl font-bold text-foreground mb-2">Revenue Calculator</h2>
+        <p className="text-muted-foreground">Input your traffic data</p>
       </div>
 
       <div className="space-y-6">
-        {/* Primary Inputs - Always Visible */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Primary Traffic & Revenue Inputs
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Monthly Pageviews - Large and prominent */}
-            <div>
-              <div className="flex items-center space-x-2 mb-3">
-                <Label htmlFor="pageviews" className="text-lg font-semibold">Monthly Pageviews</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Total monthly page views (not ad impressions)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Input
-                id="pageviews"
-                type="text"
-                value={formatNumberWithCommas(formData.monthlyPageviews)}
-                onChange={handlePageviewsChange}
-                className="text-xl h-14 text-center"
-                placeholder="5,000,000"
-              />
-            </div>
+        {/* Monthly Pageviews */}
+        <div>
+          <Label htmlFor="pageviews" className="text-base mb-2 block">Monthly Pageviews</Label>
+          <Input
+            id="pageviews"
+            type="text"
+            value={formatNumberWithCommas(formData.monthlyPageviews)}
+            onChange={handlePageviewsChange}
+            className="text-lg h-12"
+            placeholder="5,000,000"
+          />
+          <p className="text-xs text-muted-foreground mt-1">Total monthly page views</p>
+        </div>
 
-            {/* Chrome Traffic Share */}
-            <div>
-              <div className="flex items-center space-x-2 mb-3">
-                <Label className="text-lg font-semibold">Chrome Traffic Share: {formData.chromeShare.toFixed(0)}%</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>% of your traffic from Chrome browsers (US average: 50.6%)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Slider
-                value={[formData.chromeShare]}
-                onValueChange={([value]) => handleInputChange('chromeShare', value)}
-                min={0}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                <span>0%</span>
-                <span>100%</span>
-              </div>
-              
-              {/* Auto-calculated Safari/Firefox */}
-              <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                <div className="text-sm text-muted-foreground">Auto-calculated from your Chrome traffic:</div>
-                <div className="text-base font-medium text-foreground">
-                  Safari/Firefox: {safariFirefoxShare.toFixed(0)}%
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {quizResults?.answers?.['safari-strategy'] === 'optimized' 
-                    ? 'Currently addressable with your optimization'
-                    : 'Currently non-addressable (requires AdFixus)'
-                  }
-                </div>
-              </div>
-            </div>
+        {/* Chrome Traffic Share */}
+        <div>
+          <Label className="text-base mb-2 block">Chrome Traffic: {formData.chromeShare.toFixed(0)}%</Label>
+          <Slider
+            value={[formData.chromeShare]}
+            onValueChange={([value]) => handleInputChange('chromeShare', value)}
+            min={0}
+            max={100}
+            step={1}
+            className="mt-2"
+          />
+          <p className="text-xs text-muted-foreground mt-1">Safari/Firefox: {safariFirefoxShare.toFixed(0)}%</p>
+        </div>
 
-            {/* CPM Inputs - Side by side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <Label className="font-semibold">Web Display CPM: ${formData.webDisplayCPM.toFixed(2)}</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <HelpCircle className="w-4 h-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Web display advertising only (excludes mobile app/CTV)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Slider
-                  value={[formData.webDisplayCPM]}
-                  onValueChange={([value]) => handleInputChange('webDisplayCPM', value)}
-                  min={0.5}
-                  max={15}
-                  step={0.25}
-                  className="mt-2"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>$0.50</span>
-                  <span>$15.00</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <Label className="font-semibold">Web Video CPM: ${formData.webVideoCPM.toFixed(2)}</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <HelpCircle className="w-4 h-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Web video advertising only (excludes CTV/mobile app inventory)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Slider
-                  value={[formData.webVideoCPM]}
-                  onValueChange={([value]) => handleInputChange('webVideoCPM', value)}
-                  min={5}
-                  max={100}
-                  step={0.50}
-                  className="mt-2"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>$5.00</span>
-                  <span>$100.00</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Advanced Settings - Collapsible */}
+        {/* Customize CPMs - Collapsible */}
         <Collapsible open={showAdvancedSettings} onOpenChange={setShowAdvancedSettings}>
           <CollapsibleTrigger asChild>
-            <Button variant="outline" className="w-full flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Advanced Settings
-              </span>
+            <Button variant="outline" className="w-full justify-between" size="sm">
+              <span>Customize CPMs</span>
               <ChevronDown 
                 className={`w-4 h-4 transition-transform ${showAdvancedSettings ? 'rotate-180' : ''}`} 
               />
@@ -426,113 +310,55 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           </CollapsibleTrigger>
           
           <CollapsibleContent className="space-y-4 mt-4">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Label>Ad Impressions per Page: {formData.adImpressionsPerPage.toFixed(1)}</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <HelpCircle className="w-4 h-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Average number of ad impressions per page view</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Slider
-                    value={[formData.adImpressionsPerPage]}
-                    onValueChange={([value]) => handleInputChange('adImpressionsPerPage', value)}
-                    min={1}
-                    max={10}
-                    step={0.1}
-                    className="mt-2"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>1.0</span>
-                    <span>10.0</span>
-                  </div>
-                </div>
+            <div>
+              <Label className="text-sm mb-2 block">Display CPM: ${formData.webDisplayCPM.toFixed(2)}</Label>
+              <Slider
+                value={[formData.webDisplayCPM]}
+                onValueChange={([value]) => handleInputChange('webDisplayCPM', value)}
+                min={0.5}
+                max={15}
+                step={0.25}
+              />
+            </div>
 
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Label>Display vs Video Split: {formData.displayVideoSplit}% Display / {100 - formData.displayVideoSplit}% Video</Label>
-                  </div>
-                  <Slider
-                    value={[formData.displayVideoSplit]}
-                    onValueChange={([value]) => handleInputChange('displayVideoSplit', value)}
-                    min={0}
-                    max={100}
-                    step={1}
-                    className="mt-2"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>0% Display</span>
-                    <span>100% Display</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Label htmlFor="domains">Number of Domains</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <HelpCircle className="w-4 h-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>How many different domains you operate</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Input
-                    id="domains"
-                    type="number"
-                    value={formData.numDomains}
-                    onChange={(e) => handleInputChange('numDomains', Number(e.target.value))}
-                    min={1}
-                    max={50}
-                    className="w-full"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <div>
+              <Label className="text-sm mb-2 block">Video CPM: ${formData.webVideoCPM.toFixed(2)}</Label>
+              <Slider
+                value={[formData.webVideoCPM]}
+                onValueChange={([value]) => handleInputChange('webVideoCPM', value)}
+                min={5}
+                max={100}
+                step={0.50}
+              />
+            </div>
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Sales Mix from Quiz Results */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>Sales Mix Distribution</CardTitle>
-            <p className="text-sm text-muted-foreground">From your Identity Health Assessment</p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-4 bg-primary/10 rounded-lg">
-                <div className="text-2xl font-bold text-brand">{getSalesMix().direct}%</div>
-                <div className="text-sm text-muted-foreground">Direct Sales</div>
-              </div>
-              <div className="p-4 bg-secondary/10 rounded-lg">
-                <div className="text-2xl font-bold text-secondary-foreground">{getSalesMix().dealIds}%</div>
-                <div className="text-sm text-muted-foreground">Deal IDs</div>
-              </div>
-              <div className="p-4 bg-accent/10 rounded-lg">
-                <div className="text-2xl font-bold text-brand">{getSalesMix().openExchange}%</div>
-                <div className="text-sm text-muted-foreground">Open Exchange</div>
-              </div>
+        {/* Sales Mix Display */}
+        <div className="p-4 bg-muted/30 rounded-lg">
+          <p className="text-sm text-muted-foreground mb-3">Sales Mix (from assessment)</p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div className="text-xl font-bold text-foreground">{getSalesMix().direct}%</div>
+              <div className="text-xs text-muted-foreground">Direct</div>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <div className="text-xl font-bold text-foreground">{getSalesMix().dealIds}%</div>
+              <div className="text-xs text-muted-foreground">Deal IDs</div>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-foreground">{getSalesMix().openExchange}%</div>
+              <div className="text-xs text-muted-foreground">Exchange</div>
+            </div>
+          </div>
+        </div>
 
         {/* Calculate Button */}
         <div className="text-center pt-4">
           <Button 
             onClick={handleSubmit}
             size="lg"
-            className="px-12 py-6 text-lg font-semibold"
+            className="w-full py-6 text-lg font-semibold"
           >
             Calculate Revenue Impact
           </Button>

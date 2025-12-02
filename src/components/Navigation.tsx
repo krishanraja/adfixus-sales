@@ -17,43 +17,27 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
   ];
 
   return (
-    <nav className="bg-card shadow-sm border-b sticky top-0 z-50">
+    <nav className="bg-transparent border-b border-border/30 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="hidden md:flex items-center space-x-6 flex-1">
+        <div className="flex items-center justify-center h-12">
+          <div className="flex items-center space-x-2">
             {steps.map((step, index) => {
-              const Icon = step.icon;
               const isActive = currentStep === step.id;
               const isCompleted = steps.findIndex(s => s.id === currentStep) > index;
               
               return (
-                <div key={step.id} className="flex items-center space-x-2">
-                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
+                <div 
+                  key={step.id} 
+                  className={`w-2 h-2 rounded-full transition-all ${
                     isActive 
-                      ? 'bg-[rgba(7,192,248,0.2)] text-primary font-medium' 
+                      ? 'bg-primary w-6' 
                       : isCompleted 
-                        ? 'text-accent' 
-                        : 'text-muted-foreground'
-                  }`}>
-                    <Icon className="w-4 h-4" />
-                    <span>{step.label}</span>
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div className={`w-8 h-0.5 ${isCompleted ? 'bg-accent' : 'bg-border'}`} />
-                  )}
-                </div>
+                        ? 'bg-primary/60' 
+                        : 'bg-muted-foreground/30'
+                  }`}
+                />
               );
             })}
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onReset}
-            >
-              Reset
-            </Button>
           </div>
         </div>
       </div>
