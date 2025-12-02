@@ -91,21 +91,18 @@
   window.AdFixusLogger = Logger;
   
   // === HEIGHT CALCULATION ===
+  const MAX_REASONABLE_HEIGHT = 2000; // Cap at 2000px to prevent runaway expansion
   let lastSentHeight = 0;
   let sendCount = 0;
+  let heightStableCount = 0;
   
   function getDocHeight() {
-    const heights = {
-      scrollHeight: document.documentElement.scrollHeight,
-      bodyScrollHeight: document.body.scrollHeight,
-      clientHeight: document.documentElement.clientHeight,
-      bodyClientHeight: document.body.clientHeight,
-      offsetHeight: document.body.offsetHeight,
-    };
+    // Get CONTENT height only, not viewport-based calculations
+    const root = document.getElementById('root');
+    const contentHeight = root ? root.scrollHeight : document.body.scrollHeight;
     
-    Logger.debug('Height measurements', heights);
-    
-    return Math.max(...Object.values(heights));
+    // Cap at reasonable maximum to prevent feedback loops
+    return Math.min(contentHeight, MAX_REASONABLE_HEIGHT);
   }
 
   function sendHeight(trigger = 'unknown') {
@@ -114,6 +111,17 @@
     const isInIframe = window.parent && window.parent !== window;
     
     sendCount++;
+    
+    // Feedback loop detection: if height keeps growing beyond reasonable size
+    if (height > lastSentHeight && height > 1500) {
+      heightStableCount++;
+      if (heightStableCount > 3) {
+        Logger.warn('🛑 Feedback loop detected, skipping height update', { height, lastSentHeight });
+        return;
+      }
+    } else {
+      heightStableCount = 0;
+    }
     
     const logData = {
       height,
@@ -125,8 +133,9 @@
       targetOrigin: PARENT_ORIGIN,
     };
     
-    if (height === lastSentHeight) {
-      Logger.debug('Height unchanged, skipping send', logData);
+    // Only send if meaningfully different (10px threshold)
+    if (Math.abs(height - lastSentHeight) < 10) {
+      Logger.debug('Height change too small, skipping send', logData);
       return;
     }
     

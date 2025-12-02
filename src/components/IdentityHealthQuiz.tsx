@@ -250,7 +250,7 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in flex flex-col min-h-[calc(100dvh-40px)] md:min-h-[calc(100dvh-48px)]">
+    <div className="max-w-2xl mx-auto animate-fade-in pb-4">
       {/* Progress bar - inline instead of fixed */}
       <div className="mb-3 md:mb-4">
         <Progress value={(currentQuestion / totalQuestions) * 100} className="h-1" />
@@ -266,8 +266,8 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
         </p>
       </div>
 
-      {/* Options area - scrollable if needed */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Options area - natural height */}
+      <div className="mb-4 md:mb-6">
         {currentQuestionData.type === 'sales-mix' ? (
           renderSalesMixQuestion()
         ) : (
@@ -289,8 +289,8 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
         )}
       </div>
 
-      {/* Navigation buttons - always at bottom */}
-      <div className="flex justify-between pt-4 mt-4 md:mt-6">
+      {/* Navigation buttons */}
+      <div className="flex justify-between pt-4">
         <Button
           onClick={() => currentQuestion === 0 ? onBack?.() : setCurrentQuestion(prev => prev - 1)}
           variant="outline"
