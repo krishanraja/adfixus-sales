@@ -237,7 +237,7 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
           </div>
         </div>
 
-        <div className={`p-3 rounded-lg border ${isValidTotal ? 'bg-muted/30 border-muted' : 'bg-muted/50 border-muted'}`}>
+        <div className={`p-3 rounded-[22px] border ${isValidTotal ? 'bg-muted/30 border-muted' : 'bg-muted/50 border-muted'}`}>
           <div className="flex items-center justify-center space-x-2">
             <span className="text-sm text-muted-foreground">
               Total: <span className="font-medium text-foreground">{total}%</span>
@@ -276,7 +276,7 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
                 <button
                   key={option.value}
                   onClick={() => handleAnswer(currentQuestionData.id, option.value)}
-                  className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
+                  className={`w-full p-4 text-center rounded-[22px] border transition-all ${
                     answers[currentQuestionData.id] === option.value
                       ? 'border-primary bg-primary/10 text-foreground'
                       : 'border-border hover:border-primary/50 hover:bg-muted/50 text-foreground'

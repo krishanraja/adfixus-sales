@@ -19,7 +19,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
   return (
     <nav className="bg-transparent border-b border-border/30 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-center h-12">
+        <div className="flex items-center justify-between h-12">
+          <div className="w-16"></div>
+          
           <div className="flex items-center space-x-2">
             {steps.map((step, index) => {
               const isActive = currentStep === step.id;
@@ -39,6 +41,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
               );
             })}
           </div>
+          
+          <button
+            onClick={onReset}
+            className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+          >
+            reset
+          </button>
         </div>
       </div>
     </nav>
