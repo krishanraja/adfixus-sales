@@ -263,13 +263,13 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in">
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold text-foreground mb-2">Revenue Calculator</h2>
-        <p className="text-muted-foreground">Input your traffic data</p>
+    <div className="max-w-2xl mx-auto animate-fade-in flex flex-col min-h-[calc(100dvh-40px)] md:min-h-[calc(100dvh-48px)]">
+      <div className="mb-4 md:mb-8 text-center">
+        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">Revenue Calculator</h2>
+        <p className="text-sm md:text-base text-muted-foreground">Input your traffic data</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6 flex-1 overflow-y-auto pb-4">
         {/* Monthly Pageviews */}
         <div>
           <Label htmlFor="pageviews" className="text-base mb-2 block">Monthly Pageviews</Label>
@@ -353,16 +353,17 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
           </div>
         </div>
 
-        {/* Calculate Button */}
-        <div className="text-center pt-4">
-          <Button 
-            onClick={handleSubmit}
-            size="lg"
-            className="w-full py-6 text-lg font-semibold"
-          >
-            Calculate Revenue Impact
-          </Button>
-        </div>
+      </div>
+
+      {/* Calculate Button - always visible at bottom */}
+      <div className="mt-4 pt-4 border-t border-border/30">
+        <Button 
+          onClick={handleSubmit}
+          size="lg"
+          className="w-full py-5 md:py-6 text-base md:text-lg font-semibold"
+        >
+          Calculate Revenue Impact
+        </Button>
       </div>
 
       <LeadCaptureModal

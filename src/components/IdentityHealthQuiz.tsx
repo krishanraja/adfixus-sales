@@ -192,8 +192,8 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
     const isValidTotal = total >= 95 && total <= 100;
 
     return (
-      <div className="space-y-6">
-        <div className="space-y-4">
+      <div className="space-y-4 md:space-y-6">
+        <div className="space-y-3 md:space-y-4">
           <div>
             <div className="flex justify-between items-center mb-2">
               <Label>Direct Sales: {salesMix.direct}%</Label>
@@ -250,61 +250,63 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in">
-      <div className="fixed top-12 left-0 right-0 z-40 bg-background/80 backdrop-blur-sm border-b border-border/30">
-        <div className="container mx-auto px-4 py-3">
-          <Progress value={(currentQuestion / totalQuestions) * 100} className="h-1" />
-        </div>
+    <div className="max-w-2xl mx-auto animate-fade-in flex flex-col min-h-[calc(100dvh-40px)] md:min-h-[calc(100dvh-48px)]">
+      {/* Progress bar - inline instead of fixed */}
+      <div className="mb-3 md:mb-4">
+        <Progress value={(currentQuestion / totalQuestions) * 100} className="h-1" />
       </div>
 
-      <div className="mt-8 space-y-6">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-foreground mb-2">
-            {currentQuestionData.question}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Question {currentQuestion + 1} of {totalQuestions}
-          </p>
-        </div>
+      {/* Question heading - compact mobile spacing */}
+      <div className="text-center mb-4 md:mb-8">
+        <h2 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">
+          {currentQuestionData.question}
+        </h2>
+        <p className="text-xs md:text-sm text-muted-foreground">
+          Question {currentQuestion + 1} of {totalQuestions}
+        </p>
+      </div>
 
-        <div className="space-y-6">
-          {currentQuestionData.type === 'sales-mix' ? (
-            renderSalesMixQuestion()
-          ) : (
-            <div className="space-y-3">
-              {currentQuestionData.options?.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleAnswer(currentQuestionData.id, option.value)}
-                  className={`w-full p-4 text-center rounded-[22px] border transition-all ${
-                    answers[currentQuestionData.id] === option.value
-                      ? 'border-primary bg-primary/10 text-foreground'
-                      : 'border-border hover:border-primary/50 hover:bg-muted/50 text-foreground'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex justify-between pt-8">
-            <Button
-              onClick={() => currentQuestion === 0 ? onBack?.() : setCurrentQuestion(prev => prev - 1)}
-              variant="outline"
-              size="lg"
-            >
-              Previous
-            </Button>
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed()}
-              size="lg"
-            >
-              {isLastQuestion ? 'Complete' : 'Next'}
-            </Button>
+      {/* Options area - scrollable if needed */}
+      <div className="flex-1 overflow-y-auto">
+        {currentQuestionData.type === 'sales-mix' ? (
+          renderSalesMixQuestion()
+        ) : (
+          <div className="space-y-2 md:space-y-3">
+            {currentQuestionData.options?.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswer(currentQuestionData.id, option.value)}
+                className={`w-full p-3 md:p-4 text-center rounded-[22px] border transition-all ${
+                  answers[currentQuestionData.id] === option.value
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border hover:border-primary/50 hover:bg-muted/50 text-foreground'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Navigation buttons - always at bottom */}
+      <div className="flex justify-between pt-4 mt-4 md:mt-6">
+        <Button
+          onClick={() => currentQuestion === 0 ? onBack?.() : setCurrentQuestion(prev => prev - 1)}
+          variant="outline"
+          size="lg"
+          className="px-4 md:px-8"
+        >
+          Previous
+        </Button>
+        <Button
+          onClick={handleNext}
+          disabled={!canProceed()}
+          size="lg"
+          className="px-4 md:px-8"
+        >
+          {isLastQuestion ? 'Complete' : 'Next'}
+        </Button>
       </div>
     </div>
   );

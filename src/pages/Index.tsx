@@ -48,7 +48,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Navigation currentStep={currentStep} onReset={resetSimulation} />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 md:py-8 min-h-[calc(100dvh-48px)] flex flex-col">
         {currentStep === 'hero' && (
           <Hero onStartQuiz={() => setCurrentStep('quiz')} />
         )}
