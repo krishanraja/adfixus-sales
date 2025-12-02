@@ -46,6 +46,7 @@
 
   function sendHeight() {
     const height = Math.round(getDocHeight());
+    console.log('[iframe-height] Sending height to parent:', height);
     // Send message to parent window
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: 'setHeight', height: height }, PARENT_ORIGIN);
