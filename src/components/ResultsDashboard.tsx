@@ -337,7 +337,12 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <Button 
               size="lg" 
               className="px-10 py-6 text-lg font-semibold"
-              onClick={() => window.open(import.meta.env.VITE_MEETING_BOOKING_URL || 'https://outlook.office.com/book/SalesTeambooking@adfixus.com', '_blank')}
+              onClick={() => {
+                const url = import.meta.env.VITE_MEETING_BOOKING_URL || 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
+                // Use top-level window to avoid iframe restrictions with Microsoft Bookings
+                const targetWindow = window.top || window.parent || window;
+                targetWindow.open(url, '_blank');
+              }}
             >
               Book a Demo
             </Button>
