@@ -1,12 +1,22 @@
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { formatCurrency, formatNumber, formatPercentage } from './formatting';
 import { generateKeyRecommendations } from './recommendations';
 import { getGrade } from './grading';
 import { supabase } from '@/integrations/supabase/client';
 
-// Initialize pdfMake fonts with correct VFS structure
-pdfMake.vfs = pdfFonts.vfs;
+// Dynamic import for pdfMake to reduce initial bundle size
+let pdfMakeInstance: any = null;
+
+const initPdfMake = async () => {
+  if (!pdfMakeInstance) {
+    const [pdfMake, pdfFonts] = await Promise.all([
+      import('pdfmake/build/pdfmake'),
+      import('pdfmake/build/vfs_fonts')
+    ]);
+    pdfMake.default.vfs = pdfFonts.default.vfs;
+    pdfMakeInstance = pdfMake.default;
+  }
+  return pdfMakeInstance;
+};
 
 // Convert image to base64
 const convertImageToBase64 = async (imagePath: string): Promise<string> => {
@@ -410,6 +420,9 @@ export const buildAdfixusProposalPdf = async (
       }
     }
   };
+
+  // Initialize pdfMake dynamically
+  const pdfMake = await initPdfMake();
 
   // Generate PDF buffer for email sending
   return new Promise((resolve, reject) => {

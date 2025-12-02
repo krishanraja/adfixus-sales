@@ -1,11 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { IdentityHealthQuiz } from '../components/IdentityHealthQuiz';
 import { RevenueCalculator } from '../components/RevenueCalculator';
-import { ResultsDashboard } from '../components/ResultsDashboard';
 import { Navigation } from '../components/Navigation';
 import { Hero } from '../components/Hero';
 import type { StepType, QuizResults, CalculatorResults, LeadData } from '@/types';
+
+// Lazy load ResultsDashboard (contains recharts - heavy library)
+const ResultsDashboard = lazy(() => import('../components/ResultsDashboard').then(module => ({ default: module.ResultsDashboard })));
 
 const Index = () => {
   const [currentStep, setCurrentStep] = useState<StepType>('hero');
@@ -58,12 +60,14 @@ const Index = () => {
         )}
         
         {currentStep === 'results' && (
-          <ResultsDashboard 
-            quizResults={quizResults}
-            calculatorResults={calculatorResults}
-            leadData={leadData}
-            onReset={resetSimulation}
-          />
+          <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><div className="text-muted-foreground">Loading results...</div></div>}>
+            <ResultsDashboard 
+              quizResults={quizResults}
+              calculatorResults={calculatorResults}
+              leadData={leadData}
+              onReset={resetSimulation}
+            />
+          </Suspense>
         )}
       </div>
     </div>
