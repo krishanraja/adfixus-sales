@@ -1,13 +1,20 @@
 
 import React, { useState, lazy, Suspense } from 'react';
-import { IdentityHealthQuiz } from '../components/IdentityHealthQuiz';
-import { RevenueCalculator } from '../components/RevenueCalculator';
 import { Navigation } from '../components/Navigation';
 import { Hero } from '../components/Hero';
 import type { StepType, QuizResults, CalculatorResults, LeadData } from '@/types';
 
-// Lazy load ResultsDashboard (contains recharts - heavy library)
+// Lazy load all heavy components to reduce initial bundle
+const IdentityHealthQuiz = lazy(() => import('../components/IdentityHealthQuiz').then(module => ({ default: module.IdentityHealthQuiz })));
+const RevenueCalculator = lazy(() => import('../components/RevenueCalculator').then(module => ({ default: module.RevenueCalculator })));
 const ResultsDashboard = lazy(() => import('../components/ResultsDashboard').then(module => ({ default: module.ResultsDashboard })));
+
+// Lightweight loader for step transitions
+const StepLoader = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+  </div>
+);
 
 const Index = () => {
   const [currentStep, setCurrentStep] = useState<StepType>('hero');
@@ -48,19 +55,23 @@ const Index = () => {
         
         
         {currentStep === 'quiz' && (
-          <IdentityHealthQuiz onComplete={handleQuizComplete} />
+          <Suspense fallback={<StepLoader />}>
+            <IdentityHealthQuiz onComplete={handleQuizComplete} />
+          </Suspense>
         )}
         
         {currentStep === 'calculator' && (
-          <RevenueCalculator 
-            onComplete={handleCalculatorComplete} 
-            quizResults={quizResults}
-            onLeadCapture={handleLeadCapture}
-          />
+          <Suspense fallback={<StepLoader />}>
+            <RevenueCalculator 
+              onComplete={handleCalculatorComplete} 
+              quizResults={quizResults}
+              onLeadCapture={handleLeadCapture}
+            />
+          </Suspense>
         )}
         
         {currentStep === 'results' && (
-          <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><div className="text-muted-foreground">Loading results...</div></div>}>
+          <Suspense fallback={<StepLoader />}>
             <ResultsDashboard 
               quizResults={quizResults}
               calculatorResults={calculatorResults}
