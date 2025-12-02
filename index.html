@@ -8,9 +8,15 @@
     <meta name="description" content="ID Health Check" />
     <meta name="author" content="Lovable" />
     <link rel="icon" href="/lovable-uploads/6dd67a5e-06f5-44cb-b4da-17d1fb8030d8.png" type="image/png">
+    <!-- Preconnect to font origins for faster DNS resolution -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Load fonts asynchronously to avoid render blocking -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    </noscript>
 
     <meta property="og:title" content="ID Health Check" />
     <meta property="og:description" content="ID Health Check" />
