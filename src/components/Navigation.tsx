@@ -19,7 +19,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentStep, onReset }) 
   return (
     <nav className="bg-transparent border-b border-border/30 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-12">
+        <div className="flex items-center justify-between h-10 md:h-12">
           <div className="w-16"></div>
           
           <div className="flex items-center space-x-2">

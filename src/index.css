@@ -160,3 +160,9 @@
     transform: translateY(0);
   }
 }
+
+/* Dynamic viewport height with fallback */
+.min-h-dvh-safe {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
