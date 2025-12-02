@@ -14,9 +14,10 @@ interface QuizAnswers {
 
 interface IdentityHealthQuizProps {
   onComplete: (results: any) => void;
+  onBack?: () => void;
 }
 
-export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComplete }) => {
+export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComplete, onBack }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswers>({});
   const [salesMix, setSalesMix] = useState({ direct: 40, dealIds: 35, openExchange: 25 });
@@ -289,8 +290,7 @@ export const IdentityHealthQuiz: React.FC<IdentityHealthQuizProps> = ({ onComple
 
           <div className="flex justify-between pt-8">
             <Button
-              onClick={() => setCurrentQuestion(prev => prev - 1)}
-              disabled={currentQuestion === 0}
+              onClick={() => currentQuestion === 0 ? onBack?.() : setCurrentQuestion(prev => prev - 1)}
               variant="outline"
               size="lg"
             >

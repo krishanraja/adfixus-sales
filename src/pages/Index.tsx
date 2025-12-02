@@ -56,7 +56,10 @@ const Index = () => {
         
         {currentStep === 'quiz' && (
           <Suspense fallback={<StepLoader />}>
-            <IdentityHealthQuiz onComplete={handleQuizComplete} />
+            <IdentityHealthQuiz 
+              onComplete={handleQuizComplete}
+              onBack={() => setCurrentStep('hero')}
+            />
           </Suspense>
         )}
         
