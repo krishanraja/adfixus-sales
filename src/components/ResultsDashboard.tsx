@@ -74,12 +74,12 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
   const getGradeColor = (grade: string) => {
     const colors = {
-      'A+': 'bg-green-100 text-green-800 border-green-200',
-      'A': 'bg-green-100 text-green-700 border-green-200',
-      'B': 'bg-blue-100 text-blue-700 border-blue-200',
-      'C': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      'D': 'bg-orange-100 text-orange-700 border-orange-200',
-      'F': 'bg-red-100 text-red-700 border-red-200'
+      'A+': 'bg-success/20 text-success border-success/30',
+      'A': 'bg-success/20 text-success border-success/30',
+      'B': 'bg-primary/20 text-primary border-primary/30',
+      'C': 'bg-warning/20 text-warning border-warning/30',
+      'D': 'bg-warning/30 text-warning border-warning/40',
+      'F': 'bg-error/20 text-error border-error/30'
     };
     return colors[grade] || colors['F'];
   };
@@ -202,10 +202,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Page Header */}
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-gray-900">
+        <h1 className="text-4xl font-bold text-foreground">
           Your Complete Identity ROI Analysis Results
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+        <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
           Comprehensive analysis with all user inputs, identity health assessment, and revenue optimization opportunities
         </p>
       </div>
@@ -216,14 +216,14 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Monthly Revenue Loss</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-sm text-muted-foreground">Monthly Revenue Loss</p>
+                <p className="text-2xl font-bold text-revenue-loss">
                   {formatCurrency(calculatorResults.unaddressableInventory.lostRevenue)}
                 </p>
               </div>
-              <TrendingDown className="w-8 h-8 text-red-500" />
+              <TrendingDown className="w-8 h-8 text-revenue-loss" />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               {formatPercentage(calculatorResults.unaddressableInventory.percentage)} unaddressable inventory
             </p>
           </CardContent>
@@ -233,14 +233,14 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Monthly Uplift Potential</p>
-                <p className="text-2xl font-bold text-teal-600">
+                <p className="text-sm text-muted-foreground">Monthly Uplift Potential</p>
+                <p className="text-2xl font-bold text-revenue-gain">
                   {formatCurrency(calculatorResults.uplift.totalMonthlyUplift)}
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-teal-500" />
+              <TrendingUp className="w-8 h-8 text-revenue-gain" />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               +{formatPercentage(calculatorResults.uplift.percentageImprovement)} revenue increase
             </p>
           </CardContent>
@@ -250,14 +250,14 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Annual Opportunity</p>
-                <p className="text-2xl font-bold text-cyan-600">
+                <p className="text-sm text-muted-foreground">Annual Opportunity</p>
+                <p className="text-2xl font-bold text-primary">
                   {formatCurrency(calculatorResults.uplift.totalAnnualUplift)}
                 </p>
               </div>
-              <Calendar className="w-8 h-8 text-cyan-500" />
+              <Calendar className="w-8 h-8 text-primary" />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               12-month projection
             </p>
           </CardContent>
@@ -267,14 +267,14 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Addressability Improvement</p>
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-sm text-muted-foreground">Addressability Improvement</p>
+                <p className="text-2xl font-bold text-accent">
                   +{formatPercentage(calculatorResults.breakdown.addressabilityImprovement)}
                 </p>
               </div>
-              <CheckCircle className="w-8 h-8 text-purple-500" />
+              <CheckCircle className="w-8 h-8 text-accent" />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               From {formatPercentage(calculatorResults.breakdown.currentAddressability)} to 100%
             </p>
           </CardContent>
@@ -284,14 +284,14 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Monthly CDP Savings</p>
-                <p className="text-2xl font-bold text-emerald-600">
+                <p className="text-sm text-muted-foreground">Monthly CDP Savings</p>
+                <p className="text-2xl font-bold text-success">
                   {formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}
                 </p>
               </div>
-              <Database className="w-8 h-8 text-emerald-500" />
+              <Database className="w-8 h-8 text-success" />
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               {formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)} ID bloat reduction
             </p>
           </CardContent>
@@ -312,8 +312,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full text-3xl font-bold border-2 ${getGradeColor(quizResults.overallGrade)}`}>
                 {quizResults.overallGrade}
               </div>
-              <h3 className="font-semibold text-gray-900 mt-2">Overall Grade</h3>
-                 <p className="text-sm text-gray-600">
+              <h3 className="font-semibold text-foreground mt-2">Overall Grade</h3>
+                 <p className="text-sm text-muted-foreground">
                    Score: {Math.round(quizResults.overallScore)}/4
                  </p>
             </div>
@@ -325,10 +325,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                 <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full text-xl font-bold border-2 ${getGradeColor(data.grade)}`}>
                   {data.grade}
                 </div>
-                <h4 className="font-medium text-gray-900 mt-2 text-sm">
+                <h4 className="font-medium text-foreground mt-2 text-sm">
                   {getCategoryName(category)}
                 </h4>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-muted-foreground">
                   {Math.round(data.score)}/4
                 </p>
               </div>
@@ -336,37 +336,37 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </div>
 
           {calculatorResults.breakdown.salesMix && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-semibold text-gray-900 mb-2">Sales Mix Breakdown</h4>
+            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold text-foreground mb-2">Sales Mix Breakdown</h4>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-2xl font-bold text-brand">
                     {calculatorResults.breakdown.salesMix.direct}%
                   </p>
-                  <p className="text-sm text-gray-600">Direct Sales</p>
+                  <p className="text-sm text-muted-foreground">Direct Sales</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-success">
                     {calculatorResults.breakdown.salesMix.dealIds}%
                   </p>
-                  <p className="text-sm text-gray-600">Deal IDs</p>
+                  <p className="text-sm text-muted-foreground">Deal IDs</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-brand">
                     {calculatorResults.breakdown.salesMix.openExchange}%
                   </p>
-                  <p className="text-sm text-gray-600">Open Exchange</p>
+                  <p className="text-sm text-muted-foreground">Open Exchange</p>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="mt-8 p-4 bg-yellow-50 rounded-lg">
+          <div className="mt-8 p-4 bg-warning/20 rounded-lg border border-warning/30">
             <div className="flex items-start space-x-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
               <div>
-                <h4 className="font-semibold text-yellow-800">Key Recommendations</h4>
-                <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+                <h4 className="font-semibold text-warning">Key Recommendations</h4>
+                <ul className="text-sm text-foreground mt-2 space-y-1">
                   {generateKeyRecommendations().map((recommendation, index) => (
                     <li key={index}>{recommendation}</li>
                   ))}
@@ -379,35 +379,35 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
 
       {/* ID Bloat Reduction Analysis */}
       <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50">
+        <CardHeader className="bg-muted/30">
           <CardTitle className="flex items-center space-x-2">
-            <Database className="w-6 h-6 text-emerald-600" />
+            <Database className="w-6 h-6 text-success" />
             <span>ID Bloat Reduction & CDP Cost Savings</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4">Current State: Identity Fragmentation</h4>
+              <h4 className="font-semibold text-foreground mb-4">Current State: Identity Fragmentation</h4>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Estimated Monthly Unique Users:</span>
+                  <span className="text-muted-foreground">Estimated Monthly Unique Users:</span>
                   <span className="font-medium">{formatNumber(calculatorResults.inputs.monthlyPageviews / 2.5)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Current Monthly ID Count:</span>
-                  <span className="font-medium text-red-600">{formatNumber(calculatorResults.idBloatReduction.currentMonthlyIds)}</span>
+                  <span className="text-muted-foreground">Current Monthly ID Count:</span>
+                  <span className="font-medium text-revenue-loss">{formatNumber(calculatorResults.idBloatReduction.currentMonthlyIds)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">ID Multiplication Factor:</span>
-                  <span className="font-medium text-orange-600">
+                  <span className="text-muted-foreground">ID Multiplication Factor:</span>
+                  <span className="font-medium text-warning">
                     {(calculatorResults.idBloatReduction.currentMonthlyIds / (calculatorResults.inputs.monthlyPageviews / 2.5)).toFixed(2)}x
                   </span>
                 </div>
               </div>
               
-              <div className="mt-4 p-3 bg-red-50 rounded-lg">
-                <p className="text-sm text-red-700">
+              <div className="mt-4 p-3 bg-revenue-loss/20 rounded-lg border border-revenue-loss/30">
+                <p className="text-sm text-foreground">
                   <strong>Problem:</strong> Cross-browser fragmentation and poor identity resolution creates 
                   duplicate IDs that must be manually stitched together, inflating CDP costs.
                 </p>
@@ -415,34 +415,34 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4">With AdFixus: Unified Identity</h4>
+              <h4 className="font-semibold text-foreground mb-4">With AdFixus: Unified Identity</h4>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Optimized Monthly ID Count:</span>
-                  <span className="font-medium text-green-600">{formatNumber(calculatorResults.idBloatReduction.optimizedMonthlyIds)}</span>
+                  <span className="text-muted-foreground">Optimized Monthly ID Count:</span>
+                  <span className="font-medium text-success">{formatNumber(calculatorResults.idBloatReduction.optimizedMonthlyIds)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">IDs Eliminated:</span>
-                  <span className="font-medium text-emerald-600">
+                  <span className="text-muted-foreground">IDs Eliminated:</span>
+                  <span className="font-medium text-success">
                     -{formatNumber(calculatorResults.idBloatReduction.idsReduced)} ({formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)})
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Monthly CDP Savings:</span>
-                  <span className="font-bold text-emerald-600 text-lg">
+                  <span className="text-muted-foreground">Monthly CDP Savings:</span>
+                  <span className="font-bold text-success text-lg">
                     {formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Annual CDP Savings:</span>
-                  <span className="font-bold text-emerald-600 text-xl">
+                  <span className="text-muted-foreground">Annual CDP Savings:</span>
+                  <span className="font-bold text-success text-xl">
                     {formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}
                   </span>
                 </div>
               </div>
               
-              <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
-                <p className="text-sm text-emerald-700">
+              <div className="mt-4 p-3 bg-success/20 rounded-lg border border-success/30">
+                <p className="text-sm text-foreground">
                   <strong>Solution:</strong> AdFixus reduces computational ID bloat by ~20%, 
                   saving ${calculatorResults.idBloatReduction.costPerIdReduction} per eliminated ID while improving data quality.
                 </p>
@@ -565,12 +565,12 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg bg-gradient-to-r from-cyan-50 to-teal-50 border-0">
+      <Card className="shadow-lg bg-gradient-to-r from-muted to-muted/50 border-border">
         <CardContent className="p-8 text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+          <h3 className="text-2xl font-bold text-foreground mb-4">
             Ready to Unlock Your Revenue Potential?
           </h3>
-          <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
             You're potentially leaving <strong>{formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)}</strong> on the table annually. 
             This includes <strong>{formatCurrency(calculatorResults.uplift.totalAnnualUplift)}</strong> in revenue uplift and <strong>{formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}</strong> in CDP cost savings.
           </p>

@@ -6,45 +6,48 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 186 100% 31%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 195 95% 50%;
+    --primary-foreground: 0 0% 0%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 70%;
 
-    --accent: 180 100% 25%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 195 95% 50%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 195 95% 50%;
 
     /* Semantic brand colors */
-    --brand-primary: 186 100% 31%;
-    --brand-secondary: 180 100% 25%;
+    --brand-primary: 195 95% 50%;
+    --brand-secondary: 195 95% 50%;
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --error: 0 84% 60%;
     
     /* Status colors */
     --revenue-loss: 0 84% 60%;
-    --revenue-gain: 180 100% 25%;
-    --neutral: 215 16% 47%;
+    --revenue-gain: 142 71% 45%;
+    --neutral: 0 0% 60%;
+
+    /* Step highlight color */
+    --step-highlight: 195 95% 50% / 0.2;
 
     --radius: 0.5rem;
 
@@ -124,5 +127,20 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Montserrat', sans-serif;
   }
+}
+
+/* Gradient button styling */
+.btn-gradient {
+  background: linear-gradient(to right, #ffffff, #07C0F8);
+  color: #000000;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(7, 192, 248, 0.3);
 }
