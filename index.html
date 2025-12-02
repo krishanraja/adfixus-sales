@@ -33,47 +33,200 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
 (function () {
-  const PARENT_ORIGIN = 'https://adfixus.com';
-
-  function getDocHeight() {
-    return Math.max(
-      document.documentElement.scrollHeight,
-      document.body.scrollHeight,
-      document.documentElement.clientHeight,
-      document.body.clientHeight
-    );
-  }
-
-  function sendHeight() {
-    const height = Math.round(getDocHeight());
-    console.log('[iframe-height] Sending height to parent:', height);
-    // Send message to parent window
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'setHeight', height: height }, PARENT_ORIGIN);
+  const PARENT_ORIGIN = 'https://www.adfixus.com';
+  const APP_NAME = 'AdFixus-ROI-Calculator';
+  const DEBUG_MODE = true; // Toggle for production
+  
+  // === LOGGING SYSTEM ===
+  const Logger = {
+    styles: {
+      info: 'background: #3B82F6; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+      success: 'background: #10B981; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+      warn: 'background: #F59E0B; color: black; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+      error: 'background: #EF4444; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+      debug: 'background: #8B5CF6; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+    },
+    
+    _format(level, message, data) {
+      const timestamp = new Date().toISOString();
+      const prefix = `[${APP_NAME}:iframe]`;
+      return { timestamp, prefix, level, message, data };
+    },
+    
+    _log(level, message, data = null) {
+      if (!DEBUG_MODE && level === 'debug') return;
+      const entry = this._format(level, message, data);
+      const style = this.styles[level] || this.styles.info;
+      
+      console.groupCollapsed(
+        `%c${entry.prefix} %c${level.toUpperCase()}%c ${message}`,
+        'color: #6B7280;', style, 'color: inherit;'
+      );
+      console.log('⏰ Timestamp:', entry.timestamp);
+      if (data !== null) console.log('📦 Data:', data);
+      console.log('🔗 Origin:', window.location.origin);
+      console.trace('📍 Stack trace');
+      console.groupEnd();
+    },
+    
+    info: (msg, data) => Logger._log('info', msg, data),
+    success: (msg, data) => Logger._log('success', msg, data),
+    warn: (msg, data) => Logger._log('warn', msg, data),
+    error: (msg, data) => Logger._log('error', msg, data),
+    debug: (msg, data) => Logger._log('debug', msg, data),
+    
+    table: (label, data) => {
+      console.groupCollapsed(`%c[${APP_NAME}:iframe] TABLE: ${label}`, 'color: #6B7280; font-weight: bold;');
+      console.table(data);
+      console.groupEnd();
+    },
+    
+    performance: (label, startTime) => {
+      const duration = performance.now() - startTime;
+      Logger.debug(`⚡ Performance: ${label}`, { duration: `${duration.toFixed(2)}ms` });
     }
+  };
+
+  // Expose logger globally for debugging
+  window.AdFixusLogger = Logger;
+  
+  // === HEIGHT CALCULATION ===
+  let lastSentHeight = 0;
+  let sendCount = 0;
+  
+  function getDocHeight() {
+    const heights = {
+      scrollHeight: document.documentElement.scrollHeight,
+      bodyScrollHeight: document.body.scrollHeight,
+      clientHeight: document.documentElement.clientHeight,
+      bodyClientHeight: document.body.clientHeight,
+      offsetHeight: document.body.offsetHeight,
+    };
+    
+    Logger.debug('Height measurements', heights);
+    
+    return Math.max(...Object.values(heights));
   }
 
-  // send height on load
-  window.addEventListener('load', sendHeight);
-
-  // observe DOM size changes
-  try {
-    const ro = new ResizeObserver(sendHeight);
-    ro.observe(document.documentElement);
-    ro.observe(document.body);
-  } catch (e) {
-    // ResizeObserver not available -> fallback to interval
-    setInterval(sendHeight, 1000);
+  function sendHeight(trigger = 'unknown') {
+    const startTime = performance.now();
+    const height = Math.round(getDocHeight());
+    const isInIframe = window.parent && window.parent !== window;
+    
+    sendCount++;
+    
+    const logData = {
+      height,
+      previousHeight: lastSentHeight,
+      changed: height !== lastSentHeight,
+      trigger,
+      sendCount,
+      isInIframe,
+      targetOrigin: PARENT_ORIGIN,
+    };
+    
+    if (height === lastSentHeight) {
+      Logger.debug('Height unchanged, skipping send', logData);
+      return;
+    }
+    
+    lastSentHeight = height;
+    
+    if (isInIframe) {
+      try {
+        window.parent.postMessage({ 
+          type: 'setHeight', 
+          height,
+          source: APP_NAME,
+          timestamp: Date.now(),
+          trigger
+        }, PARENT_ORIGIN);
+        
+        Logger.success(`Height sent to parent: ${height}px`, logData);
+      } catch (err) {
+        Logger.error('Failed to send height to parent', { error: err.message, ...logData });
+      }
+    } else {
+      Logger.warn('Not in iframe context, height not sent', logData);
+    }
+    
+    Logger.performance('sendHeight()', startTime);
   }
 
-  // respond to explicit requests from parent
-  window.addEventListener('message', function (ev) {
-    // If you want to restrict requests, check ev.origin here
-    if (ev.data && ev.data.type === 'requestHeight') sendHeight();
+  // === EVENT LISTENERS ===
+  Logger.info('🚀 Iframe communication system initializing', {
+    parentOrigin: PARENT_ORIGIN,
+    debugMode: DEBUG_MODE,
+    userAgent: navigator.userAgent.substring(0, 50) + '...'
   });
 
-  // also try an initial delayed send (after images/fonts settle)
-  setTimeout(sendHeight, 500);
+  window.addEventListener('load', () => {
+    Logger.info('📄 Window load event fired');
+    sendHeight('window.load');
+  });
+
+  // ResizeObserver with throttling
+  let resizeTimeout;
+  try {
+    const ro = new ResizeObserver((entries) => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        Logger.debug('ResizeObserver triggered', { 
+          entries: entries.length,
+          elements: entries.map(e => e.target.tagName)
+        });
+        sendHeight('ResizeObserver');
+      }, 100); // Throttle to 100ms
+    });
+    
+    ro.observe(document.documentElement);
+    ro.observe(document.body);
+    Logger.success('✅ ResizeObserver attached successfully');
+  } catch (e) {
+    Logger.warn('⚠️ ResizeObserver not available, using fallback interval', { error: e.message });
+    setInterval(() => sendHeight('interval-fallback'), 1000);
+  }
+
+  // Message handler
+  window.addEventListener('message', function (ev) {
+    Logger.debug('📨 Message received', {
+      origin: ev.origin,
+      type: ev.data?.type,
+      data: ev.data
+    });
+    
+    // Security: validate origin
+    if (ev.origin !== PARENT_ORIGIN && ev.origin !== window.location.origin) {
+      Logger.warn('🚫 Message from unauthorized origin ignored', { origin: ev.origin });
+      return;
+    }
+    
+    if (ev.data && ev.data.type === 'requestHeight') {
+      Logger.info('📥 Height request received from parent');
+      sendHeight('parent-request');
+    }
+    
+    if (ev.data && ev.data.type === 'ping') {
+      Logger.info('🏓 Ping received, sending pong');
+      window.parent.postMessage({ type: 'pong', source: APP_NAME }, PARENT_ORIGIN);
+    }
+  });
+
+  // Initial delayed send
+  setTimeout(() => {
+    Logger.info('⏱️ Initial delayed send (500ms)');
+    sendHeight('initial-delayed');
+  }, 500);
+
+  // Additional delayed send for dynamic content
+  setTimeout(() => {
+    Logger.info('⏱️ Secondary delayed send (1500ms) for dynamic content');
+    sendHeight('secondary-delayed');
+  }, 1500);
+
+  Logger.success('✅ Iframe communication system initialized', {
+    features: ['ResizeObserver', 'postMessage', 'throttling', 'origin-validation']
+  });
 })();
     </script>
   </body>
