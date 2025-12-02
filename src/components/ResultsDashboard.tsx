@@ -201,362 +201,120 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Page Header */}
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-foreground">
-          Your Complete Identity ROI Analysis Results
+      <div className="text-center space-y-3 animate-fade-in">
+        <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+          Your ROI Analysis
         </h1>
-        <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          Comprehensive analysis with all user inputs, identity health assessment, and revenue optimization opportunities
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Identity health assessment and revenue optimization opportunity
         </p>
       </div>
 
-      {/* Revenue Impact Overview */}
-      <div className="grid md:grid-cols-5 gap-6">
-        <Card className="shadow-lg border-l-4 border-l-red-500">
+      {/* Key Metrics - 3 Cards */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <Card className="shadow-lg border-l-4 border-l-primary">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Monthly Revenue Loss</p>
-                <p className="text-2xl font-bold text-revenue-loss">
-                  {formatCurrency(calculatorResults.unaddressableInventory.lostRevenue)}
-                </p>
-              </div>
-              <TrendingDown className="w-8 h-8 text-revenue-loss" />
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-muted-foreground">Annual Opportunity</p>
+              <Calendar className="w-6 h-6 text-primary" />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {formatPercentage(calculatorResults.unaddressableInventory.percentage)} unaddressable inventory
+            <p className="text-3xl font-bold text-primary mb-1">
+              {formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Revenue uplift + CDP savings
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-l-4 border-l-teal-500">
+        <Card className="shadow-lg border-l-4 border-l-revenue-loss">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Monthly Uplift Potential</p>
-                <p className="text-2xl font-bold text-revenue-gain">
-                  {formatCurrency(calculatorResults.uplift.totalMonthlyUplift)}
-                </p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-revenue-gain" />
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-muted-foreground">Monthly Revenue Loss</p>
+              <TrendingDown className="w-6 h-6 text-revenue-loss" />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              +{formatPercentage(calculatorResults.uplift.percentageImprovement)} revenue increase
+            <p className="text-3xl font-bold text-revenue-loss mb-1">
+              {formatCurrency(calculatorResults.unaddressableInventory.lostRevenue)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatPercentage(calculatorResults.unaddressableInventory.percentage)} unaddressable
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-l-4 border-l-cyan-500">
+        <Card className="shadow-lg border-l-4 border-l-accent">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Annual Opportunity</p>
-                <p className="text-2xl font-bold text-primary">
-                  {formatCurrency(calculatorResults.uplift.totalAnnualUplift)}
-                </p>
-              </div>
-              <Calendar className="w-8 h-8 text-primary" />
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-muted-foreground">Identity Health</p>
+              <CheckCircle className="w-6 h-6 text-accent" />
+            </div>
+            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full text-2xl font-bold border-2 ${getGradeColor(quizResults.overallGrade)}`}>
+              {quizResults.overallGrade}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              12-month projection
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-l-purple-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Addressability Improvement</p>
-                <p className="text-2xl font-bold text-accent">
-                  +{formatPercentage(calculatorResults.breakdown.addressabilityImprovement)}
-                </p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-accent" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              From {formatPercentage(calculatorResults.breakdown.currentAddressability)} to 100%
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-l-emerald-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Monthly CDP Savings</p>
-                <p className="text-2xl font-bold text-success">
-                  {formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}
-                </p>
-              </div>
-              <Database className="w-8 h-8 text-success" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)} ID bloat reduction
+              Overall score: {Math.round(quizResults.overallScore)}/4
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Identity Health Scorecard */}
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-cyan-50 to-teal-50">
-          <CardTitle className="flex items-center space-x-2">
-            <CheckCircle className="w-6 h-6 text-cyan-600" />
-            <span>Identity Health Scorecard</span>
-          </CardTitle>
-        </CardHeader>
+      {/* Identity Health Breakdown */}
+      <Card className="shadow-lg">
         <CardContent className="p-6">
-          <div className="grid md:grid-cols-5 gap-6">
-            <div className="text-center">
-              <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full text-3xl font-bold border-2 ${getGradeColor(quizResults.overallGrade)}`}>
-                {quizResults.overallGrade}
-              </div>
-              <h3 className="font-semibold text-foreground mt-2">Overall Grade</h3>
-                 <p className="text-sm text-muted-foreground">
-                   Score: {Math.round(quizResults.overallScore)}/4
-                 </p>
-            </div>
-
+          <h3 className="text-lg font-semibold text-foreground mb-4">Identity Health Breakdown</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(quizResults.scores)
               .filter(([category]) => category !== 'sales-mix')
               .map(([category, data]: [string, any]) => (
-              <div key={category} className="text-center">
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full text-xl font-bold border-2 ${getGradeColor(data.grade)}`}>
+              <div key={category} className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full text-lg font-bold border-2 mb-2 ${getGradeColor(data.grade)}`}>
                   {data.grade}
                 </div>
-                <h4 className="font-medium text-foreground mt-2 text-sm">
+                <p className="text-xs text-foreground font-medium">
                   {getCategoryName(category)}
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  {Math.round(data.score)}/4
                 </p>
               </div>
             ))}
           </div>
-
-          {calculatorResults.breakdown.salesMix && (
-            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold text-foreground mb-2">Sales Mix Breakdown</h4>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold text-brand">
-                    {calculatorResults.breakdown.salesMix.direct}%
-                  </p>
-                  <p className="text-sm text-muted-foreground">Direct Sales</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-success">
-                    {calculatorResults.breakdown.salesMix.dealIds}%
-                  </p>
-                  <p className="text-sm text-muted-foreground">Deal IDs</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-brand">
-                    {calculatorResults.breakdown.salesMix.openExchange}%
-                  </p>
-                  <p className="text-sm text-muted-foreground">Open Exchange</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-8 p-4 bg-warning/20 rounded-lg border border-warning/30">
-            <div className="flex items-start space-x-2">
-              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-warning">Key Recommendations</h4>
-                <ul className="text-sm text-foreground mt-2 space-y-1">
-                  {generateKeyRecommendations().map((recommendation, index) => (
-                    <li key={index}>{recommendation}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
-      {/* ID Bloat Reduction Analysis */}
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-muted/30">
-          <CardTitle className="flex items-center space-x-2">
-            <Database className="w-6 h-6 text-success" />
-            <span>ID Bloat Reduction & CDP Cost Savings</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Current State: Identity Fragmentation</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Estimated Monthly Unique Users:</span>
-                  <span className="font-medium">{formatNumber(calculatorResults.inputs.monthlyPageviews / 2.5)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Current Monthly ID Count:</span>
-                  <span className="font-medium text-revenue-loss">{formatNumber(calculatorResults.idBloatReduction.currentMonthlyIds)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ID Multiplication Factor:</span>
-                  <span className="font-medium text-warning">
-                    {(calculatorResults.idBloatReduction.currentMonthlyIds / (calculatorResults.inputs.monthlyPageviews / 2.5)).toFixed(2)}x
-                  </span>
-                </div>
-              </div>
-              
-              <div className="mt-4 p-3 bg-revenue-loss/20 rounded-lg border border-revenue-loss/30">
-                <p className="text-sm text-foreground">
-                  <strong>Problem:</strong> Cross-browser fragmentation and poor identity resolution creates 
-                  duplicate IDs that must be manually stitched together, inflating CDP costs.
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">With AdFixus: Unified Identity</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Optimized Monthly ID Count:</span>
-                  <span className="font-medium text-success">{formatNumber(calculatorResults.idBloatReduction.optimizedMonthlyIds)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">IDs Eliminated:</span>
-                  <span className="font-medium text-success">
-                    -{formatNumber(calculatorResults.idBloatReduction.idsReduced)} ({formatPercentage(calculatorResults.idBloatReduction.reductionPercentage)})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Monthly CDP Savings:</span>
-                  <span className="font-bold text-success text-lg">
-                    {formatCurrency(calculatorResults.idBloatReduction.monthlyCdpSavings)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Annual CDP Savings:</span>
-                  <span className="font-bold text-success text-xl">
-                    {formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="mt-4 p-3 bg-success/20 rounded-lg border border-success/30">
-                <p className="text-sm text-foreground">
-                  <strong>Solution:</strong> AdFixus reduces computational ID bloat by ~20%, 
-                  saving ${calculatorResults.idBloatReduction.costPerIdReduction} per eliminated ID while improving data quality.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 p-4 bg-gradient-to-r from-emerald-100 to-green-100 rounded-lg">
-            <div className="text-center">
-              <h4 className="font-bold text-emerald-800 text-lg mb-2">Total Combined ROI Impact</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-emerald-700 font-medium">Revenue Uplift (Annual)</p>
-                  <p className="text-2xl font-bold text-emerald-800">
-                    {formatCurrency(calculatorResults.uplift.totalAnnualUplift)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-emerald-700 font-medium">CDP Cost Savings (Annual)</p>
-                  <p className="text-2xl font-bold text-emerald-800">
-                    {formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-emerald-700 font-medium">Total Annual Value</p>
-                  <p className="text-3xl font-bold text-emerald-900">
-                    {formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Charts */}
-      <div className="grid md:grid-cols-2 gap-8">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>Inventory Addressability</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={inventoryData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {inventoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: number) => formatNumber(value)} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 text-center">
-              <Badge variant="secondary" className="mr-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                Addressable: {formatNumber(inventoryData[0].value)}
-              </Badge>
-              <Badge variant="secondary">
-                <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                Unaddressable: {formatNumber(inventoryData[1].value)}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>Revenue Comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={revenueComparisonData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis tickFormatter={formatCurrency} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                <Bar dataKey="current" fill="#6b7280" name="Current" />
-                <Bar dataKey="withAdFixus" fill="#22c55e" name="With AdFixus" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* ID Bloat - Single Line Summary */}
+      <div className="p-4 bg-muted/30 rounded-lg border border-border">
+        <p className="text-sm text-muted-foreground text-center">
+          <strong className="text-foreground">ID Bloat Reduction:</strong> Save {formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}/year by reducing {formatNumber(calculatorResults.idBloatReduction.idsReduced)} duplicate IDs
+        </p>
       </div>
 
+      {/* 12-Month Revenue Projection - Single Chart */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>12-Month Revenue Projection</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={350}>
             <LineChart data={monthlyProjectionData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={formatCurrency} />
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+              <YAxis tickFormatter={formatCurrency} stroke="hsl(var(--muted-foreground))" />
+              <Tooltip 
+                formatter={(value: number) => formatCurrency(value)}
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))' 
+                }}
+              />
               <Line 
                 type="monotone" 
                 dataKey="current" 
-                stroke="#6b7280" 
+                stroke="hsl(var(--muted-foreground))" 
                 name="Current Revenue"
                 strokeWidth={2}
               />
               <Line 
                 type="monotone" 
                 dataKey="withAdFixus" 
-                stroke="#22c55e" 
+                stroke="hsl(var(--primary))" 
                 name="With AdFixus"
                 strokeWidth={3}
               />
@@ -565,31 +323,30 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg bg-gradient-to-r from-muted to-muted/50 border-border">
+      {/* CTA Section - Simplified */}
+      <Card className="shadow-lg bg-muted/30">
         <CardContent className="p-8 text-center">
-          <h3 className="text-2xl font-bold text-foreground mb-4">
-            Ready to Unlock Your Revenue Potential?
+          <h3 className="text-2xl font-bold text-foreground mb-3">
+            Ready to unlock this opportunity?
           </h3>
-          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            You're potentially leaving <strong>{formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)}</strong> on the table annually. 
-            This includes <strong>{formatCurrency(calculatorResults.uplift.totalAnnualUplift)}</strong> in revenue uplift and <strong>{formatCurrency(calculatorResults.idBloatReduction.annualCdpSavings)}</strong> in CDP cost savings.
+          <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+            You're potentially leaving <strong className="text-primary">{formatCurrency(calculatorResults.uplift.totalAnnualUplift + calculatorResults.idBloatReduction.annualCdpSavings)}</strong> on the table annually.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 
               size="lg" 
-              className="bg-cyan-600 hover:bg-cyan-700 text-white px-8"
+              className="px-10 py-6 text-lg font-semibold"
               onClick={() => window.open(import.meta.env.VITE_MEETING_BOOKING_URL || 'https://outlook.office.com/book/SalesTeambooking@adfixus.com', '_blank')}
             >
               Book a Demo
             </Button>
-            <Button size="lg" variant="outline" onClick={handleDownloadPDF} className="px-8">
-              <Download className="w-4 h-4 mr-2" />
-              Download Complete PDF Report
-            </Button>
-            <Button size="lg" variant="outline" onClick={onReset} className="px-8">
-              Run New Analysis
-            </Button>
+            <button 
+              onClick={handleDownloadPDF}
+              className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              Download PDF Report
+            </button>
           </div>
         </CardContent>
       </Card>
