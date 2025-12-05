@@ -338,10 +338,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               size="lg" 
               className="px-10 py-6 text-lg font-semibold"
               onClick={() => {
-                const url = import.meta.env.VITE_MEETING_BOOKING_URL || 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
-                // Use top-level window to avoid iframe restrictions with Microsoft Bookings
+                const bookingUrl = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
+                // Use top-level window to break out of iframe for Microsoft Bookings
                 const targetWindow = window.top || window.parent || window;
-                targetWindow.open(url, '_blank');
+                targetWindow.open(bookingUrl, '_blank');
               }}
             >
               Book a Demo

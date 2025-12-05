@@ -647,7 +647,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Attempting to send email with Resend...");
     const emailResponse = await resend.emails.send({
-      from: "AdFixus ROI Calculator <onboarding@resend.dev>",
+      from: "AdFixus ROI Calculator <noreply@adfixus.com>",
       to: ["krish.raja@adfixus.com", "roland.irwin@adfixus.com"],
       subject: `New AdFixus Analysis: ${userName} from ${userCompany}`,
       html: emailBody,
