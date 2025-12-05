@@ -12,12 +12,6 @@ interface HeroProps {
 export const Hero: React.FC<HeroProps> = ({ onStartQuiz }) => {
   return (
     <div className="max-w-2xl mx-auto flex-1 flex flex-col justify-center text-center animate-fade-in py-8">
-      <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-3 md:mb-4">
-        Identity ROI Calculator
-      </h1>
-      <p className="text-base md:text-lg text-muted-foreground mb-6 md:mb-8 max-w-xl mx-auto">
-        See your revenue opportunity in 2 minutes
-      </p>
       <Button 
         onClick={onStartQuiz}
         size="lg"

@@ -28,12 +28,6 @@ export const useLeadCapture = (onSuccess: (data: LeadData) => void) => {
     try {
       // Store lead data in localStorage for PDF generation
       localStorage.setItem('leadData', JSON.stringify(data));
-
-      toast({
-        title: 'Information saved',
-        description: 'Your details have been saved successfully.',
-      });
-
       onSuccess(data);
     } catch (error) {
       toast({
