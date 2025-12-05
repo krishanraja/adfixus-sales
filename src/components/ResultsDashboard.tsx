@@ -313,16 +313,17 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <Button 
               size="lg" 
               className="px-10 py-6 text-lg font-semibold"
-              asChild
+              onClick={() => {
+                const bookingUrl = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
+                console.log('[CTA] Book a Demo clicked, opening:', bookingUrl);
+                const newWindow = window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+                if (!newWindow) {
+                  navigator.clipboard?.writeText(bookingUrl);
+                  alert('Please open this URL in a new tab: ' + bookingUrl);
+                }
+              }}
             >
-              <a 
-                href="https://outlook.office.com/book/SalesTeambooking@adfixus.com" 
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => console.log('[CTA] Book a Demo clicked, navigating to:', 'https://outlook.office.com/book/SalesTeambooking@adfixus.com')}
-              >
-                Book a Demo
-              </a>
+              Book a Demo
             </Button>
             <button 
               onClick={handleDownloadPDF}
