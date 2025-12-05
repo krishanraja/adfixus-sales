@@ -8,23 +8,37 @@ let pdfMakeInstance: any = null;
 
 const initPdfMake = async () => {
   if (!pdfMakeInstance) {
+    console.log('[PDF] Starting pdfMake initialization...');
+    
     const [pdfMake, pdfFonts] = await Promise.all([
       import('pdfmake/build/pdfmake'),
       import('pdfmake/build/vfs_fonts')
     ]);
     
-    // The vfs_fonts module exports the vfs object directly, not nested under .vfs
-    const vfsData = pdfFonts.default || pdfFonts;
+    console.log('[PDF] Modules loaded, pdfFonts structure:', Object.keys(pdfFonts));
+    console.log('[PDF] pdfFonts.default:', pdfFonts.default ? Object.keys(pdfFonts.default) : 'undefined');
     
-    // Use the official addVirtualFileSystem method if available
-    if (typeof pdfMake.default.addVirtualFileSystem === 'function') {
-      pdfMake.default.addVirtualFileSystem(vfsData);
-    } else {
-      // Fallback: direct assignment
-      pdfMake.default.vfs = vfsData;
+    // Correct vfs access pattern for pdfmake with various module formats
+    const vfs = pdfFonts.pdfMake?.vfs || 
+                pdfFonts.default?.pdfMake?.vfs || 
+                pdfFonts.default?.vfs ||
+                pdfFonts.vfs ||
+                (typeof pdfFonts.default === 'object' && pdfFonts.default);
+    
+    if (!vfs) {
+      console.error('[PDF] FATAL: Could not find vfs fonts!', {
+        pdfFontsKeys: Object.keys(pdfFonts),
+        defaultKeys: pdfFonts.default ? Object.keys(pdfFonts.default) : 'none'
+      });
+      throw new Error('PDF fonts could not be loaded');
     }
     
-    console.log('[PDF] pdfMake initialized, fonts available:', Object.keys(vfsData || {}).slice(0, 3));
+    console.log('[PDF] VFS found, sample keys:', Object.keys(vfs).slice(0, 5));
+    
+    // Direct assignment is most reliable across versions
+    pdfMake.default.vfs = vfs;
+    
+    console.log('[PDF] pdfMake initialized successfully');
     pdfMakeInstance = pdfMake.default;
   }
   return pdfMakeInstance;
