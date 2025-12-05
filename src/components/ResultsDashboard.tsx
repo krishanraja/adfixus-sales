@@ -317,7 +317,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             >
               <a 
                 href="https://outlook.office.com/book/SalesTeambooking@adfixus.com" 
-                target="_top"
+                target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => console.log('[CTA] Book a Demo clicked, navigating to:', 'https://outlook.office.com/book/SalesTeambooking@adfixus.com')}
               >
