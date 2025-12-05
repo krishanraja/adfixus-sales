@@ -41,24 +41,24 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   const handleDownloadPDF = async () => {
     try {
       toast({
-        title: "Generating Comprehensive PDF...",
-        description: "Please wait while we prepare your complete report and send it via email.",
+        title: "Generating PDF Report...",
+        description: "Your report is being prepared. Our team will receive a copy for follow-up.",
       });
 
       console.log('Starting PDF generation with lead data:', leadData);
       
-      // Generate the PDF (pdfmake handles download automatically and sends email)
+      // Generate the PDF (pdfmake handles download automatically and sends email to AdFixus team)
       const result = await generatePDF(quizResults, calculatorResults, leadData) as PDFGenerationResult;
       
       if (result.emailSent) {
         toast({
-          title: "PDF Downloaded Successfully",
-          description: "Your comprehensive identity ROI report has been generated and downloaded.",
+          title: "PDF Downloaded",
+          description: "Your report has been downloaded and sent to the AdFixus team for follow-up.",
         });
       } else {
         toast({
           title: "PDF Downloaded",
-          description: `Report downloaded successfully. ${result.emailError ? 'Note: Email delivery encountered an issue.' : 'Your analysis is complete and ready for review.'}`,
+          description: "Your report has been downloaded successfully.",
           variant: "default",
         });
       }
