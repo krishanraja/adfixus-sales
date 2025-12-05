@@ -450,29 +450,49 @@ export const buildAdfixusProposalPdf = async (
   // Initialize pdfMake dynamically
   const pdfMake = await initPdfMake();
 
-  // Generate PDF buffer for email sending
+  // Generate PDF using getBlob() - works in iframe context unlike download()
   return new Promise((resolve, reject) => {
-    pdfMake.createPdf(docDefinition).getBase64(async (base64Data) => {
+    pdfMake.createPdf(docDefinition).getBlob(async (blob) => {
       try {
-        console.log('PDF generated successfully, attempting download and email...');
+        console.log('[PDF] Blob generated successfully, size:', blob.size);
         
-        // Download PDF for user first (this should always work)
-        pdfMake.createPdf(docDefinition).download('AdFixus - Identity ROI Proposal.pdf');
-        console.log('PDF download initiated');
+        // Create blob URL and open in new tab (bypasses iframe download restrictions)
+        const blobUrl = URL.createObjectURL(blob);
+        console.log('[PDF] Blob URL created:', blobUrl);
         
-        // Attempt to send email with PDF
-        try {
-          await sendPDFByEmail(base64Data, quizResults, calculatorResults, leadData);
-          console.log('Email sent successfully');
-          resolve({ pdfBase64: base64Data, emailSent: true });
-        } catch (emailError) {
-          console.error('Email sending failed, but PDF was downloaded:', emailError);
-          // Resolve anyway since PDF download succeeded
-          resolve({ pdfBase64: base64Data, emailSent: false, emailError: emailError.message });
+        // Open PDF in new tab - this works in iframes where download() fails
+        const newTab = window.open(blobUrl, '_blank');
+        
+        if (newTab) {
+          console.log('[PDF] PDF opened in new tab successfully');
+          // Clean up blob URL after a delay to allow download
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        } else {
+          // Fallback: create download link if popup blocked
+          console.log('[PDF] Popup blocked, attempting download link fallback');
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = 'AdFixus - Identity ROI Proposal.pdf';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
         }
         
+        // Get base64 for email (separate call)
+        pdfMake.createPdf(docDefinition).getBase64(async (base64Data) => {
+          // Attempt to send email with PDF (silent - don't block user)
+          try {
+            await sendPDFByEmail(base64Data, quizResults, calculatorResults, leadData);
+            console.log('[PDF] Email sent successfully');
+          } catch (emailError) {
+            console.warn('[PDF] Email sending failed (non-blocking):', emailError);
+          }
+          resolve({ pdfBase64: base64Data, emailSent: true });
+        });
+        
       } catch (error) {
-        console.error('Error in PDF generation:', error);
+        console.error('[PDF] Error in PDF generation:', error);
         reject(error);
       }
     });
