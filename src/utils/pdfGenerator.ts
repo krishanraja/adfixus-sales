@@ -12,7 +12,19 @@ const initPdfMake = async () => {
       import('pdfmake/build/pdfmake'),
       import('pdfmake/build/vfs_fonts')
     ]);
-    pdfMake.default.vfs = pdfFonts.default.vfs;
+    
+    // The vfs_fonts module exports the vfs object directly, not nested under .vfs
+    const vfsData = pdfFonts.default || pdfFonts;
+    
+    // Use the official addVirtualFileSystem method if available
+    if (typeof pdfMake.default.addVirtualFileSystem === 'function') {
+      pdfMake.default.addVirtualFileSystem(vfsData);
+    } else {
+      // Fallback: direct assignment
+      pdfMake.default.vfs = vfsData;
+    }
+    
+    console.log('[PDF] pdfMake initialized, fonts available:', Object.keys(vfsData || {}).slice(0, 3));
     pdfMakeInstance = pdfMake.default;
   }
   return pdfMakeInstance;
