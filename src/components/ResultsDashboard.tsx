@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar, Database } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download, Calendar, Database, Loader2 } from 'lucide-react';
 import { generatePDF } from '../utils/pdfGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/formatting';
@@ -29,39 +29,13 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   onReset 
 }) => {
   const { toast } = useToast();
-
-  // Show welcome message when component mounts
-  React.useEffect(() => {
-    toast({
-      title: "Analysis Complete",
-      description: "Your identity health report is ready. Download the PDF below or book a consultation.",
-    });
-  }, [toast]);
+  const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
 
   const handleDownloadPDF = async () => {
+    setIsGeneratingPDF(true);
     try {
-      toast({
-        title: "Generating PDF Report...",
-        description: "Your report is being prepared. Our team will receive a copy for follow-up.",
-      });
-
       console.log('Starting PDF generation with lead data:', leadData);
-      
-      // Generate the PDF (pdfmake handles download automatically and sends email to AdFixus team)
-      const result = await generatePDF(quizResults, calculatorResults, leadData) as PDFGenerationResult;
-      
-      if (result.emailSent) {
-        toast({
-          title: "PDF Downloaded",
-          description: "Your report has been downloaded and sent to the AdFixus team for follow-up.",
-        });
-      } else {
-        toast({
-          title: "PDF Downloaded",
-          description: "Your report has been downloaded successfully.",
-          variant: "default",
-        });
-      }
+      await generatePDF(quizResults, calculatorResults, leadData);
     } catch (error: any) {
       console.error('PDF generation failed:', error);
       toast({
@@ -69,6 +43,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         description: `Failed to generate PDF: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -337,20 +313,23 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <Button 
               size="lg" 
               className="px-10 py-6 text-lg font-semibold"
-              onClick={() => {
-                const bookingUrl = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
-                // Use top-level window to break out of iframe for Microsoft Bookings
-                const targetWindow = window.top || window.parent || window;
-                targetWindow.open(bookingUrl, '_blank');
-              }}
+              asChild
             >
-              Book a Demo
+              <a 
+                href="https://outlook.office.com/book/SalesTeambooking@adfixus.com" 
+                target="_top"
+                rel="noopener noreferrer"
+              >
+                Book a Demo
+              </a>
             </Button>
             <button 
               onClick={handleDownloadPDF}
-              className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
+              disabled={isGeneratingPDF}
+              className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors disabled:opacity-50 flex items-center gap-2"
             >
-              Download PDF Report
+              {isGeneratingPDF && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isGeneratingPDF ? 'Generating...' : 'Download PDF Report'}
             </button>
           </div>
         </CardContent>
