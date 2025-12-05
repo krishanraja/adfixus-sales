@@ -313,14 +313,27 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
             <Button 
               size="lg" 
               className="px-10 py-6 text-lg font-semibold"
-              onClick={() => {
+              onClick={async () => {
                 const bookingUrl = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
-                console.log('[CTA] Book a Demo clicked, opening:', bookingUrl);
-                const newWindow = window.open(bookingUrl, '_blank', 'noopener,noreferrer');
-                if (!newWindow) {
-                  navigator.clipboard?.writeText(bookingUrl);
-                  alert('Please open this URL in a new tab: ' + bookingUrl);
+                console.log('[CTA] Book a Demo clicked');
+                
+                // Always copy to clipboard first as reliable fallback
+                try {
+                  await navigator.clipboard.writeText(bookingUrl);
+                  console.log('[CTA] URL copied to clipboard');
+                } catch (e) {
+                  console.warn('[CTA] Clipboard copy failed:', e);
                 }
+                
+                // Attempt to open - Microsoft may block from iframe context
+                window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+                
+                // Show helpful message since Microsoft Bookings blocks iframe requests
+                toast({
+                  title: "Opening booking page...",
+                  description: "If the page doesn't load, the URL has been copied to your clipboard. Paste it in a new browser tab.",
+                  duration: 6000,
+                });
               }}
             >
               Book a Demo
