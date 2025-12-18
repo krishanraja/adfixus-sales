@@ -227,9 +227,9 @@ const handler = async (req: Request): Promise<Response> => {
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1 style="margin: 0; font-size: 32px;">Complete Identity ROI Analysis Results</h1>
-            <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 18px;">Comprehensive analysis with all user inputs, identity health assessment, and revenue optimization opportunities</p>
+          <div class="header" style="background: linear-gradient(135deg, #0891b2, #0e7490); color: #ffffff; padding: 40px; text-align: center;">
+            <h1 style="margin: 0; font-size: 32px; color: #ffffff;">Complete Identity ROI Analysis Results</h1>
+            <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 18px; color: #ffffff;">Comprehensive analysis with all user inputs, identity health assessment, and revenue optimization opportunities</p>
           </div>
           
           <div class="content">
@@ -308,10 +308,10 @@ const handler = async (req: Request): Promise<Response> => {
               <h2 style="color: #0891b2; margin-top: 0;">🎯 Executive Summary</h2>
               ${quizResults ? `
                 <div style="text-align: center; margin: 30px 0;">
-                  <span class="grade-badge" style="background-color: ${getGradeColor(quizResults.overallGrade)};">
+                  <span class="grade-badge" style="background-color: ${getGradeColor(quizResults.overallGrade)}; display: inline-block; padding: 12px 20px; border-radius: 25px; color: #ffffff; font-weight: bold; font-size: 20px;">
                     Overall Identity Health Grade: ${quizResults.overallGrade}
                   </span>
-                  <p style="margin: 15px 0; font-size: 18px;"><strong>Identity Health Score:</strong> ${Math.round(quizResults.overallScore)}/4</p>
+                  <p style="margin: 15px 0; font-size: 18px; color: #333333;"><strong>Identity Health Score:</strong> ${Math.round(quizResults.overallScore)}/4</p>
                 </div>
               ` : ''}
               
@@ -361,10 +361,10 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="section">
               <h2 style="color: #0891b2; margin-top: 0;">🏥 Complete Identity Health Scorecard</h2>
               <div style="text-align: center; margin: 30px 0;">
-                <span class="grade-badge" style="background-color: ${getGradeColor(quizResults.overallGrade)}; font-size: 24px; padding: 15px 25px;">
+                <span class="grade-badge" style="background-color: ${getGradeColor(quizResults.overallGrade)}; display: inline-block; padding: 15px 25px; border-radius: 25px; color: #ffffff; font-weight: bold; font-size: 24px;">
                   Overall Grade: ${quizResults.overallGrade}
                 </span>
-                <p style="margin: 15px 0; font-size: 18px;"><strong>Overall Score:</strong> ${Math.round(quizResults.overallScore)}/4</p>
+                <p style="margin: 15px 0; font-size: 18px; color: #333333;"><strong>Overall Score:</strong> ${Math.round(quizResults.overallScore)}/4</p>
               </div>
               
               <h3 style="color: #0891b2;">Detailed Category Breakdown:</h3>
@@ -380,10 +380,10 @@ const handler = async (req: Request): Promise<Response> => {
                   return `
                     <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 8px; border-left: 6px solid ${getGradeColor(data.grade)};">
                       <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <span class="grade-badge" style="background-color: ${getGradeColor(data.grade)}; font-size: 16px; padding: 8px 16px; margin-right: 15px;">
+                        <span class="grade-badge" style="background-color: ${getGradeColor(data.grade)}; display: inline-block; padding: 8px 16px; border-radius: 25px; color: #ffffff; font-weight: bold; font-size: 16px; margin-right: 15px;">
                           ${data.grade}
                         </span>
-                        <h4 style="margin: 0; font-size: 18px;">${categoryNames[category] || category}</h4>
+                        <h4 style="margin: 0; font-size: 18px; color: #333333;">${categoryNames[category] || category}</h4>
                       </div>
                       <p style="margin: 5px 0; color: #64748b;"><strong>Score:</strong> ${Math.round(data.score)}/4</p>
                       <p style="margin: 5px 0; font-size: 14px; line-height: 1.5;">Category performance indicates ${data.grade === 'A+' || data.grade === 'A' ? 'excellent' : data.grade === 'B' ? 'good' : data.grade === 'C' ? 'moderate' : 'significant improvement needed'} ${categoryNames[category]?.toLowerCase()} capabilities.</p>
