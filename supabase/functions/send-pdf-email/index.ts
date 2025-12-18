@@ -202,7 +202,7 @@ const handler = async (req: Request): Promise<Response> => {
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background: #f8fafc; }
           .container { max-width: 900px; margin: 0 auto; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-          .header { background: linear-gradient(135deg, #0891b2, #0e7490); color: white; padding: 40px; text-align: center; }
+          .header { background-color: #0891b2; color: #ffffff; padding: 40px; text-align: center; }
           .content { padding: 40px; }
           .section { margin-bottom: 40px; padding: 25px; border-left: 4px solid #0891b2; background: #f8fafc; border-radius: 0 8px 8px 0; }
           .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 25px 0; }
@@ -227,7 +227,7 @@ const handler = async (req: Request): Promise<Response> => {
       </head>
       <body>
         <div class="container">
-          <div class="header" style="background: linear-gradient(135deg, #0891b2, #0e7490); color: #ffffff; padding: 40px; text-align: center;">
+          <div class="header" style="background-color: #0891b2; color: #ffffff; padding: 40px; text-align: center;">
             <h1 style="margin: 0; font-size: 32px; color: #ffffff;">Complete Identity ROI Analysis Results</h1>
             <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 18px; color: #ffffff;">Comprehensive analysis with all user inputs, identity health assessment, and revenue optimization opportunities</p>
           </div>
