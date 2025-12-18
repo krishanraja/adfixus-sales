@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { HelpCircle, Calculator, ChevronDown, TrendingUp, BarChart3 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { LeadCaptureModal } from './LeadCaptureModal';
+import { generateAndSendPDFEmail } from '@/utils/pdfGenerator';
 
 interface RevenueCalculatorProps {
   onComplete: (results: any) => void;
@@ -250,8 +251,17 @@ export const RevenueCalculator: React.FC<RevenueCalculatorProps> = ({ onComplete
     setCalculationResults(results);
   };
 
-  const handleLeadSubmit = (leadData: any) => {
+  const handleLeadSubmit = async (leadData: any) => {
     setShowLeadModal(false);
+    
+    // Send email with PDF when user submits contact form (non-blocking)
+    if (calculationResults && quizResults) {
+      console.log('[RevenueCalculator] Triggering email send on form submit...');
+      generateAndSendPDFEmail(quizResults, calculationResults, leadData)
+        .then(() => console.log('[RevenueCalculator] Email sent successfully'))
+        .catch((err) => console.warn('[RevenueCalculator] Email failed (non-blocking):', err));
+    }
+    
     onLeadCapture(leadData);
     onComplete(calculationResults!);
     setCalculationResults(null);
