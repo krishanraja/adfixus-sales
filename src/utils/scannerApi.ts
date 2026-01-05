@@ -67,51 +67,128 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
     
     const response = await Promise.race([invokePromise, timeoutPromise]);
     
-    // Check for DNS/network errors
+    // Check for DNS/network errors - inspect full error object structure
     if (response.error) {
-      const errorMsg = response.error.message || '';
-      console.log('[scannerApi] [DIAGNOSTIC] Response error:', errorMsg);
+      const error = response.error;
+      const errorName = error.name || '';
+      const errorMsg = error.message || '';
+      const errorStack = error.stack || '';
+      const errorCause = (error as any).cause || (error as any).originalError || null;
       
-      // DNS resolution failures - these mean the function is NOT accessible
-      if (errorMsg.includes('NAME_NOT_RESOLVED') || 
-          errorMsg.includes('ERR_NAME_NOT_RESOLVED') ||
-          errorMsg.includes('Failed to fetch') ||
-          errorMsg.includes('NetworkError') ||
-          errorMsg.includes('NETWORK_ERROR') ||
-          errorMsg.includes('fetch') ||
-          errorMsg === 'TIMEOUT') {
-        const error = `Edge function not accessible. This usually means:
+      // Comprehensive error object logging for diagnostics
+      console.error('[scannerApi] [DIAGNOSTIC] Full error object:', {
+        name: errorName,
+        message: errorMsg,
+        stack: errorStack,
+        cause: errorCause,
+        originalError: (error as any).originalError,
+        constructor: error.constructor?.name,
+        keys: Object.keys(error),
+      });
+      
+      // Check error name/type
+      const isFunctionsFetchError = errorName === 'FunctionsFetchError';
+      
+      // Check message for network indicators
+      const hasNetworkErrorInMessage = 
+        errorMsg.includes('Failed to send') ||
+        errorMsg.includes('Failed to fetch') ||
+        errorMsg.includes('NetworkError') ||
+        errorMsg.includes('NAME_NOT_RESOLVED') ||
+        errorMsg.includes('ERR_NAME_NOT_RESOLVED');
+      
+      // Check stack for DNS errors
+      const hasDNSInStack = 
+        errorStack.includes('NAME_NOT_RESOLVED') ||
+        errorStack.includes('ERR_NAME_NOT_RESOLVED') ||
+        errorStack.includes('Failed to fetch');
+      
+      // Check underlying cause
+      const causeHasDNS = errorCause && (
+        String(errorCause).includes('NAME_NOT_RESOLVED') ||
+        String(errorCause).includes('ERR_NAME_NOT_RESOLVED')
+      );
+      
+      // Check for timeout
+      const isTimeout = errorMsg === 'TIMEOUT';
+      
+      // If FunctionsFetchError with network indicators, treat as DNS failure
+      if (isFunctionsFetchError && (hasNetworkErrorInMessage || hasDNSInStack || causeHasDNS)) {
+        const errorMessage = `Edge function not accessible. This usually means:
+1. The edge function is not deployed (check Supabase dashboard)
+2. VITE_SUPABASE_URL is incorrect (should be: https://ojtfnhzqhfsprebvpmvx.supabase.co)
+3. Network connectivity issues
+
+Please verify your environment configuration and ensure the edge function is deployed.`;
+        console.error('[scannerApi] Edge function not accessible - DNS/Network error detected');
+        return { healthy: false, error: errorMessage };
+      }
+      
+      // If FunctionsFetchError but we can't determine if it's network error, default to unhealthy (fail-safe)
+      if (isFunctionsFetchError) {
+        const errorMessage = 'Failed to reach edge function. This usually indicates a network or configuration issue. Please check VITE_SUPABASE_URL and ensure the edge function is deployed.';
+        console.error('[scannerApi] FunctionsFetchError detected - defaulting to unhealthy (fail-safe)');
+        return { healthy: false, error: errorMessage };
+      }
+      
+      // Check for explicit DNS/network errors in message or stack
+      if (hasNetworkErrorInMessage || hasDNSInStack || causeHasDNS || isTimeout) {
+        const errorMessage = `Edge function not accessible. This usually means:
 1. The edge function is not deployed (check Supabase dashboard)
 2. VITE_SUPABASE_URL is incorrect (should be: https://ojtfnhzqhfsprebvpmvx.supabase.co)
 3. Network connectivity issues
 
 Please verify your environment configuration and ensure the edge function is deployed.`;
         console.error('[scannerApi] Edge function not accessible - DNS/Network error:', errorMsg);
-        return { healthy: false, error };
+        return { healthy: false, error: errorMessage };
       }
       
-      // If error is a function-level error (400, 500, etc.), the function exists and is reachable
-      // But we should still log it for debugging
-      console.log('[scannerApi] Edge function is reachable but returned error:', errorMsg);
-      // For health check purposes, if we got a response (even an error), the function exists
-      // But only if it's NOT a network error
-      return { healthy: true };
+      // If we can't determine the error type, default to unhealthy (fail-safe approach)
+      // Only return healthy if we're CERTAIN it's a function-level error (e.g., 400, 500 from function)
+      // For now, default to unhealthy when uncertain to avoid false positives
+      console.warn('[scannerApi] Unknown error type - defaulting to unhealthy (fail-safe):', errorMsg);
+      return { healthy: false, error: errorMsg || 'Unknown error - cannot determine edge function status' };
     }
     
     console.log('[scannerApi] Edge function is healthy');
     return { healthy: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : '';
-    console.error('[scannerApi] Edge function health check failed with exception:', errorMessage);
-    console.error('[scannerApi] [DIAGNOSTIC] Error stack:', errorStack);
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    const errorName = errorObj.name || '';
+    const errorMessage = errorObj.message || '';
+    const errorStack = errorObj.stack || '';
+    const errorCause = (errorObj as any).cause || (errorObj as any).originalError || null;
     
-    // Check if it's a network/DNS error in the catch block
-    if (errorMessage.includes('NAME_NOT_RESOLVED') || 
-        errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
-        errorMessage.includes('Failed to fetch') ||
-        errorMessage.includes('NetworkError') ||
-        errorMessage.includes('fetch')) {
+    // Comprehensive error object logging for diagnostics
+    console.error('[scannerApi] [DIAGNOSTIC] Exception caught - Full error object:', {
+      name: errorName,
+      message: errorMessage,
+      stack: errorStack,
+      cause: errorCause,
+      originalError: (errorObj as any).originalError,
+      constructor: errorObj.constructor?.name,
+      keys: Object.keys(errorObj),
+    });
+    
+    // Check if it's a network/DNS error
+    const hasNetworkErrorInMessage = 
+      errorMessage.includes('NAME_NOT_RESOLVED') || 
+      errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
+      errorMessage.includes('Failed to fetch') ||
+      errorMessage.includes('NetworkError') ||
+      errorMessage.includes('fetch');
+    
+    const hasDNSInStack = 
+      errorStack.includes('NAME_NOT_RESOLVED') ||
+      errorStack.includes('ERR_NAME_NOT_RESOLVED') ||
+      errorStack.includes('Failed to fetch');
+    
+    const causeHasDNS = errorCause && (
+      String(errorCause).includes('NAME_NOT_RESOLVED') ||
+      String(errorCause).includes('ERR_NAME_NOT_RESOLVED')
+    );
+    
+    if (hasNetworkErrorInMessage || hasDNSInStack || causeHasDNS) {
       return { 
         healthy: false, 
         error: 'Network/DNS error - cannot reach edge function. Please check VITE_SUPABASE_URL and network connectivity.'

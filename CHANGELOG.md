@@ -4,6 +4,26 @@ All notable changes to the AdFixus Identity ROI Calculator & Domain Scanner proj
 
 ---
 
+## [4.1.0] - 2026-01-05 - Health Check False Positive Fix
+
+### 🐛 Critical Bug Fixes
+- **Health Check False Positives**: Fixed health check to properly detect DNS failures by inspecting full error object structure (name, cause, stack)
+- **FunctionsFetchError Detection**: Now correctly identifies `FunctionsFetchError` as network error and returns `healthy: false`
+- **Fail-Safe Default**: Health check now defaults to `healthy: false` when error type cannot be determined (prevents false positives)
+
+### 🔍 Enhanced Diagnostics
+- **Comprehensive Error Logging**: Added full error object inspection including name, message, stack, cause, and constructor
+- **Better Error Detection**: Checks error name, message, stack, and underlying cause for DNS/network errors
+- **Diagnostic Logging**: All error objects are now logged with complete structure for debugging
+
+### 📝 Technical Details
+- Health check now inspects `error.name` to detect `FunctionsFetchError` type
+- Checks `error.stack` for DNS error patterns (NAME_NOT_RESOLVED, ERR_NAME_NOT_RESOLVED)
+- Checks `error.cause` and `error.originalError` for underlying network errors
+- Defaults to unhealthy when uncertain (fail-safe approach prevents false positives)
+
+---
+
 ## [4.0.0] - 2026-01-05 - Vercel Migration & Critical Fixes
 
 ### 🚀 Major Changes
