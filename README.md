@@ -128,11 +128,42 @@ npm run build
 
 ### Frontend Environment (.env)
 
+**Required Variables:**
+
 ```bash
+# Main Supabase project (Lovable Cloud) - Used for edge function calls
 VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
-VITE_SUPABASE_ANON_KEY=<anon-key>
+VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key-here
+```
+
+**Optional Variables:**
+
+```bash
+# Used in PDF exports for meeting booking links
 VITE_MEETING_BOOKING_URL=https://outlook.office.com/book/SalesTeambooking@adfixus.com
 ```
+
+**Setup Instructions:**
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in the required values:
+   - Get `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from your Supabase project settings
+   - The URL should be: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+
+3. Restart your dev server after changing `.env`:
+   ```bash
+   npm run dev
+   ```
+
+**Important Notes:**
+- Never commit `.env` to version control (it's in `.gitignore`)
+- Environment variables are validated at runtime
+- Missing required variables will show clear error messages
+- See `.env.example` for template
 
 ## 📋 Key Features
 
@@ -240,21 +271,197 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 ## ⚠️ Common Issues & Solutions
 
-### "ERR_NAME_NOT_RESOLVED"
-**Cause**: Edge function not deployed
-**Fix**: Force redeploy by updating version comment in function file
+### "ERR_NAME_NOT_RESOLVED" or "Failed to send a request to the Edge Function"
 
-### "Multiple GoTrueClient instances"
-**Cause**: Stale deployment cache
-**Fix**: Hard refresh + wait for new deployment
+**Symptoms:**
+- Console shows `ERR_NAME_NOT_RESOLVED` error
+- Scanner shows "Scanner Service Unavailable"
+- Health check fails
 
-### Scanner results not appearing
-**Cause**: Real-time subscription failed
-**Fix**: Check `SCANNER_SUPABASE_URL` secret is set correctly
+**Root Causes:**
+1. `VITE_SUPABASE_URL` is missing or incorrect
+2. Edge function not deployed
+3. Network/DNS issues
 
-### AI insights not generating
-**Cause**: Missing or invalid `OPENAI_API_KEY`
-**Fix**: Verify secret in Lovable Cloud settings
+**Solutions:**
+1. **Check Environment Variables:**
+   ```bash
+   # Verify .env file exists and has correct values
+   cat .env
+   
+   # Should contain:
+   # VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
+   # VITE_SUPABASE_PUBLISHABLE_KEY=your-key-here
+   ```
+
+2. **Verify Supabase URL:**
+   - Should be: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+   - Must start with `https://`
+   - Must include `.supabase.co`
+
+3. **Check Edge Function Deployment:**
+   - Go to Lovable Cloud dashboard
+   - Verify `scan-domain` function is deployed
+   - Check function logs for errors
+   - Force redeploy by updating version comment in `supabase/functions/scan-domain/index.ts`
+
+4. **Network Issues:**
+   - Check internet connection
+   - Try hard refresh (Cmd+Shift+R / Ctrl+Shift+R)
+   - Clear browser cache
+   - Check browser console for CORS errors
+
+### "Multiple GoTrueClient instances detected"
+
+**Symptoms:**
+- Console warning: "Multiple GoTrueClient instances detected in the same browser context"
+- May cause undefined behavior with auth
+
+**Root Causes:**
+- Both Supabase clients sharing the same storage key
+- Stale browser cache
+
+**Solutions:**
+1. **Hard Refresh:**
+   - Windows/Linux: `Ctrl + Shift + R`
+   - Mac: `Cmd + Shift + R`
+
+2. **Clear Browser Cache:**
+   - Open DevTools (F12)
+   - Right-click refresh button → "Empty Cache and Hard Reload"
+
+3. **Clear Site Data:**
+   - DevTools → Application → Storage → Clear site data
+
+4. **Verify Fix:**
+   - The scanner client now uses a custom storage key (`scanner_supabase_auth_token`)
+   - This should prevent conflicts
+   - If warning persists, check browser console for client initialization logs
+
+### Scanner Service Shows "Offline" or "Unavailable"
+
+**Symptoms:**
+- Connection status indicator shows "Offline"
+- Health check fails
+- Cannot start scans
+
+**Solutions:**
+1. **Click "Retry Connection" button** in the UI
+2. **Check Environment Variables:**
+   - Verify `VITE_SUPABASE_URL` is set correctly
+   - Verify `VITE_SUPABASE_PUBLISHABLE_KEY` is set
+   - Restart dev server after changing .env
+
+3. **Check Edge Function Status:**
+   - Verify function is deployed in Lovable Cloud
+   - Check function logs for errors
+   - Ensure all required secrets are set
+
+4. **Network Connectivity:**
+   - Check internet connection
+   - Verify no firewall blocking Supabase requests
+   - Try accessing Supabase dashboard directly
+
+### Scanner Results Not Appearing
+
+**Symptoms:**
+- Scan starts but results don't appear
+- Real-time updates not working
+
+**Root Causes:**
+- Real-time subscription failed
+- Scanner database connection issue
+
+**Solutions:**
+1. **Check Scanner Database:**
+   - Scanner uses external database (hardcoded in `scanner-client.ts`)
+   - Verify database is accessible
+   - Check RLS policies allow reads
+
+2. **Check Console Logs:**
+   - Look for `[scannerApi]` prefixed logs
+   - Check for subscription errors
+   - Verify scan ID is valid
+
+3. **Refresh Page:**
+   - Sometimes subscriptions need to reconnect
+   - Navigate away and back to results page
+
+### AI Insights Not Generating
+
+**Symptoms:**
+- Insights panel shows "Generating..." indefinitely
+- No insights appear
+
+**Root Causes:**
+- Missing or invalid `OPENAI_API_KEY`
+- OpenAI API error
+
+**Solutions:**
+1. **Check Lovable Cloud Secrets:**
+   - Go to Project Settings → Secrets
+   - Verify `OPENAI_API_KEY` is set
+   - Check key is valid and has credits
+
+2. **Check Edge Function Logs:**
+   - View `generate-insights` function logs
+   - Look for API errors or rate limits
+
+3. **Verify Scan Has Results:**
+   - Insights require completed scan results
+   - Ensure scan has finished processing
+
+### Environment Variable Validation Errors
+
+**Symptoms:**
+- App fails to start
+- Console shows configuration errors
+- "Supabase configuration is missing or invalid"
+
+**Solutions:**
+1. **Create .env File:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Fill Required Variables:**
+   - `VITE_SUPABASE_URL` - Required
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` - Required
+   - `VITE_MEETING_BOOKING_URL` - Optional
+
+3. **Restart Dev Server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Check Format:**
+   - URLs must start with `https://`
+   - No trailing slashes
+   - No quotes around values
+
+### Build Errors
+
+**Symptoms:**
+- `npm run build` fails
+- TypeScript errors
+- Import errors
+
+**Solutions:**
+1. **Clear Build Cache:**
+   ```bash
+   rm -rf node_modules .vite dist
+   npm install
+   ```
+
+2. **Check TypeScript:**
+   ```bash
+   npm run lint
+   ```
+
+3. **Verify Dependencies:**
+   ```bash
+   npm install
+   ```
 
 ## 📄 License
 

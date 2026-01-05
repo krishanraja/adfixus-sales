@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScannerAuth } from '@/hooks/useScannerAuth';
 import { useDomainScan } from '@/hooks/useDomainScan';
@@ -37,27 +37,42 @@ export default function ScannerInput() {
   const [domainInput, setDomainInput] = useState('');
   const [context, setContext] = useState<PublisherContext>({});
   const [serviceStatus, setServiceStatus] = useState<'checking' | 'healthy' | 'unavailable'>('checking');
+  const [serviceError, setServiceError] = useState<string | null>(null);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+  const { error: scanError } = useDomainScan();
 
-  // Check if edge functions are available on mount
-  useEffect(() => {
-    const checkHealth = async () => {
-      console.log('[ScannerInput] Checking scanner service health...');
-      const { healthy, error } = await checkEdgeFunctionHealth();
-      if (healthy) {
-        console.log('[ScannerInput] Scanner service is healthy');
-        setServiceStatus('healthy');
-      } else {
-        console.error('[ScannerInput] Scanner service unavailable:', error);
-        setServiceStatus('unavailable');
+  // Check if edge functions are available on mount and provide retry function
+  const checkHealth = useCallback(async () => {
+    setIsCheckingHealth(true);
+    setServiceError(null);
+    console.log('[ScannerInput] Checking scanner service health...');
+    
+    const { healthy, error } = await checkEdgeFunctionHealth();
+    
+    if (healthy) {
+      console.log('[ScannerInput] Scanner service is healthy');
+      setServiceStatus('healthy');
+      setServiceError(null);
+    } else {
+      console.error('[ScannerInput] Scanner service unavailable:', error);
+      setServiceStatus('unavailable');
+      setServiceError(error || 'Scanner service is not available');
+      
+      if (error?.includes('not deployed') || error?.includes('not accessible')) {
         toast({
-          title: 'Scanner Service',
-          description: 'Scanner is initializing. This may take a moment on first use.',
-          variant: 'default',
+          title: 'Scanner Service Unavailable',
+          description: 'The scanner service is not accessible. Please check your configuration or try again later.',
+          variant: 'destructive',
         });
       }
-    };
-    checkHealth();
+    }
+    
+    setIsCheckingHealth(false);
   }, [toast]);
+
+  useEffect(() => {
+    checkHealth();
+  }, [checkHealth]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -154,14 +169,37 @@ export default function ScannerInput() {
               AI-Powered
             </Badge>
           </div>
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout} 
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-4">
+            {/* Connection Status Indicator */}
+            <div className="flex items-center gap-2">
+              {serviceStatus === 'checking' && (
+                <Badge variant="outline" className="text-xs">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1.5" />
+                  Checking...
+                </Badge>
+              )}
+              {serviceStatus === 'healthy' && (
+                <Badge className="bg-success/20 text-success border-success/30 text-xs">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Connected
+                </Badge>
+              )}
+              {serviceStatus === 'unavailable' && (
+                <Badge variant="destructive" className="text-xs">
+                  <div className="h-3 w-3 rounded-full bg-destructive mr-1.5" />
+                  Offline
+                </Badge>
+              )}
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={handleLogout} 
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -340,13 +378,64 @@ export default function ScannerInput() {
             </Card>
           </div>
 
+          {/* Service Status Alert */}
+          {serviceStatus === 'unavailable' && (
+            <Card className="mt-6 border-destructive/50 bg-destructive/10">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-destructive mb-2">Scanner Service Unavailable</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {serviceError || 'The scanner service is not accessible. This may be a temporary issue.'}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={checkHealth}
+                      disabled={isCheckingHealth}
+                      className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                    >
+                      {isCheckingHealth ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2" />
+                          Checking...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-2" />
+                          Retry Connection
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Scan Error Display */}
+          {scanError && (
+            <Card className="mt-6 border-destructive/50 bg-destructive/10">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-destructive mb-2">Scan Failed</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">
+                      {scanError}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Start Scan Button */}
           <div className="mt-10 text-center">
             <Button
               size="lg"
               onClick={handleStartScan}
-              disabled={parsedDomains.length === 0 || scanLoading}
-              className="btn-gradient px-12 py-7 text-lg font-semibold animate-glow-pulse"
+              disabled={parsedDomains.length === 0 || scanLoading || serviceStatus === 'unavailable'}
+              className="btn-gradient px-12 py-7 text-lg font-semibold animate-glow-pulse disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {scanLoading ? (
                 <>

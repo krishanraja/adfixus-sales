@@ -92,12 +92,16 @@ export function useDomainScan(): UseDomainScanResult {
     if (scanError || !scanId) {
       console.error('[useDomainScan] Scan failed:', scanError);
       
-      // Provide user-friendly error messages for infrastructure issues
+      // The error from createScan is already user-friendly, but we can enhance it further
       let userFriendlyError = scanError || 'Failed to start scan';
-      if (scanError?.includes('NAME_NOT_RESOLVED') || 
-          scanError?.includes('Failed to fetch') ||
-          scanError?.includes('Failed to send a request')) {
-        userFriendlyError = 'Scanner service is temporarily unavailable. Please try again in a few minutes.';
+      
+      // Additional context for common error patterns
+      if (scanError?.includes('not initialized') || scanError?.includes('configuration')) {
+        userFriendlyError = 'Scanner configuration error. Please contact support if this persists.';
+      } else if (scanError?.includes('Network error') || scanError?.includes('timeout')) {
+        userFriendlyError = 'Network error occurred. Please check your internet connection and try again.';
+      } else if (scanError?.includes('not deployed') || scanError?.includes('not accessible')) {
+        userFriendlyError = 'Scanner service is not available. This may be a temporary issue. Please try again in a few minutes.';
       }
       
       setError(userFriendlyError);
@@ -130,7 +134,7 @@ export function useDomainScan(): UseDomainScanResult {
 
     if (!scanData) {
       console.error('[useDomainScan] Scan not found:', scanId);
-      setError('Scan not found');
+      setError(`Scan not found. The scan ID "${scanId}" may be invalid or the scan may have been deleted.`);
       setIsLoading(false);
       return;
     }
