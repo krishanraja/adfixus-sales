@@ -1,281 +1,441 @@
 # Developer Handoff Guide
 
+> **For Junior Engineers**: This document explains everything you need to understand and modify this codebase. Read this first!
+
+---
+
+## 📚 Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Architecture Deep Dive](#architecture-deep-dive)
+3. [Key Concepts](#key-concepts)
+4. [File-by-File Guide](#file-by-file-guide)
+5. [Common Tasks](#common-tasks)
+6. [Debugging Guide](#debugging-guide)
+7. [Deployment](#deployment)
+8. [Troubleshooting](#troubleshooting)
+
+---
+
 ## 📝 Project Overview
 
-The AdFixus Identity ROI Calculator is a React-based web application designed to help businesses understand their potential revenue impact from improved identity resolution. The application guides users through an assessment process and generates comprehensive reports.
+This is a **dual-purpose application**:
 
-### Key Features
-- **Identity Health Quiz**: Assesses current identity resolution capabilities
-- **Revenue Calculator**: Calculates potential revenue uplift and cost savings
-- **PDF Export**: Generates branded PDF reports using pdfmake
-- **Meeting Booking**: Integrates with external booking systems
-- **Lead Capture**: Collects user information for follow-up
+### 1. Identity ROI Calculator (Main Site)
+- **Path**: `/`
+- **Purpose**: Help publishers understand revenue lost due to poor identity resolution
+- **Flow**: Quiz → Calculator → Results → PDF Export
+- **Backend**: None required (client-side only)
 
-## 🏗 Codebase Structure
+### 2. Domain Scanner (Protected Tool)
+- **Path**: `/scanner/*`
+- **Purpose**: Scan domains to detect tracking infrastructure, cookies, and revenue opportunities
+- **Flow**: Login → Input Domains → View Results → AI Insights
+- **Backend**: Requires Supabase Edge Functions + External Database
 
-### Core Components
+---
 
-**`src/pages/Index.tsx`**
-- Main application flow controller
-- Manages state transitions between quiz, calculator, and results
-- Handles lead capture modal
+## 🏗️ Architecture Deep Dive
 
-**`src/components/IdentityHealthQuiz.tsx`**
-- Multi-step questionnaire with dynamic question flow
-- Scoring logic for identity health assessment
-- Generates grades (A-F) based on answers
+### Frontend Architecture
 
-**`src/components/RevenueCalculator.tsx`**
-- Interactive calculator with sliders and inputs
-- Real-time calculation updates
-- Advanced settings for detailed configuration
-
-**`src/components/ResultsDashboard.tsx`**
-- Comprehensive results display with charts
-- Key metrics and recommendations
-- PDF download and meeting booking actions
-
-### Business Logic
-
-**`src/utils/calculationEngine.ts`**
-- Core revenue calculation algorithms
-- Handles uplift calculations, addressability improvements
-- ID bloat reduction calculations
-
-**`src/utils/pdfGenerator.ts`**
-- PDF generation using pdfmake
-- Branded template with company assets
-- Comprehensive report formatting
-
-**`src/utils/grading.ts`**
-- Scoring system for quiz responses
-- Grade calculation (A+ to F)
-- Performance benchmarking
-
-### Data Flow
-
-1. **Quiz Completion** → `IdentityHealthQuiz.tsx` → Quiz results
-2. **Calculator Input** → `RevenueCalculator.tsx` → Calculation results
-3. **Lead Capture** → `LeadCaptureModal.tsx` → User data
-4. **Results Display** → `ResultsDashboard.tsx` → Charts, metrics, actions
-
-## 🔧 Customization Guide
-
-### Updating the PDF Template
-
-**File**: `src/utils/pdfGenerator.ts`
-
-**Logo Update**:
-```typescript
-// Line 32: Update logo path
-const logoDataUrl = await convertImageToBase64('/path/to/new-logo.png');
+```
+App.tsx (Router)
+├── / → Index.tsx → Hero, Quiz, Calculator, Results
+├── /scanner → ScannerLogin.tsx
+├── /scanner/input → ScannerInput.tsx
+└── /scanner/results/:scanId → ScannerResults.tsx
 ```
 
-**Content Sections**:
-- **Page 1**: Executive Summary (lines 103-174)
-- **Page 2**: Detailed Analysis (lines 177-250)  
-- **Page 3**: Action Plan (lines 253-327)
+### State Management
 
-**Styling**:
+We use **React hooks** for all state. No Redux, Zustand, or other state libraries.
+
+| Hook | File | Purpose |
+|------|------|---------|
+| `useDomainScan` | `src/hooks/useDomainScan.ts` | Manages scan state, results, subscriptions |
+| `useScannerAuth` | `src/hooks/useScannerAuth.ts` | Simple password authentication |
+| `useCalculatorState` | `src/hooks/useCalculatorState.ts` | Calculator inputs and calculations |
+| `useLeadCapture` | `src/hooks/useLeadCapture.ts` | Lead form submission |
+
+### Backend Architecture
+
+```
+Lovable Cloud (Project: ojtfnhzqhfsprebvpmvx)
+├── Edge Functions (deployed automatically)
+│   ├── scan-domain      → Orchestrates domain scanning
+│   ├── generate-insights → AI-powered analysis
+│   └── send-pdf-email   → Email delivery
+└── Internal DB (not used by scanner)
+
+External Scanner Database (separate Supabase project)
+├── domain_scans table → Scan metadata
+└── domain_results table → Per-domain results
+```
+
+### Why Two Databases?
+
+The scanner uses a **separate external database** to:
+1. Keep scanner data isolated from main app data
+2. Allow the scanner to be shared across multiple frontends
+3. Enable service-key access for write operations
+
+The frontend **reads** from the external DB via `scannerSupabase` client.
+Edge functions **write** to it using the service key.
+
+---
+
+## 🔑 Key Concepts
+
+### 1. Supabase Clients
+
+We have **two** Supabase clients:
+
 ```typescript
-// Lines 330-392: Update styles object
-styles: {
-  h1: { fontSize: 16, bold: true, color: '#1E293B' },
-  body: { fontSize: 10, color: '#475569' },
-  // Add custom styles here
+// src/integrations/supabase/client.ts
+// Used for: Calling edge functions, Lovable Cloud features
+import { supabase } from '@/integrations/supabase/client';
+
+// src/integrations/supabase/scanner-client.ts  
+// Used for: Reading scan data, real-time subscriptions
+import { scannerSupabase } from '@/integrations/supabase/scanner-client';
+```
+
+### 2. Edge Function Invocation
+
+Always use the Supabase client to call edge functions:
+
+```typescript
+// ✅ CORRECT
+const { data, error } = await supabase.functions.invoke('scan-domain', {
+  body: { domains, context }
+});
+
+// ❌ WRONG - Never use raw fetch for Supabase functions
+const response = await fetch('/functions/v1/scan-domain');
+```
+
+### 3. Real-Time Subscriptions
+
+The scanner uses Postgres real-time to show live updates:
+
+```typescript
+// Subscribe to scan progress
+scannerSupabase
+  .channel(`scan-${scanId}`)
+  .on('postgres_changes', {
+    event: 'UPDATE',
+    schema: 'public',
+    table: 'domain_scans',
+    filter: `id=eq.${scanId}`,
+  }, (payload) => {
+    // Handle update
+  })
+  .subscribe();
+```
+
+### 4. Type Safety
+
+All scanner types are in `src/types/scanner.ts`. Key types:
+
+```typescript
+interface DomainScan {
+  id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  total_domains: number;
+  completed_domains: number;
+  // ...
+}
+
+interface DomainResult {
+  domain: string;
+  total_cookies: number;
+  addressability_gap_pct: number;
+  tranco_rank: number;
+  // ... 50+ fields
 }
 ```
 
-### Changing the Meeting URL
+### 5. Design System
 
-**Method 1: Environment Variable (Recommended)**
-```bash
-# .env file
-VITE_MEETING_BOOKING_URL=https://your-new-booking-url.com
-```
+All colors use **HSL semantic tokens** defined in `src/index.css`:
 
-**Method 2: Code Update**
-```typescript
-// src/components/ResultsDashboard.tsx (line 565)
-onClick={() => window.open('https://your-new-url.com', '_blank')}
-
-// src/utils/pdfGenerator.ts (line 323)
-link: 'https://your-new-url.com'
-```
-
-### Modifying Quiz Questions
-
-**File**: `src/components/IdentityHealthQuiz.tsx`
-
-**Question Structure**:
-```typescript
-{
-  id: 'unique-id',
-  category: 'durability', // or 'cross-domain', 'privacy', 'browser'
-  question: 'Your question text',
-  options: [
-    { text: 'Option 1', value: 4, points: 4 },
-    { text: 'Option 2', value: 3, points: 3 },
-    // ...
-  ]
-}
-```
-
-### Updating Calculation Logic
-
-**File**: `src/utils/calculationEngine.ts`
-
-**Key Constants**:
-```typescript
-// Modify these based on business requirements
-const ADDRESSABILITY_IMPROVEMENT = 35; // % improvement
-const CPM_UPLIFT_PERCENTAGE = 15; // % CPM increase
-const ID_REDUCTION_PERCENTAGE = 20; // % ID bloat reduction
-```
-
-### Design System Customization
-
-**File**: `src/index.css`
-
-**Color Palette**:
 ```css
-:root {
-  --primary: 207 89% 86%;      /* Cyan theme */
-  --secondary: 210 40% 98%;    /* Light gray */
-  --accent: 12 76% 61%;        /* Orange accent */
-  /* Update these HSL values for brand colors */
+/* ✅ CORRECT - Use semantic tokens */
+.my-class {
+  color: hsl(var(--foreground));
+  background: hsl(var(--primary));
+}
+
+/* ❌ WRONG - Never use raw colors */
+.my-class {
+  color: #ffffff;
+  background: blue;
 }
 ```
 
-**Tailwind Configuration**: `tailwind.config.ts`
+---
 
-## 🚀 Deployment Instructions
+## 📂 File-by-File Guide
 
-### Static Hosting Deployment
+### Core Scanner Files
 
-**Netlify**:
-1. Connect Git repository
-2. Build command: `npm run build`
-3. Publish directory: `dist`
-4. Environment variables: Add `VITE_MEETING_BOOKING_URL`
+| File | Purpose | Key Functions |
+|------|---------|---------------|
+| `src/utils/scannerApi.ts` | API layer for scanner | `createScan()`, `getScanResults()`, `checkEdgeFunctionHealth()` |
+| `src/hooks/useDomainScan.ts` | State management | `startScan()`, `loadScan()`, real-time subscriptions |
+| `src/pages/scanner/ScannerInput.tsx` | Domain input UI | File upload, validation, context form |
+| `src/pages/scanner/ScannerResults.tsx` | Results UI | Charts, tables, AI insights |
+| `supabase/functions/scan-domain/index.ts` | Scanning logic | Browserless integration, vendor detection |
+| `supabase/functions/generate-insights/index.ts` | AI analysis | OpenAI integration |
 
-**Vercel**:
-1. Import Git repository
-2. Framework: Vite
-3. Build command: `npm run build`
-4. Output directory: `dist`
-5. Environment variables: Add `VITE_MEETING_BOOKING_URL`
+### Core Calculator Files
 
-**AWS S3 + CloudFront**:
-1. Build: `npm run build`
-2. Upload `dist/` contents to S3 bucket
-3. Configure CloudFront distribution
-4. Set environment variables in build process
+| File | Purpose |
+|------|---------|
+| `src/components/IdentityHealthQuiz.tsx` | Quiz flow with scoring |
+| `src/components/RevenueCalculator.tsx` | Interactive calculator |
+| `src/components/ResultsDashboard.tsx` | Results with charts |
+| `src/utils/calculationEngine.ts` | Revenue calculation logic |
+| `src/utils/pdfGenerator.ts` | PDF export |
 
-### Environment Configuration
+### Configuration Files
 
-**Development**:
-```bash
-cp .env.example .env
-# Edit .env with local settings
-npm run dev
+| File | Purpose |
+|------|---------|
+| `src/index.css` | Design tokens (colors, animations) |
+| `tailwind.config.ts` | Tailwind CSS configuration |
+| `supabase/config.toml` | Edge function configuration |
+
+---
+
+## 🔧 Common Tasks
+
+### Adding a New Vendor Detection
+
+1. Open `supabase/functions/scan-domain/index.ts`
+2. Find the `VENDOR_PATTERNS` object (around line 20)
+3. Add your pattern:
+
+```typescript
+const VENDOR_PATTERNS = {
+  // ... existing patterns
+  myNewVendor: /my-vendor-script\.js|my-vendor\.com\/sdk/i,
+};
 ```
 
-**Production**:
-- Set `VITE_MEETING_BOOKING_URL` in hosting platform
-- Ensure HTTPS for external integrations
-- Configure custom domain if needed
+4. Update the `analyzeResults()` function to use it
+5. Add the field to `src/types/scanner.ts` if needed
 
-### Build Optimization
+### Modifying Revenue Calculations
 
-**Performance**:
-- Images are optimized and lazy-loaded
-- Code splitting via React Router
-- Tree shaking removes unused dependencies
+1. Open `src/utils/revenueImpactScoring.ts`
+2. Find the relevant calculation function
+3. Update the formula
 
-**Bundle Analysis**:
-```bash
-npm run build
-# Check dist/ folder size
-# Use webpack-bundle-analyzer if needed
+```typescript
+// Example: Change addressability gap calculation
+export function calculateAddressabilityGap(result: DomainResult): number {
+  // Your new formula here
+}
 ```
 
-## 🔍 Testing & Validation
+### Adding a New Scanner Metric
 
-### Manual Testing Checklist
+1. **Add to types** (`src/types/scanner.ts`):
+```typescript
+interface DomainResult {
+  // ... existing fields
+  my_new_metric: number;
+}
+```
 
-1. **Quiz Flow**:
-   - [ ] All questions display correctly
-   - [ ] Scoring calculates properly
-   - [ ] Navigation works between sections
+2. **Calculate in edge function** (`supabase/functions/scan-domain/index.ts`):
+```typescript
+// In analyzeResults()
+const my_new_metric = calculateMyNewMetric(html, cookies);
+```
 
-2. **Calculator**:
-   - [ ] Input validation works
-   - [ ] Real-time calculations update
-   - [ ] Advanced settings toggle correctly
+3. **Display in UI** (`src/pages/scanner/ScannerResults.tsx`):
+```tsx
+<Card>
+  <CardTitle>My New Metric</CardTitle>
+  <CardContent>{result.my_new_metric}</CardContent>
+</Card>
+```
 
-3. **Results**:
-   - [ ] Charts render with correct data
-   - [ ] PDF downloads successfully
-   - [ ] Meeting booking opens correct URL
+### Changing the Scanner Password
 
-4. **Lead Capture**:
-   - [ ] Form validation works
-   - [ ] Data saves to localStorage
-   - [ ] Modal opens/closes properly
+1. Open `src/hooks/useScannerAuth.ts`
+2. Find the password check (around line 15)
+3. Update the hardcoded value or implement proper auth
 
-### Browser Compatibility
+```typescript
+// Current (simple password)
+const isValid = password === 'your-new-password';
 
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
+// Better: Use environment variable or Supabase Auth
+```
 
-## 📞 Support & Maintenance
+---
 
-### Common Issues
+## 🐛 Debugging Guide
 
-**PDF Generation Fails**:
-- Check browser compatibility
-- Verify image paths are accessible
-- Ensure pdfmake fonts load correctly
+### Console Log Prefixes
 
-**Meeting URL Not Working**:
-- Verify environment variable is set
-- Check external URL accessibility
-- Confirm CORS policies if needed
+All scanner logs use prefixes for easy filtering:
 
-**Calculation Errors**:
-- Validate input ranges
-- Check division by zero scenarios
-- Verify all required fields are populated
+| Prefix | Location |
+|--------|----------|
+| `[scannerApi]` | API calls in `scannerApi.ts` |
+| `[useDomainScan]` | Hook state in `useDomainScan.ts` |
+| `[ScannerInput]` | Input page events |
+| `[ScannerResults]` | Results page events |
 
-### Performance Monitoring
+### Debugging Checklist
 
-**Metrics to Track**:
-- Page load times
-- PDF generation time
-- Quiz completion rates
-- Conversion to meeting bookings
+1. **Function not deploying?**
+   - Check `supabase/config.toml` syntax
+   - Add version comment to force redeploy
+   - Check Lovable Cloud logs
 
-**Optimization Opportunities**:
-- Lazy load chart components
-- Optimize image compression
-- Implement service worker caching
+2. **Real-time not working?**
+   - Verify `SCANNER_SUPABASE_URL` is correct
+   - Check browser console for subscription errors
+   - Ensure RLS policies allow reads
 
-## 🔄 Future Enhancements
+3. **Scans failing?**
+   - Check `BROWSERLESS_API_KEY` is set
+   - Look for errors in edge function logs
+   - Verify domain is accessible
 
-### Potential Features
-- Multi-language support
-- A/B testing framework
-- Advanced analytics integration
-- Email automation for follow-ups
-- Custom branding per client
-- Data export capabilities
+4. **AI insights empty?**
+   - Verify `OPENAI_API_KEY` is set
+   - Check for API errors in logs
+   - Ensure scan has completed results
 
-### Technical Improvements
-- Add unit tests with Jest
-- Implement E2E testing with Cypress
-- Add error boundary components
-- Enhance accessibility (WCAG 2.1)
-- Progressive Web App features
+### Viewing Edge Function Logs
+
+1. Go to Lovable Cloud dashboard
+2. Navigate to Edge Functions
+3. Select the function
+4. View real-time logs
+
+---
+
+## 🚀 Deployment
+
+### Frontend
+
+Frontend deploys automatically when you push to main branch.
+
+**Manual steps:**
+1. Make code changes
+2. Preview in Lovable
+3. Click "Publish" to deploy
+
+### Edge Functions
+
+Edge functions deploy automatically with every build.
+
+**Force redeploy:**
+```typescript
+// Add/update this comment at top of function file
+// Version: 2.1.0 - Force redeploy 2026-01-05
+```
+
+### Secrets
+
+Secrets are managed in Lovable Cloud:
+
+1. Go to Project Settings → Secrets
+2. Add/update secret value
+3. Functions automatically use new values on next call
+
+---
+
+## 🔥 Troubleshooting
+
+### Error: "ERR_NAME_NOT_RESOLVED"
+
+**Cause**: Edge function endpoint doesn't exist
+**Solution**:
+1. Check `supabase/config.toml` has correct function entries
+2. Force redeploy by adding version comment
+3. Wait 1-2 minutes for deployment
+
+### Error: "Multiple GoTrueClient instances"
+
+**Cause**: Stale code in browser cache
+**Solution**:
+1. Hard refresh (Cmd+Shift+R)
+2. Clear site data
+3. Wait for fresh deployment
+
+### Error: "Failed to send a request to the Edge Function"
+
+**Cause**: Network or deployment issue
+**Solution**:
+1. Check internet connection
+2. Verify function is deployed (check Lovable Cloud)
+3. Check for CORS errors in console
+
+### Scanner shows "temporarily unavailable"
+
+**Cause**: Health check failed
+**Solution**:
+1. Check if functions are deployed
+2. Verify all required secrets are set
+3. Check edge function logs for errors
+
+### Results not appearing in real-time
+
+**Cause**: Subscription not connecting
+**Solution**:
+1. Verify `SCANNER_SUPABASE_URL` secret
+2. Check RLS policies on external database
+3. Look for subscription errors in console
+
+---
+
+## 📞 Getting Help
+
+1. **Check logs first** - Console + Edge Function logs
+2. **Search codebase** - Many patterns are repeated
+3. **Read type definitions** - `src/types/scanner.ts` is comprehensive
+4. **Check this document** - Most issues are covered here
+
+---
+
+## 🎯 Quick Reference
+
+### Key URLs
+
+| Environment | URL |
+|-------------|-----|
+| Preview | Check Lovable editor |
+| Production | Check published URL |
+| Edge Functions | `https://ojtfnhzqhfsprebvpmvx.supabase.co/functions/v1/` |
+
+### Key Files to Know
+
+```
+src/utils/scannerApi.ts      → All API calls
+src/hooks/useDomainScan.ts   → Scanner state
+src/types/scanner.ts         → All types
+supabase/functions/scan-domain/index.ts → Main scanning logic
+src/index.css                → Design tokens
+```
+
+### Key Patterns
+
+```typescript
+// Calling edge functions
+await supabase.functions.invoke('function-name', { body: { ... } });
+
+// Reading from scanner DB
+await scannerSupabase.from('table').select('*');
+
+// Real-time subscription
+scannerSupabase.channel('name').on('postgres_changes', ...).subscribe();
+```

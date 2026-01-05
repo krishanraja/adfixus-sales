@@ -2,161 +2,226 @@
 
 ## 🔒 Security Overview
 
-The AdFixus Identity ROI Calculator is designed as a client-side application with minimal security requirements. All processing happens in the browser, and no sensitive data is transmitted to external servers.
+This application has two distinct security models:
 
-## 🛡️ Security Model
+| Feature | Security Model |
+|---------|----------------|
+| ROI Calculator | Client-side only, no sensitive data |
+| Domain Scanner | Protected by password, uses service keys for backend |
 
-### Data Handling
-- **No Backend Dependencies**: All calculations and processing occur client-side
-- **Local Storage Only**: User data is stored locally in the browser
-- **No Database**: No persistent data storage on servers
-- **No Authentication**: No user accounts or login required
+---
 
-### External Dependencies
-- **Meeting Booking**: External link to booking system (configurable via environment variable)
-- **PDF Generation**: Client-side using pdfmake library
-- **No API Keys**: No secrets or API keys required
+## 🏗️ Architecture Security
 
-## 🔐 Environment Variables
+### Data Flow Diagram
 
-| Variable | Type | Security Level | Description |
-|----------|------|----------------|-------------|
-| `VITE_MEETING_BOOKING_URL` | Public | Low Risk | External booking system URL - safe to expose |
-
-**Note**: All environment variables prefixed with `VITE_` are exposed to the client and should only contain public information.
-
-## 📋 Security Checklist
-
-### ✅ Implemented Security Measures
-
-- **Client-Side Only**: No server-side processing eliminates many attack vectors
-- **No Secrets**: No API keys, tokens, or credentials required
-- **Input Validation**: Form inputs validated with Zod schemas
-- **XSS Prevention**: React's built-in XSS protection
-- **HTTPS Recommended**: Application should be served over HTTPS in production
-- **External Link Safety**: Meeting booking opens in new tab (_blank)
-
-### 🔍 Security Considerations
-
-**Local Storage**:
-- User data stored in browser localStorage
-- Data persists until manually cleared
-- Accessible via browser developer tools
-- Not transmitted to external servers
-
-**PDF Generation**:
-- All PDF processing happens client-side
-- No data sent to external PDF services
-- Uses pdfmake library for local generation
-
-**External Links**:
-- Meeting booking URL is the only external integration
-- Opens in new tab for security isolation
-- URL controlled via environment variable
-
-## 🚨 No Secrets Required
-
-This application requires **no API keys, tokens, or sensitive configuration**. All functionality operates without backend services or external API integrations (except for the optional meeting booking link).
-
-### Why No Secrets Are Needed:
-1. **Client-Side Processing**: All calculations happen in the browser
-2. **Static Hosting**: Can be deployed to any static file server
-3. **No External APIs**: No third-party service integrations requiring authentication
-4. **Local Data**: All user data remains in the browser
-
-## 🔧 Deployment Security
-
-### Static Hosting Best Practices
-
-**HTTPS Enforcement**:
 ```
-# Netlify _redirects file
-/*    /index.html   200
-# Force HTTPS
-http://yourdomain.com/*  https://yourdomain.com/:splat  301!
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER BROWSER                              │
+│  - Quiz/Calculator data stays local                             │
+│  - Scanner data sent to edge functions                          │
+└─────────────────────────────────────┬────────────────────────────┘
+                                      │ HTTPS only
+                                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    LOVABLE CLOUD EDGE FUNCTIONS                  │
+│  - scan-domain: reads/writes to external DB                     │
+│  - generate-insights: calls OpenAI API                          │
+│  - send-pdf-email: calls Resend API                            │
+│                                                                  │
+│  Secrets (encrypted at rest):                                   │
+│  - SCANNER_SUPABASE_URL                                         │
+│  - SCANNER_SUPABASE_SERVICE_KEY                                 │
+│  - BROWSERLESS_API_KEY                                          │
+│  - OPENAI_API_KEY                                               │
+│  - RESEND_API_KEY                                               │
+└─────────────────────────────────────┬────────────────────────────┘
+                                      │ Service Key Auth
+                                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  EXTERNAL SCANNER DATABASE                       │
+│  - Separate from main Lovable project                           │
+│  - Service key required for writes                              │
+│  - Anon key allows reads (for real-time subscriptions)          │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**Security Headers**:
+---
+
+## 🔐 Secrets Management
+
+### Edge Function Secrets
+
+All secrets are stored in Lovable Cloud's encrypted secret store.
+
+| Secret | Used By | Risk Level | Rotation Frequency |
+|--------|---------|------------|-------------------|
+| `SCANNER_SUPABASE_URL` | scan-domain | Low | On database change |
+| `SCANNER_SUPABASE_SERVICE_KEY` | scan-domain | **High** | 90 days recommended |
+| `BROWSERLESS_API_KEY` | scan-domain | Medium | As needed |
+| `OPENAI_API_KEY` | generate-insights | Medium | As needed |
+| `RESEND_API_KEY` | send-pdf-email | Medium | As needed |
+
+### Service Key Security
+
+The `SCANNER_SUPABASE_SERVICE_KEY` bypasses RLS. **Never expose it to the frontend.**
+
+```typescript
+// ✅ CORRECT - Only in edge functions
+const supabase = createClient(
+  Deno.env.get('SCANNER_SUPABASE_URL')!,
+  Deno.env.get('SCANNER_SUPABASE_SERVICE_KEY')!
+);
+
+// ❌ NEVER - Don't use service key in frontend
+import.meta.env.VITE_SERVICE_KEY // WRONG!
 ```
-# Netlify _headers file
-/*
-  X-Frame-Options: DENY
-  X-Content-Type-Options: nosniff
-  X-XSS-Protection: 1; mode=block
-  Referrer-Policy: strict-origin-when-cross-origin
+
+### Frontend Environment Variables
+
+Only public keys should use the `VITE_` prefix:
+
+| Variable | Type | Safe to Expose? |
+|----------|------|-----------------|
+| `VITE_SUPABASE_URL` | Public | ✅ Yes |
+| `VITE_SUPABASE_ANON_KEY` | Public | ✅ Yes (RLS enforced) |
+| `VITE_MEETING_BOOKING_URL` | Public | ✅ Yes |
+
+---
+
+## 🛡️ Authentication & Authorization
+
+### Scanner Access Control
+
+The scanner uses a simple password-based authentication stored in the hook:
+
+```typescript
+// src/hooks/useScannerAuth.ts
+// Current: Hardcoded password check
+// Recommendation: Migrate to Supabase Auth for production
 ```
 
-### Content Security Policy (Optional)
+**Improvement Recommendations:**
+1. Use Supabase Auth for proper user management
+2. Implement role-based access control
+3. Add audit logging for scans
 
-For enhanced security, consider implementing CSP:
+### Database Access Control
 
-```html
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline';
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: https:;
-  connect-src 'self';
-  font-src 'self' data:;
-">
+**External Scanner Database RLS:**
+
+```sql
+-- domain_scans: Allow authenticated reads
+CREATE POLICY "Allow read access" ON domain_scans
+  FOR SELECT USING (true);
+
+-- domain_results: Allow authenticated reads  
+CREATE POLICY "Allow read access" ON domain_results
+  FOR SELECT USING (true);
+
+-- Writes only via service key (bypasses RLS)
 ```
 
-## 🔄 Security Maintenance
+---
 
-### Regular Updates
-- Keep dependencies updated with `npm audit`
-- Monitor for security advisories
-- Update React and core libraries regularly
+## 🔍 Security Checklist
 
-### Monitoring
-- No sensitive data logging required
-- Monitor for unusual traffic patterns
-- Track PDF generation performance
+### Pre-Deployment
 
-### Incident Response
-Since no sensitive data is collected or stored:
-- No data breach protocols required
-- Focus on availability and performance
-- Monitor external meeting booking integration
+- [ ] All secrets are set in Lovable Cloud (not in code)
+- [ ] No service keys exposed to frontend
+- [ ] HTTPS enforced in production
+- [ ] Scanner password is not default/weak
+- [ ] RLS policies configured on external database
 
-## 📞 Security Contact
+### Post-Deployment
 
-For security-related questions or concerns:
-- Review this documentation
-- Check deployment configuration
-- Verify environment variable setup
-- Ensure HTTPS in production
+- [ ] Verify HTTPS certificate is valid
+- [ ] Test scanner access control works
+- [ ] Check no secrets in browser console/network tab
+- [ ] Verify edge function logs don't leak sensitive data
 
-## ⚡ Quick Security Validation
+### Regular Maintenance
 
-**Pre-Deployment Checklist**:
-- [ ] Application served over HTTPS
-- [ ] Meeting booking URL is correct and safe
-- [ ] No sensitive data in environment variables
-- [ ] All dependencies are up to date
-- [ ] PDF generation works in target browsers
-- [ ] External links open safely in new tabs
+- [ ] Rotate service keys every 90 days
+- [ ] Review edge function logs for anomalies
+- [ ] Update dependencies for security patches
+- [ ] Audit scanner access patterns
 
-**Post-Deployment Verification**:
-- [ ] HTTPS certificate is valid
-- [ ] Meeting booking link works correctly
-- [ ] PDF download functions properly
-- [ ] No console errors in production
-- [ ] Application loads on target devices
+---
+
+## 🚨 Incident Response
+
+### If Service Key is Exposed
+
+1. **Immediately** rotate the key in Supabase dashboard
+2. Update `SCANNER_SUPABASE_SERVICE_KEY` in Lovable Cloud
+3. Review database for unauthorized changes
+4. Check edge function logs for suspicious activity
+
+### If API Keys are Exposed
+
+1. Revoke the exposed key in the service dashboard (Browserless, OpenAI, Resend)
+2. Generate new key
+3. Update secret in Lovable Cloud
+4. Review usage for unexpected charges
+
+---
+
+## 📋 CORS Configuration
+
+All edge functions include CORS headers:
+
+```typescript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',  // Consider restricting in production
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+```
+
+**Production Recommendation:** Replace `*` with specific allowed origins:
+
+```typescript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://your-production-domain.com',
+  // ...
+};
+```
+
+---
 
 ## 🎯 Risk Assessment
 
-**Overall Risk Level**: **LOW**
+| Component | Risk Level | Mitigation |
+|-----------|------------|------------|
+| ROI Calculator | **Low** | Client-side only, no sensitive data |
+| Scanner Frontend | **Low** | Password protected, no secrets |
+| Edge Functions | **Medium** | Secrets encrypted, logging enabled |
+| External Database | **Medium** | RLS policies, service key protected |
+| Third-Party APIs | **Low** | Rate limiting, key rotation |
 
-**Reasons**:
-- No backend or database
-- No sensitive data collection
-- No external API integrations requiring secrets
-- Client-side only processing
-- Static hosting suitable
+### Overall Risk: **LOW-MEDIUM**
 
-**Primary Concerns**:
-- Ensure HTTPS in production
-- Validate meeting booking URL safety
-- Keep dependencies updated
-- Monitor external link availability
+The application handles no PII or payment data. Main risks are:
+1. Unauthorized scanner access (mitigated by password)
+2. API key exposure (mitigated by Lovable Cloud secrets)
+3. Service key exposure (mitigated by edge function isolation)
+
+---
+
+## 📞 Security Contacts
+
+For security concerns or vulnerability reports:
+- Review this documentation first
+- Check Lovable Cloud logs
+- Contact AdFixus security team
+
+---
+
+## 🔄 Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 3.0 | 2026-01-05 | Added dual-database architecture, service key documentation |
+| 2.0 | 2024-XX-XX | Removed Supabase from calculator, simplified security model |
+| 1.0 | Initial | Original security documentation |
