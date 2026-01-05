@@ -10,6 +10,12 @@ function createSupabaseClient() {
   try {
     const config = validateSupabaseConfig();
     
+    // Diagnostic logging
+    if (import.meta.env.DEV) {
+      console.log('[supabase/client] [DIAGNOSTIC] Initializing with URL:', config.url.substring(0, 50) + '...');
+      console.log('[supabase/client] [DIAGNOSTIC] Key length:', config.key.length);
+    }
+    
     const client = createClient<Database>(config.url, config.key, {
       auth: {
         storage: localStorage,
@@ -20,7 +26,15 @@ function createSupabaseClient() {
       },
     });
     
+    // Log actual client URL after creation
     if (import.meta.env.DEV) {
+      try {
+        const clientUrl = (client as any).supabaseUrl || (client as any).rest?.url;
+        console.log('[supabase/client] [DIAGNOSTIC] Client URL after creation:', clientUrl ? clientUrl.substring(0, 50) + '...' : 'not available');
+        console.log('[supabase/client] [DIAGNOSTIC] Edge function URL would be:', clientUrl ? `${clientUrl}/functions/v1/scan-domain` : 'not available');
+      } catch (e) {
+        // Ignore - diagnostic only
+      }
       console.log('[supabase/client] Main Supabase client initialized successfully');
     }
     

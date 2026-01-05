@@ -9,6 +9,14 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
   try {
     console.log('[scannerApi] Checking edge function health...');
     
+    // Diagnostic logging
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    console.log('[scannerApi] [DIAGNOSTIC] VITE_SUPABASE_URL set:', !!supabaseUrl);
+    console.log('[scannerApi] [DIAGNOSTIC] VITE_SUPABASE_URL length:', supabaseUrl?.length || 0);
+    if (supabaseUrl) {
+      console.log('[scannerApi] [DIAGNOSTIC] Supabase URL (first 30 chars):', supabaseUrl.substring(0, 30) + '...');
+    }
+    
     // Validate client is configured
     if (!supabase) {
       const error = 'Supabase client not initialized. Check VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.';
@@ -16,8 +24,15 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       return { healthy: false, error };
     }
     
+    // Log actual client URL if available
+    try {
+      const clientUrl = (supabase as any).supabaseUrl || (supabase as any).rest?.url;
+      console.log('[scannerApi] [DIAGNOSTIC] Supabase client URL:', clientUrl ? clientUrl.substring(0, 50) + '...' : 'not available');
+    } catch (e) {
+      // Ignore - diagnostic only
+    }
+    
     // Check if we have a valid URL (basic validation)
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     if (!supabaseUrl || !supabaseUrl.startsWith('https://')) {
       const error = 'Invalid Supabase URL configuration. Please check VITE_SUPABASE_URL environment variable.';
       console.error('[scannerApi]', error);
@@ -33,6 +48,21 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
     
     const invokePromise = supabase.functions.invoke('scan-domain', {
       body: { healthCheck: true },
+    }).catch((err) => {
+      // Catch network errors that might not be in response.error
+      const errorMsg = err?.message || String(err) || '';
+      console.error('[scannerApi] [DIAGNOSTIC] Invoke promise rejected:', errorMsg);
+      
+      // Check if it's a network/DNS error
+      if (errorMsg.includes('NAME_NOT_RESOLVED') || 
+          errorMsg.includes('ERR_NAME_NOT_RESOLVED') ||
+          errorMsg.includes('Failed to fetch') ||
+          errorMsg.includes('NetworkError') ||
+          errorMsg.includes('fetch')) {
+        return { error: { message: 'NETWORK_ERROR: ' + errorMsg } };
+      }
+      
+      return { error: { message: errorMsg } };
     });
     
     const response = await Promise.race([invokePromise, timeoutPromise]);
@@ -40,26 +70,31 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
     // Check for DNS/network errors
     if (response.error) {
       const errorMsg = response.error.message || '';
+      console.log('[scannerApi] [DIAGNOSTIC] Response error:', errorMsg);
       
-      // DNS resolution failures
+      // DNS resolution failures - these mean the function is NOT accessible
       if (errorMsg.includes('NAME_NOT_RESOLVED') || 
           errorMsg.includes('ERR_NAME_NOT_RESOLVED') ||
           errorMsg.includes('Failed to fetch') ||
           errorMsg.includes('NetworkError') ||
+          errorMsg.includes('NETWORK_ERROR') ||
+          errorMsg.includes('fetch') ||
           errorMsg === 'TIMEOUT') {
         const error = `Edge function not accessible. This usually means:
-1. The edge function is not deployed (check Lovable Cloud dashboard)
+1. The edge function is not deployed (check Supabase dashboard)
 2. VITE_SUPABASE_URL is incorrect (should be: https://ojtfnhzqhfsprebvpmvx.supabase.co)
 3. Network connectivity issues
 
 Please verify your environment configuration and ensure the edge function is deployed.`;
-        console.error('[scannerApi] Edge function not accessible:', errorMsg);
+        console.error('[scannerApi] Edge function not accessible - DNS/Network error:', errorMsg);
         return { healthy: false, error };
       }
       
-      // Other errors (function exists but returned an error - this is actually OK for health check)
-      // We just want to know if the function is reachable
-      console.log('[scannerApi] Edge function is reachable (returned error, but function exists)');
+      // If error is a function-level error (400, 500, etc.), the function exists and is reachable
+      // But we should still log it for debugging
+      console.log('[scannerApi] Edge function is reachable but returned error:', errorMsg);
+      // For health check purposes, if we got a response (even an error), the function exists
+      // But only if it's NOT a network error
       return { healthy: true };
     }
     
@@ -67,13 +102,25 @@ Please verify your environment configuration and ensure the edge function is dep
     return { healthy: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[scannerApi] Edge function health check failed:', error);
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('[scannerApi] Edge function health check failed with exception:', errorMessage);
+    console.error('[scannerApi] [DIAGNOSTIC] Error stack:', errorStack);
+    
+    // Check if it's a network/DNS error in the catch block
+    if (errorMessage.includes('NAME_NOT_RESOLVED') || 
+        errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('NetworkError') ||
+        errorMessage.includes('fetch')) {
+      return { 
+        healthy: false, 
+        error: 'Network/DNS error - cannot reach edge function. Please check VITE_SUPABASE_URL and network connectivity.'
+      };
+    }
     
     // Provide more specific error messages
     let userFriendlyError = 'Failed to check edge function health. ';
-    if (errorMessage.includes('fetch') || errorMessage.includes('network')) {
-      userFriendlyError += 'Network error - please check your internet connection and VITE_SUPABASE_URL configuration.';
-    } else if (errorMessage.includes('URL') || errorMessage.includes('invalid')) {
+    if (errorMessage.includes('URL') || errorMessage.includes('invalid')) {
       userFriendlyError += 'Invalid configuration - please check VITE_SUPABASE_URL environment variable.';
     } else {
       userFriendlyError += errorMessage;

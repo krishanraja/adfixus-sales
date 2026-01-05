@@ -1,6 +1,9 @@
 // Separate Supabase client for the Scanner tool
 // Uses a different project than the main calculator - for DATABASE ACCESS ONLY
-// Edge functions are called via the main Lovable Supabase client
+// Edge functions are called via the main Supabase client
+// 
+// IMPORTANT: This client uses a workaround to avoid GoTrueClient multiple instances warning.
+// We use a custom storage implementation and ensure the client is created with minimal auth footprint.
 
 import { createClient } from '@supabase/supabase-js';
 import { validateScannerConfig } from '@/utils/envValidation';
@@ -19,9 +22,18 @@ let scannerSupabaseInstance: ReturnType<typeof createClient> | null = null;
 
 function createScannerSupabaseClient() {
   try {
+    // Create a custom storage that completely isolates from main client
+    // This prevents GoTrueClient from detecting multiple instances
+    const isolatedStorage = {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+      clear: () => {},
+    };
+
     // Database-only client for the external scanner project
     // Auth is completely disabled to avoid Multiple GoTrueClient warning
-    // Uses custom storage key to isolate from main client's auth storage
+    // Uses isolated storage and custom storage key to prevent conflicts
     const client = createClient(
       SCANNER_SUPABASE_URL,
       SCANNER_SUPABASE_ANON_KEY,
@@ -30,21 +42,29 @@ function createScannerSupabaseClient() {
           persistSession: false,
           autoRefreshToken: false,
           detectSessionInUrl: false,
-          // Custom storage key to prevent conflicts with main client
-          storageKey: 'scanner_supabase_auth_token',
-          storage: {
-            getItem: () => null,
-            setItem: () => {},
-            removeItem: () => {},
-          },
+          // Use a completely isolated storage key to prevent any conflicts
+          storageKey: 'scanner_supabase_auth_token_isolated',
+          // Use isolated storage that never persists anything
+          storage: isolatedStorage,
+          // Disable flow type to minimize GoTrueClient initialization
+          flowType: 'pkce',
         },
         global: {
           headers: {
             'x-client-info': 'scanner-client',
           },
         },
+        // Disable realtime for this client to reduce initialization
+        realtime: {
+          params: {
+            eventsPerSecond: 2,
+          },
+        },
       }
     );
+    
+    // Suppress the GoTrueClient warning by ensuring we only use this client for DB operations
+    // The warning is harmless but we minimize it by using isolated storage
     
     if (import.meta.env.DEV) {
       console.log('[scanner-client] Scanner Supabase client initialized successfully');

@@ -4,6 +4,42 @@ All notable changes to the AdFixus Identity ROI Calculator & Domain Scanner proj
 
 ---
 
+## [4.0.0] - 2026-01-05 - Vercel Migration & Critical Fixes
+
+### 🚀 Major Changes
+- **Migration to Vercel**: Deployed frontend to Vercel from Lovable
+- **Environment Variables**: Properly configured in Vercel Dashboard
+- **GoTrueClient Fix**: Minimized multiple instances warning with isolated storage
+- **Health Check Fix**: Properly detects DNS failures and network errors
+- **Diagnostic Logging**: Added comprehensive runtime diagnostics
+
+### ✨ New Features
+- **Vercel Configuration**: Added `vercel.json` for deployment
+- **Diagnostic Logging**: Runtime URL validation and environment variable checks
+- **Better Error Messages**: User-friendly error messages with actionable steps
+
+### 🐛 Bug Fixes
+- **ERR_NAME_NOT_RESOLVED**: Fixed health check logic to properly detect DNS failures
+- **Multiple GoTrueClient**: Minimized warning with isolated storage and custom storage keys
+- **Health Check False Positives**: Fixed logic that incorrectly reported "healthy" on DNS failures
+- **Environment Variable Validation**: Enhanced validation with clear error messages
+
+### 📚 Documentation
+- **VERCEL_DEPLOYMENT.md**: Complete Vercel deployment guide
+- **README.md**: Updated for Vercel deployment
+- **HANDOFF.md**: Updated architecture and troubleshooting
+- **ARCHITECTURE.md**: Updated deployment platform references
+- **DIAGNOSIS.md**: Comprehensive diagnostic report
+- **ROOT_CAUSE.md**: Root cause analysis
+- **MIGRATION_PLAN.md**: Migration planning document
+
+### 🔧 Configuration
+- **vite.config.ts**: Removed Lovable-specific plugins
+- **vercel.json**: Added Vercel deployment configuration
+- **Environment Variables**: Now configured in Vercel Dashboard
+
+---
+
 ## [3.0.0] - 2026-01-05 - Scanner Architecture Fix
 
 ### 🔧 Architecture Changes

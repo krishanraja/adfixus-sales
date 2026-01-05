@@ -61,12 +61,17 @@ We use **React hooks** for all state. No Redux, Zustand, or other state librarie
 ### Backend Architecture
 
 ```
-Lovable Cloud (Project: ojtfnhzqhfsprebvpmvx)
-├── Edge Functions (deployed automatically)
+Supabase Cloud (Project: ojtfnhzqhfsprebvpmvx)
+├── Edge Functions (deployed on Supabase)
 │   ├── scan-domain      → Orchestrates domain scanning
 │   ├── generate-insights → AI-powered analysis
 │   └── send-pdf-email   → Email delivery
 └── Internal DB (not used by scanner)
+
+Vercel (Frontend Deployment)
+├── Static site hosting
+├── Environment variables configured in Vercel Dashboard
+└── Auto-deploys on git push
 
 External Scanner Database (separate Supabase project)
 ├── domain_scans table → Scan metadata
@@ -93,7 +98,7 @@ We have **two** Supabase clients:
 
 ```typescript
 // src/integrations/supabase/client.ts
-// Used for: Calling edge functions, Lovable Cloud features
+// Used for: Calling edge functions, Supabase Cloud features
 import { supabase } from '@/integrations/supabase/client';
 
 // src/integrations/supabase/scanner-client.ts  
@@ -358,35 +363,52 @@ Secrets are managed in Lovable Cloud:
 
 ### Error: "ERR_NAME_NOT_RESOLVED"
 
-**Cause**: Edge function endpoint doesn't exist
+**Cause**: Edge function endpoint doesn't exist or DNS resolution failed
 **Solution**:
-1. Check `supabase/config.toml` has correct function entries
-2. Force redeploy by adding version comment
-3. Wait 1-2 minutes for deployment
+1. **Check Environment Variables in Vercel:**
+   - Go to Vercel Dashboard → Project Settings → Environment Variables
+   - Verify `VITE_SUPABASE_URL` is set correctly
+   - Ensure it's set for Production, Preview, and Development environments
+2. **Check browser console:**
+   - Look for `[DIAGNOSTIC]` logs showing actual URL being used
+   - Verify URL matches: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+3. **Check Supabase:**
+   - Verify `supabase/config.toml` has correct function entries
+   - Check Supabase Dashboard → Edge Functions are deployed
+   - Force redeploy by adding version comment in function file
+4. **Network:**
+   - Test edge function URL directly in browser
+   - Check internet connection
+   - Try hard refresh (Cmd+Shift+R / Ctrl+Shift+R)
 
 ### Error: "Multiple GoTrueClient instances"
 
-**Cause**: Stale code in browser cache
+**Cause**: Multiple Supabase clients initialized in same browser context
 **Solution**:
-1. Hard refresh (Cmd+Shift+R)
-2. Clear site data
-3. Wait for fresh deployment
+1. Hard refresh (Cmd+Shift+R / Ctrl+Shift+R)
+2. Clear site data (DevTools → Application → Clear storage)
+3. The scanner client now uses isolated storage to minimize this warning
+4. If warning persists, check browser console for client initialization logs
+5. **Note:** This warning is mostly harmless but indicates both clients are active
 
 ### Error: "Failed to send a request to the Edge Function"
 
 **Cause**: Network or deployment issue
 **Solution**:
 1. Check internet connection
-2. Verify function is deployed (check Lovable Cloud)
+2. Verify function is deployed (check Supabase Dashboard → Edge Functions)
 3. Check for CORS errors in console
+4. Verify `VITE_SUPABASE_URL` is set in Vercel Dashboard
+5. Look for `[DIAGNOSTIC]` logs in browser console
 
 ### Scanner shows "temporarily unavailable"
 
 **Cause**: Health check failed
 **Solution**:
-1. Check if functions are deployed
-2. Verify all required secrets are set
-3. Check edge function logs for errors
+1. Check if functions are deployed in Supabase Dashboard
+2. Verify `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are set in Vercel
+3. Check edge function logs in Supabase Dashboard
+4. Look for `[DIAGNOSTIC]` logs in browser console for detailed error info
 
 ### Results not appearing in real-time
 
@@ -413,8 +435,8 @@ Secrets are managed in Lovable Cloud:
 
 | Environment | URL |
 |-------------|-----|
-| Preview | Check Lovable editor |
-| Production | Check published URL |
+| Preview | Check Vercel preview deployment |
+| Production | Check Vercel production URL |
 | Edge Functions | `https://ojtfnhzqhfsprebvpmvx.supabase.co/functions/v1/` |
 
 ### Key Files to Know

@@ -116,25 +116,35 @@ npm run build
 
 ## 🔐 Environment Variables
 
-### Lovable Cloud Secrets (Edge Functions)
+### Supabase Edge Function Secrets
 
-| Secret | Description | Required For |
-|--------|-------------|--------------|
-| `SCANNER_SUPABASE_URL` | External scanner database URL | scan-domain |
-| `SCANNER_SUPABASE_SERVICE_KEY` | External scanner DB service key | scan-domain |
-| `BROWSERLESS_API_KEY` | Browserless.io API key | scan-domain |
-| `OPENAI_API_KEY` | OpenAI API key | generate-insights |
-| `RESEND_API_KEY` | Resend email API key | send-pdf-email |
+Edge functions are deployed on Supabase Cloud (not Vercel). Secrets are managed in Supabase dashboard:
 
-### Frontend Environment (.env)
+| Secret | Description | Required For | Location |
+|--------|-------------|--------------|----------|
+| `SCANNER_SUPABASE_URL` | External scanner database URL | scan-domain | Supabase Dashboard |
+| `SCANNER_SUPABASE_SERVICE_KEY` | External scanner DB service key | scan-domain | Supabase Dashboard |
+| `BROWSERLESS_API_KEY` | Browserless.io API key | scan-domain | Supabase Dashboard |
+| `OPENAI_API_KEY` | OpenAI API key | generate-insights | Supabase Dashboard |
+| `RESEND_API_KEY` | Resend email API key | send-pdf-email | Supabase Dashboard |
+
+### Frontend Environment Variables
+
+**For Vercel Deployment:**
+
+Set these in Vercel Dashboard → Project Settings → Environment Variables:
 
 **Required Variables:**
 
 ```bash
-# Main Supabase project (Lovable Cloud) - Used for edge function calls
+# Main Supabase project - Used for edge function calls
 VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key-here
 ```
+
+**For Local Development:**
+
+Create `.env` file in project root:
 
 **Optional Variables:**
 
@@ -160,7 +170,8 @@ VITE_MEETING_BOOKING_URL=https://outlook.office.com/book/SalesTeambooking@adfixu
    ```
 
 **Important Notes:**
-- Never commit `.env` to version control (it's in `.gitignore`)
+- **Vercel**: Set environment variables in Vercel Dashboard (Project Settings → Environment Variables)
+- **Local**: Use `.env` file (never commit to version control)
 - Environment variables are validated at runtime
 - Missing required variables will show clear error messages
 - See `.env.example` for template
@@ -250,24 +261,30 @@ npm run preview     # Preview production build
 npm run lint        # Run ESLint
 ```
 
-### Edge Function Development
+### Deployment
 
-Edge functions deploy automatically when you push code. To force redeployment:
-1. Add a version comment at the top of the function file
-2. Push changes
-3. Wait for build to complete
+**Vercel (Frontend):**
+- Deploys automatically on git push to main branch
+- Environment variables must be set in Vercel Dashboard
+- Build command: `npm run build`
+- Output directory: `dist`
 
-```typescript
-// Version: X.X.X - Force redeploy YYYY-MM-DD
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-```
+**Supabase (Edge Functions):**
+- Edge functions are deployed on Supabase Cloud
+- Deploy via Supabase CLI or dashboard
+- To force redeployment, update version comment in function file:
+  ```typescript
+  // Version: X.X.X - Force redeploy YYYY-MM-DD
+  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+  ```
 
 ### Debugging
 
-1. **Console logs**: Check browser DevTools
+1. **Console logs**: Check browser DevTools (look for `[DIAGNOSTIC]` prefixed logs)
 2. **Network tab**: Verify API calls to edge functions
-3. **Edge function logs**: View in Lovable Cloud dashboard
+3. **Edge function logs**: View in Supabase Dashboard → Edge Functions → Logs
 4. **Real-time subscriptions**: Look for `[scannerApi]` prefixed logs
+5. **Environment variables**: Check Vercel Dashboard → Environment Variables
 
 ## ⚠️ Common Issues & Solutions
 
@@ -285,22 +302,20 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 **Solutions:**
 1. **Check Environment Variables:**
-   ```bash
-   # Verify .env file exists and has correct values
-   cat .env
-   
-   # Should contain:
-   # VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
-   # VITE_SUPABASE_PUBLISHABLE_KEY=your-key-here
-   ```
+   - **Vercel**: Go to Vercel Dashboard → Project Settings → Environment Variables
+   - **Local**: Verify `.env` file exists and has correct values
+   - Should contain:
+     - `VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co`
+     - `VITE_SUPABASE_PUBLISHABLE_KEY=your-key-here`
 
 2. **Verify Supabase URL:**
    - Should be: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
    - Must start with `https://`
    - Must include `.supabase.co`
+   - Check browser console for `[DIAGNOSTIC]` logs showing actual URL
 
 3. **Check Edge Function Deployment:**
-   - Go to Lovable Cloud dashboard
+   - Go to Supabase Dashboard → Edge Functions
    - Verify `scan-domain` function is deployed
    - Check function logs for errors
    - Force redeploy by updating version comment in `supabase/functions/scan-domain/index.ts`
@@ -310,6 +325,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
    - Try hard refresh (Cmd+Shift+R / Ctrl+Shift+R)
    - Clear browser cache
    - Check browser console for CORS errors
+   - Look for `[DIAGNOSTIC]` logs in console for detailed error information
 
 ### "Multiple GoTrueClient instances detected"
 
