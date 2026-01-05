@@ -85,6 +85,7 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       const errorMsg = error.message || '';
       const errorStack = error.stack || '';
       const errorCause = (error as any).cause || (error as any).originalError || null;
+      const errorConstructor = error.constructor?.name || '';
       
       // Comprehensive error object logging for diagnostics
       console.error('[scannerApi] [DIAGNOSTIC] Full error object:', {
@@ -93,12 +94,17 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
         stack: errorStack,
         cause: errorCause,
         originalError: (error as any).originalError,
-        constructor: error.constructor?.name,
+        constructor: errorConstructor,
         keys: Object.keys(error),
+        toString: String(error),
       });
       
-      // Check error name/type
-      const isFunctionsFetchError = errorName === 'FunctionsFetchError';
+      // Check error name/type - also check constructor name as fallback
+      const isFunctionsFetchError = 
+        errorName === 'FunctionsFetchError' || 
+        errorConstructor === 'FunctionsFetchError' ||
+        String(error).includes('FunctionsFetchError') ||
+        errorMsg.includes('Failed to send a request to the Edge Function');
       
       // Check message for network indicators
       const hasNetworkErrorInMessage = 
