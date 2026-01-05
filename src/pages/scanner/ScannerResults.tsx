@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useScannerAuth } from '@/hooks/useScannerAuth';
 import { useDomainScan } from '@/hooks/useDomainScan';
-import { generateRevenueImpact, BENCHMARKS, VERTICAL_CPMS } from '@/utils/revenueImpactScoring';
+import { generateRevenueImpact } from '@/utils/revenueImpactScoring';
+import { generateScannerPdf, generateCsvExport } from '@/utils/scannerPdfGenerator';
+import { BenchmarkComparison } from '@/components/scanner/BenchmarkComparison';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -17,13 +19,14 @@ import {
   Eye,
   Cookie,
   Globe,
-  DollarSign,
   ChevronDown,
   ChevronUp,
   ExternalLink,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import type { DomainResult, CompetitivePosition } from '@/types/scanner';
 import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
@@ -34,7 +37,7 @@ export default function ScannerResults() {
   const { scanId } = useParams<{ scanId: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: authLoading } = useScannerAuth();
-  const { scan, results, summary, isLoading, error, loadScan } = useDomainScan();
+  const { scan, results, isLoading, error, loadScan } = useDomainScan();
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -58,6 +61,26 @@ export default function ScannerResults() {
       }
       return next;
     });
+  };
+
+  const revenueImpact = results.length > 0 
+    ? generateRevenueImpact(results, {
+        monthlyImpressions: scan?.monthly_impressions ?? undefined,
+        publisherVertical: scan?.publisher_vertical as 'news' | 'entertainment' | 'auto' | 'finance' | 'lifestyle' | 'other' | undefined,
+        ownedDomainsCount: scan?.owned_domains_count ?? undefined,
+      })
+    : null;
+
+  const handleExportPdf = () => {
+    if (revenueImpact && results.length > 0) {
+      generateScannerPdf(results, revenueImpact);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (results.length > 0) {
+      generateCsvExport(results);
+    }
   };
 
   if (authLoading || isLoading) {
@@ -91,14 +114,6 @@ export default function ScannerResults() {
 
   const isProcessing = scan?.status === 'processing' || scan?.status === 'pending';
   const progress = scan ? (scan.completed_domains / scan.total_domains) * 100 : 0;
-  
-  const revenueImpact = results.length > 0 
-    ? generateRevenueImpact(results, {
-        monthlyImpressions: scan?.monthly_impressions ?? undefined,
-        publisherVertical: scan?.publisher_vertical as any,
-        ownedDomainsCount: scan?.owned_domains_count ?? undefined,
-      })
-    : null;
 
   const getPositionColor = (position: CompetitivePosition) => {
     switch (position) {
@@ -130,9 +145,25 @@ export default function ScannerResults() {
             <img src={adfixusLogo} alt="AdFixus" className="h-6 object-contain" />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="border-border">
-              <Download className="h-4 w-4 mr-2" />
-              Export PDF
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-border"
+              onClick={handleExportCsv}
+              disabled={results.length === 0}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              CSV
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-border"
+              onClick={handleExportPdf}
+              disabled={!revenueImpact}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              PDF
             </Button>
             <Button size="sm" className="btn-gradient" asChild>
               <a href={MEETING_URL} target="_blank" rel="noopener noreferrer">
@@ -293,6 +324,9 @@ export default function ScannerResults() {
               </div>
             </div>
           </section>
+
+          {/* Benchmark Comparison */}
+          <BenchmarkComparison results={results} />
 
           {/* Domain-by-Domain Results */}
           <section className="py-8 px-4">
