@@ -91,7 +91,16 @@ export function useDomainScan(): UseDomainScanResult {
     
     if (scanError || !scanId) {
       console.error('[useDomainScan] Scan failed:', scanError);
-      setError(scanError || 'Failed to start scan');
+      
+      // Provide user-friendly error messages for infrastructure issues
+      let userFriendlyError = scanError || 'Failed to start scan';
+      if (scanError?.includes('NAME_NOT_RESOLVED') || 
+          scanError?.includes('Failed to fetch') ||
+          scanError?.includes('Failed to send a request')) {
+        userFriendlyError = 'Scanner service is temporarily unavailable. Please try again in a few minutes.';
+      }
+      
+      setError(userFriendlyError);
       setIsLoading(false);
       return null;
     }
