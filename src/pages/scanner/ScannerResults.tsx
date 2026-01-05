@@ -4,14 +4,19 @@ import { useScannerAuth } from '@/hooks/useScannerAuth';
 import { useDomainScan } from '@/hooks/useDomainScan';
 import { generateRevenueImpact } from '@/utils/revenueImpactScoring';
 import { generateScannerPdf, generateCsvExport } from '@/utils/scannerPdfGenerator';
+import { formatTrafficNumber } from '@/utils/trafficEstimation';
 import { BenchmarkComparison } from '@/components/scanner/BenchmarkComparison';
+import { PortfolioTrafficSummary } from '@/components/scanner/PortfolioTrafficSummary';
+import { AIInsightsPanel } from '@/components/scanner/AIInsightsPanel';
+import { RankTrendBadge } from '@/components/scanner/RankTrendBadge';
+import { TrafficSparkline } from '@/components/scanner/TrafficSparkline';
+import { AnimatedCounter } from '@/components/scanner/AnimatedCounter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
-  Download, 
   Calendar, 
   AlertTriangle, 
   TrendingUp, 
@@ -27,10 +32,11 @@ import {
   Clock,
   FileText,
   FileSpreadsheet,
-  BarChart3
+  BarChart3,
+  Sparkles,
+  Brain
 } from 'lucide-react';
-import type { DomainResult, CompetitivePosition } from '@/types/scanner';
-import { formatTrafficNumber } from '@/utils/trafficEstimation';
+import type { DomainResult, CompetitivePosition, PublisherContext } from '@/types/scanner';
 import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
 
 const MEETING_URL = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
@@ -65,12 +71,14 @@ export default function ScannerResults() {
     });
   };
 
+  const publisherContext: PublisherContext | undefined = scan ? {
+    monthlyImpressions: scan.monthly_impressions ?? undefined,
+    publisherVertical: scan.publisher_vertical as 'news' | 'entertainment' | 'auto' | 'finance' | 'lifestyle' | 'other' | undefined,
+    ownedDomainsCount: scan.owned_domains_count ?? undefined,
+  } : undefined;
+
   const revenueImpact = results.length > 0 
-    ? generateRevenueImpact(results, {
-        monthlyImpressions: scan?.monthly_impressions ?? undefined,
-        publisherVertical: scan?.publisher_vertical as 'news' | 'entertainment' | 'auto' | 'finance' | 'lifestyle' | 'other' | undefined,
-        ownedDomainsCount: scan?.owned_domains_count ?? undefined,
-      })
+    ? generateRevenueImpact(results, publisherContext)
     : null;
 
   const handleExportPdf = () => {
@@ -89,8 +97,11 @@ export default function ScannerResults() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading scan results...</p>
+          <div className="relative mx-auto mb-6">
+            <div className="h-20 w-20 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+            <Brain className="h-8 w-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <p className="text-muted-foreground animate-pulse">AI is analyzing your portfolio...</p>
         </div>
       </div>
     );
@@ -99,11 +110,13 @@ export default function ScannerResults() {
   if (error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full bg-card border-border">
+        <Card className="max-w-md w-full glass-card border-destructive/30">
           <CardContent className="pt-6 text-center">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
             <h2 className="text-xl font-semibold text-foreground mb-2">Error Loading Scan</h2>
-            <p className="text-muted-foreground mb-4">{error}</p>
+            <p className="text-muted-foreground mb-6">{error}</p>
             <Button onClick={() => navigate('/scanner/input')} variant="outline">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Scanner
@@ -119,10 +132,10 @@ export default function ScannerResults() {
 
   const getPositionColor = (position: CompetitivePosition) => {
     switch (position) {
-      case 'walled-garden-parity': return 'bg-success text-success-foreground';
-      case 'middle-pack': return 'bg-warning text-warning-foreground';
-      case 'at-risk': return 'bg-orange-500 text-white';
-      case 'commoditized': return 'bg-destructive text-destructive-foreground';
+      case 'walled-garden-parity': return 'bg-success/20 text-success border-success/30';
+      case 'middle-pack': return 'bg-warning/20 text-warning border-warning/30';
+      case 'at-risk': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      case 'commoditized': return 'bg-destructive/20 text-destructive border-destructive/30';
     }
   };
 
@@ -134,23 +147,26 @@ export default function ScannerResults() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Background Effects */}
+      <div className="absolute inset-0 hero-gradient pointer-events-none" />
+      
       {/* Header */}
-      <header className="border-b border-border bg-card/50 sticky top-0 z-10">
+      <header className="relative border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/scanner/input')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/scanner/input')} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <span className="text-muted-foreground">|</span>
-            <img src={adfixusLogo} alt="AdFixus" className="h-6 object-contain" />
+            <span className="text-border hidden sm:inline">|</span>
+            <img src={adfixusLogo} alt="AdFixus" className="h-6 object-contain hidden sm:block" />
           </div>
           <div className="flex items-center gap-2">
             <Button 
               variant="outline" 
               size="sm" 
-              className="border-border"
+              className="border-border/50 hidden sm:flex"
               onClick={handleExportCsv}
               disabled={results.length === 0}
             >
@@ -160,7 +176,7 @@ export default function ScannerResults() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="border-border"
+              className="border-border/50 hidden sm:flex"
               onClick={handleExportPdf}
               disabled={!revenueImpact}
             >
@@ -170,7 +186,8 @@ export default function ScannerResults() {
             <Button size="sm" className="btn-gradient" asChild>
               <a href={MEETING_URL} target="_blank" rel="noopener noreferrer">
                 <Calendar className="h-4 w-4 mr-2" />
-                Book Strategy Call
+                <span className="hidden sm:inline">Book Strategy Call</span>
+                <span className="sm:hidden">Book Call</span>
               </a>
             </Button>
           </div>
@@ -179,29 +196,38 @@ export default function ScannerResults() {
 
       {/* Processing State */}
       {isProcessing && (
-        <section className="py-8 px-4">
+        <section className="relative py-12 px-4">
           <div className="container mx-auto max-w-4xl">
-            <Card className="bg-card border-border">
-              <CardContent className="pt-6">
-                <div className="text-center mb-6">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-4" />
-                  <h2 className="text-xl font-semibold text-foreground">Analyzing Domains...</h2>
-                  <p className="text-muted-foreground mt-2">
+            <Card className="glass-card border-primary/20">
+              <CardContent className="pt-8 pb-8">
+                <div className="text-center mb-8">
+                  <div className="relative mx-auto w-20 h-20 mb-6">
+                    <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                    <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                    <Brain className="h-8 w-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">AI Analysis in Progress</h2>
+                  <p className="text-muted-foreground">
                     Scanning {scan?.completed_domains || 0} of {scan?.total_domains || 0} domains
                   </p>
                 </div>
-                <Progress value={progress} className="h-2" />
-                <div className="mt-6 grid gap-2">
+                
+                <Progress value={progress} className="h-2 mb-6" />
+                
+                <div className="space-y-2 stagger-fade">
                   {results.map((result) => (
-                    <div key={result.id} className="flex items-center justify-between text-sm px-3 py-2 bg-secondary rounded">
-                      <span className="text-foreground">{result.domain}</span>
+                    <div 
+                      key={result.id} 
+                      className="flex items-center justify-between text-sm px-4 py-3 bg-secondary/30 rounded-lg border border-border/50"
+                    >
+                      <span className="text-foreground font-medium">{result.domain}</span>
                       {result.status === 'success' ? (
-                        <Badge variant="outline" className="text-success border-success">
+                        <Badge className="bg-success/20 text-success border-success/30">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Complete
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-destructive border-destructive">
+                        <Badge className="bg-destructive/20 text-destructive border-destructive/30">
                           <XCircle className="h-3 w-3 mr-1" />
                           Failed
                         </Badge>
@@ -219,21 +245,26 @@ export default function ScannerResults() {
       {!isProcessing && revenueImpact && (
         <>
           {/* Executive Summary */}
-          <section className="py-8 px-4 border-b border-border">
+          <section className="relative py-10 px-4 border-b border-border/50">
             <div className="container mx-auto max-w-6xl">
-              <Card className="bg-gradient-to-br from-card to-card/80 border-primary/20">
-                <CardContent className="pt-8 pb-6">
+              <Card className="glass-card border-primary/20 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 pointer-events-none" />
+                <CardContent className="relative pt-8 pb-8">
                   <div className="grid md:grid-cols-3 gap-8">
                     {/* Headline */}
-                    <div className="md:col-span-2">
-                      <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+                    <div className="md:col-span-2 space-y-4">
+                      <Badge className="bg-primary/10 text-primary border-primary/30">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        AI Analysis Complete
+                      </Badge>
+                      <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
                         {revenueImpact.headline}
                       </h1>
                       <div className="flex flex-wrap gap-3">
                         <Badge className={getPositionColor(revenueImpact.strategicPosition)}>
                           {revenueImpact.strategicPosition.replace(/-/g, ' ').toUpperCase()}
                         </Badge>
-                        <Badge variant="outline" className="border-border">
+                        <Badge variant="outline" className="border-border/50">
                           {results.length} Domains Scanned
                         </Badge>
                         {(() => {
@@ -242,7 +273,7 @@ export default function ScannerResults() {
                             0
                           );
                           return totalImpressions > 0 ? (
-                            <Badge variant="outline" className="border-primary text-primary">
+                            <Badge className="bg-primary/10 text-primary border-primary/30">
                               <BarChart3 className="h-3 w-3 mr-1" />
                               {formatTrafficNumber(totalImpressions)} impressions/mo
                             </Badge>
@@ -251,9 +282,9 @@ export default function ScannerResults() {
                       </div>
                     </div>
                     {/* Grade */}
-                    <div className="text-center md:text-right">
+                    <div className="text-center md:text-right flex flex-col justify-center">
                       <p className="text-sm text-muted-foreground mb-2">2026 Readiness</p>
-                      <div className={`text-6xl font-bold ${getGradeColor(revenueImpact.readinessGrade)}`}>
+                      <div className={`text-7xl font-bold ${getGradeColor(revenueImpact.readinessGrade)} glow-effect`}>
                         {revenueImpact.readinessGrade}
                       </div>
                     </div>
@@ -263,25 +294,44 @@ export default function ScannerResults() {
             </div>
           </section>
 
+          {/* Portfolio Traffic Summary */}
+          <PortfolioTrafficSummary results={results} context={publisherContext} />
+
+          {/* AI Insights Panel */}
+          {scanId && (
+            <AIInsightsPanel 
+              results={results} 
+              context={publisherContext} 
+              scanId={scanId}
+            />
+          )}
+
           {/* Key Pain Points */}
-          <section className="py-8 px-4">
+          <section className="relative py-8 px-4">
             <div className="container mx-auto max-w-6xl">
-              <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
+              <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-destructive/10">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                </div>
                 Critical Revenue Leaks
               </h2>
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-3 gap-4 stagger-fade">
                 {revenueImpact.painPoints.slice(0, 3).map((pain) => (
-                  <Card key={pain.id} className="bg-card border-border border-l-4 border-l-destructive">
+                  <Card key={pain.id} className="glass-card border-l-4 border-l-destructive border-destructive/20 scanner-card">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg text-foreground">{pain.title}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">{pain.description}</p>
+                      <p className="text-sm text-muted-foreground mb-4">{pain.description}</p>
                       {pain.estimatedLoss && (
-                        <p className="text-2xl font-bold text-destructive">
-                          ${pain.estimatedLoss.toLocaleString()}/year
-                        </p>
+                        <div className="text-2xl font-bold text-destructive">
+                          <AnimatedCounter 
+                            value={pain.estimatedLoss} 
+                            prefix="-$" 
+                            suffix="/year"
+                            format="currency"
+                          />
+                        </div>
                       )}
                       <p className="text-xs text-muted-foreground mt-2">
                         Affects {pain.affectedDomains.length} domain{pain.affectedDomains.length !== 1 ? 's' : ''}
@@ -294,42 +344,48 @@ export default function ScannerResults() {
           </section>
 
           {/* Revenue Opportunities */}
-          <section className="py-8 px-4 bg-card/30">
+          <section className="relative py-8 px-4 bg-card/30">
             <div className="container mx-auto max-w-6xl">
-              <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-success" />
+              <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-success/10">
+                  <TrendingUp className="h-6 w-6 text-success" />
+                </div>
                 Revenue Opportunities
               </h2>
-              <div className="space-y-4">
+              <div className="space-y-4 stagger-fade">
                 {revenueImpact.opportunities.map((opp, index) => (
-                  <Card key={opp.id} className="bg-card border-border">
-                    <CardContent className="pt-4">
+                  <Card key={opp.id} className="glass-card border-border/50 scanner-card">
+                    <CardContent className="pt-5 pb-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground font-bold text-sm">
                               {index + 1}
                             </span>
                             <h3 className="text-lg font-semibold text-foreground">{opp.title}</h3>
                           </div>
-                          <p className="text-sm text-muted-foreground mb-3 ml-11">{opp.description}</p>
-                          <div className="ml-11 flex flex-wrap gap-4 text-sm">
-                            <span className="text-muted-foreground">
-                              <Clock className="h-4 w-4 inline mr-1" />
+                          <p className="text-sm text-muted-foreground mb-4 ml-12">{opp.description}</p>
+                          <div className="ml-12 flex flex-wrap gap-3 text-sm">
+                            <Badge variant="outline" className="border-border/50 text-muted-foreground">
+                              <Clock className="h-3 w-3 mr-1" />
                               {opp.timeline}
-                            </span>
-                            <Badge variant="outline" className="border-primary text-primary">
+                            </Badge>
+                            <Badge className="bg-primary/10 text-primary border-primary/30">
                               {opp.adfixusProduct}
                             </Badge>
                           </div>
                         </div>
                         <div className="text-right">
                           {opp.estimatedGain > 0 && (
-                            <p className="text-2xl font-bold text-success">
-                              +${opp.estimatedGain.toLocaleString()}
-                            </p>
+                            <div className="text-2xl font-bold text-success">
+                              <AnimatedCounter 
+                                value={opp.estimatedGain} 
+                                prefix="+$"
+                                format="currency"
+                              />
+                            </div>
                           )}
-                          <p className="text-xs text-muted-foreground">{opp.roi}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{opp.roi}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -343,48 +399,61 @@ export default function ScannerResults() {
           <BenchmarkComparison results={results} />
 
           {/* Domain-by-Domain Results */}
-          <section className="py-8 px-4">
+          <section className="relative py-8 px-4">
             <div className="container mx-auto max-w-6xl">
-              <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <Globe className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Globe className="h-6 w-6 text-primary" />
+                </div>
                 Domain Analysis
               </h2>
-              <div className="space-y-2">
+              <div className="space-y-3 stagger-fade">
                 {results.map((result) => (
-                  <Card key={result.id} className="bg-card border-border">
+                  <Card key={result.id} className="glass-card border-border/50 overflow-hidden">
                     <div
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/50 transition-colors"
+                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/30 transition-all"
                       onClick={() => toggleDomain(result.domain)}
                     >
                       <div className="flex items-center gap-4">
                         {result.status === 'success' ? (
-                          <CheckCircle className="h-5 w-5 text-success" />
+                          <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                            <CheckCircle className="h-5 w-5 text-success" />
+                          </div>
                         ) : (
-                          <XCircle className="h-5 w-5 text-destructive" />
+                          <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                            <XCircle className="h-5 w-5 text-destructive" />
+                          </div>
                         )}
-                        <span className="font-medium text-foreground">{result.domain}</span>
-                        <Badge 
-                          variant="outline" 
-                          className={
-                            result.competitive_positioning === 'walled-garden-parity' ? 'text-success border-success' :
-                            result.competitive_positioning === 'middle-pack' ? 'text-warning border-warning' :
-                            result.competitive_positioning === 'at-risk' ? 'text-orange-500 border-orange-500' :
-                            'text-destructive border-destructive'
-                          }
-                        >
-                          {result.competitive_positioning?.replace(/-/g, ' ')}
-                        </Badge>
+                        <div>
+                          <span className="font-medium text-foreground">{result.domain}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge 
+                              variant="outline"
+                              className={
+                                result.competitive_positioning === 'walled-garden-parity' ? 'text-success border-success/30 text-xs' :
+                                result.competitive_positioning === 'middle-pack' ? 'text-warning border-warning/30 text-xs' :
+                                result.competitive_positioning === 'at-risk' ? 'text-orange-400 border-orange-500/30 text-xs' :
+                                'text-destructive border-destructive/30 text-xs'
+                              }
+                            >
+                              {result.competitive_positioning?.replace(/-/g, ' ')}
+                            </Badge>
+                            <RankTrendBadge trend={result.rank_trend} change={result.rank_change_30d} size="sm" />
+                          </div>
+                        </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-sm text-muted-foreground">
-                          {Math.round(result.addressability_gap_pct)}% gap
-                        </span>
-                        {result.estimated_monthly_impressions && (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <BarChart3 className="h-3 w-3" />
-                            {formatTrafficNumber(result.estimated_monthly_impressions)}/mo
+                        <div className="text-right hidden sm:block">
+                          <span className="text-sm font-medium text-foreground">
+                            {Math.round(result.addressability_gap_pct)}% gap
                           </span>
-                        )}
+                          {result.estimated_monthly_impressions && (
+                            <span className="text-sm text-muted-foreground flex items-center gap-1 justify-end mt-1">
+                              <BarChart3 className="h-3 w-3" />
+                              {formatTrafficNumber(result.estimated_monthly_impressions)}/mo
+                            </span>
+                          )}
+                        </div>
                         {expandedDomains.has(result.domain) ? (
                           <ChevronUp className="h-5 w-5 text-muted-foreground" />
                         ) : (
@@ -394,29 +463,21 @@ export default function ScannerResults() {
                     </div>
                     
                     {expandedDomains.has(result.domain) && (
-                      <div className="border-t border-border p-4 bg-secondary/30">
+                      <div className="border-t border-border/50 p-5 bg-secondary/20">
                         <div className="grid md:grid-cols-4 gap-6">
-                          {/* Traffic Estimation */}
-                          {result.tranco_rank && (
-                            <div>
-                              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                                <BarChart3 className="h-4 w-4 text-primary" />
-                                Traffic Volume
-                              </h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
+                          {/* Traffic Volume & Trend */}
+                          <div>
+                            <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                              <BarChart3 className="h-4 w-4 text-primary" />
+                              Traffic Volume
+                            </h4>
+                            {result.tranco_rank ? (
+                              <div className="space-y-3">
+                                <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground">Tranco Rank</span>
-                                  <span className="text-foreground">#{result.tranco_rank.toLocaleString()}</span>
+                                  <span className="text-foreground font-medium">#{result.tranco_rank.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Est. Pageviews</span>
-                                  <span className="text-foreground">
-                                    {result.estimated_monthly_pageviews 
-                                      ? formatTrafficNumber(result.estimated_monthly_pageviews) 
-                                      : 'N/A'}/mo
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
+                                <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground">Est. Impressions</span>
                                   <span className="text-foreground">
                                     {result.estimated_monthly_impressions 
@@ -424,26 +485,28 @@ export default function ScannerResults() {
                                       : 'N/A'}/mo
                                   </span>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Confidence</span>
-                                  <Badge 
-                                    variant="outline"
-                                    className={
-                                      result.traffic_confidence === 'high' ? 'text-success border-success' :
-                                      result.traffic_confidence === 'medium' ? 'text-warning border-warning' :
-                                      'text-muted-foreground border-muted-foreground'
-                                    }
-                                  >
-                                    {result.traffic_confidence || 'N/A'}
-                                  </Badge>
+                                <div className="flex justify-between items-center text-sm">
+                                  <span className="text-muted-foreground">30d Trend</span>
+                                  <RankTrendBadge trend={result.rank_trend} change={result.rank_change_30d} size="sm" />
                                 </div>
+                                {result.tranco_rank_history && (
+                                  <div className="mt-3 p-2 bg-background/50 rounded-lg">
+                                    <TrafficSparkline 
+                                      history={result.tranco_rank_history} 
+                                      trend={result.rank_trend}
+                                      height={50}
+                                    />
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          )}
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No traffic data available</p>
+                            )}
+                          </div>
                           
                           {/* Cookie Analysis */}
                           <div>
-                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                            <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                               <Cookie className="h-4 w-4 text-primary" />
                               Cookie Analysis
                             </h4>
@@ -462,17 +525,17 @@ export default function ScannerResults() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">Safari Blocked</span>
-                                <span className="text-destructive">{result.safari_blocked_cookies}</span>
+                                <span className="text-destructive font-medium">{result.safari_blocked_cookies}</span>
                               </div>
-                              <div className="flex justify-between">
+                              <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">ID Bloat</span>
                                 <Badge 
                                   variant="outline"
                                   className={
-                                    result.id_bloat_severity === 'critical' ? 'text-destructive border-destructive' :
-                                    result.id_bloat_severity === 'high' ? 'text-orange-500 border-orange-500' :
-                                    result.id_bloat_severity === 'medium' ? 'text-warning border-warning' :
-                                    'text-success border-success'
+                                    result.id_bloat_severity === 'critical' ? 'text-destructive border-destructive/30' :
+                                    result.id_bloat_severity === 'high' ? 'text-orange-400 border-orange-500/30' :
+                                    result.id_bloat_severity === 'medium' ? 'text-warning border-warning/30' :
+                                    'text-success border-success/30'
                                   }
                                 >
                                   {result.id_bloat_severity}
@@ -483,41 +546,41 @@ export default function ScannerResults() {
 
                           {/* Vendors Detected */}
                           <div>
-                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                            <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                               <Eye className="h-4 w-4 text-primary" />
                               Vendors Detected
                             </h4>
                             <div className="flex flex-wrap gap-2">
-                              {result.has_google_analytics && <Badge variant="secondary">GA4</Badge>}
-                              {result.has_gtm && <Badge variant="secondary">GTM</Badge>}
-                              {result.has_gcm && <Badge variant="secondary">GCM</Badge>}
-                              {result.has_meta_pixel && <Badge variant="secondary">Meta Pixel</Badge>}
-                              {result.has_meta_capi && <Badge className="bg-success">CAPI</Badge>}
-                              {result.has_ttd && <Badge variant="secondary">TTD</Badge>}
-                              {result.has_liveramp && <Badge variant="secondary">LiveRamp</Badge>}
-                              {result.has_id5 && <Badge variant="secondary">ID5</Badge>}
-                              {result.has_criteo && <Badge variant="secondary">Criteo</Badge>}
-                              {result.has_prebid && <Badge variant="secondary">Prebid</Badge>}
-                              {result.has_ppid && <Badge className="bg-success">PPID</Badge>}
-                              {result.cmp_vendor && <Badge variant="outline">{result.cmp_vendor}</Badge>}
+                              {result.has_google_analytics && <Badge variant="secondary" className="text-xs">GA4</Badge>}
+                              {result.has_gtm && <Badge variant="secondary" className="text-xs">GTM</Badge>}
+                              {result.has_gcm && <Badge variant="secondary" className="text-xs">GCM</Badge>}
+                              {result.has_meta_pixel && <Badge variant="secondary" className="text-xs">Meta Pixel</Badge>}
+                              {result.has_meta_capi && <Badge className="bg-success/20 text-success border-success/30 text-xs">CAPI</Badge>}
+                              {result.has_ttd && <Badge variant="secondary" className="text-xs">TTD</Badge>}
+                              {result.has_liveramp && <Badge variant="secondary" className="text-xs">LiveRamp</Badge>}
+                              {result.has_id5 && <Badge variant="secondary" className="text-xs">ID5</Badge>}
+                              {result.has_criteo && <Badge variant="secondary" className="text-xs">Criteo</Badge>}
+                              {result.has_prebid && <Badge variant="secondary" className="text-xs">Prebid</Badge>}
+                              {result.has_ppid && <Badge className="bg-success/20 text-success border-success/30 text-xs">PPID</Badge>}
+                              {result.cmp_vendor && <Badge variant="outline" className="text-xs">{result.cmp_vendor}</Badge>}
                             </div>
                           </div>
 
                           {/* Privacy & Compliance */}
                           <div>
-                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                            <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                               <Shield className="h-4 w-4 text-primary" />
                               Privacy & Compliance
                             </h4>
                             <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
+                              <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Risk Level</span>
                                 <Badge 
                                   variant="outline"
                                   className={
-                                    result.privacy_risk_level === 'high-risk' ? 'text-destructive border-destructive' :
-                                    result.privacy_risk_level === 'moderate' ? 'text-warning border-warning' :
-                                    'text-success border-success'
+                                    result.privacy_risk_level === 'high-risk' ? 'text-destructive border-destructive/30' :
+                                    result.privacy_risk_level === 'moderate' ? 'text-warning border-warning/30' :
+                                    'text-success border-success/30'
                                   }
                                 >
                                   {result.privacy_risk_level}
@@ -537,7 +600,7 @@ export default function ScannerResults() {
                               </div>
                               {result.detected_ssps && result.detected_ssps.length > 0 && (
                                 <div className="pt-2">
-                                  <span className="text-muted-foreground block mb-1">SSPs:</span>
+                                  <span className="text-muted-foreground block mb-2">SSPs:</span>
                                   <div className="flex flex-wrap gap-1">
                                     {result.detected_ssps.map((ssp, i) => (
                                       <Badge key={i} variant="outline" className="text-xs">
@@ -559,16 +622,21 @@ export default function ScannerResults() {
           </section>
 
           {/* CTA Section */}
-          <section className="py-12 px-4 bg-gradient-to-r from-primary/10 to-primary/5 border-t border-border">
-            <div className="container mx-auto max-w-4xl text-center">
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
-                Ready to Recover Your Lost Revenue?
+          <section className="relative py-16 px-4 border-t border-border/50">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10 pointer-events-none" />
+            <div className="container mx-auto max-w-4xl text-center relative">
+              <Badge className="mb-4 bg-primary/10 text-primary border-primary/30">
+                <Sparkles className="h-3 w-3 mr-1" />
+                Ready to Transform Your Revenue?
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+                Let's Recover Your Lost Revenue
               </h2>
-              <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
+              <p className="text-muted-foreground mb-8 max-w-2xl mx-auto text-lg">
                 Schedule a strategy call to discuss your personalized roadmap for 
                 closing addressability gaps and unlocking performance budgets.
               </p>
-              <Button size="lg" className="btn-gradient px-8" asChild>
+              <Button size="lg" className="btn-gradient px-10 py-6 text-lg" asChild>
                 <a href={MEETING_URL} target="_blank" rel="noopener noreferrer">
                   <Calendar className="h-5 w-5 mr-2" />
                   Book Strategy Call

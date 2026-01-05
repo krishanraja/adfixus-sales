@@ -6,6 +6,7 @@ export type IdBloatSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type PrivacyRiskLevel = 'compliant' | 'moderate' | 'high-risk';
 export type CompetitivePosition = 'walled-garden-parity' | 'middle-pack' | 'at-risk' | 'commoditized';
 export type PublisherVertical = 'news' | 'entertainment' | 'auto' | 'finance' | 'lifestyle' | 'other';
+export type RankTrend = 'growing' | 'stable' | 'declining';
 
 export interface PublisherContext {
   monthlyImpressions?: number;
@@ -35,6 +36,23 @@ export interface DomainScanSummary {
   readinessGrade: string;
   painPoints: PainPoint[];
   opportunities: Opportunity[];
+  // Portfolio trend summary
+  portfolioTrend?: PortfolioTrendSummary;
+}
+
+export interface PortfolioTrendSummary {
+  growingDomains: number;
+  stableDomains: number;
+  decliningDomains: number;
+  avgRankChange: number;
+  totalMonthlyImpressions: number;
+  estimatedMonthlyRevenue: number;
+  estimatedAnnualLoss: number;
+}
+
+export interface RankHistoryEntry {
+  date: string;
+  rank: number;
 }
 
 export interface DomainResult {
@@ -89,6 +107,11 @@ export interface DomainResult {
   estimated_monthly_pageviews?: number | null;
   estimated_monthly_impressions?: number | null;
   traffic_confidence?: 'high' | 'medium' | 'low' | null;
+  
+  // Trend analysis (30-day rank history)
+  tranco_rank_history?: RankHistoryEntry[] | null;
+  rank_trend?: RankTrend | null;
+  rank_change_30d?: number | null;
   
   // Raw data
   cookies_raw?: CookieData[];
