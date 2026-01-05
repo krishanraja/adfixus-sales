@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.scan-domain]
 verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = false

@@ -73,11 +73,19 @@ interface Cookie {
   sameSite: string;
 }
 
+interface RankHistoryEntry {
+  date: string;
+  rank: number;
+}
+
 interface TrancoData {
   rank: number | null;
   monthlyPageviews: number | null;
   monthlyImpressions: number | null;
   confidence: 'high' | 'medium' | 'low' | null;
+  rankHistory: RankHistoryEntry[] | null;
+  rankTrend: 'growing' | 'stable' | 'declining' | null;
+  rankChange30d: number | null;
 }
 
 serve(async (req) => {
@@ -213,6 +221,10 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         estimated_monthly_pageviews: trancoData.monthlyPageviews,
         estimated_monthly_impressions: trancoData.monthlyImpressions,
         traffic_confidence: trancoData.confidence,
+        // Trend analysis
+        tranco_rank_history: trancoData.rankHistory,
+        rank_trend: trancoData.rankTrend,
+        rank_change_30d: trancoData.rankChange30d,
       });
 
       completedCount++;
@@ -278,8 +290,18 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
   console.log(`Scan ${scanId} completed`);
 }
 
-// Fetch Tranco rank and estimate traffic
+// Fetch Tranco rank and estimate traffic with 30-day trend analysis
 async function fetchTrancoData(domain: string): Promise<TrancoData> {
+  const emptyResult: TrancoData = { 
+    rank: null, 
+    monthlyPageviews: null, 
+    monthlyImpressions: null, 
+    confidence: null,
+    rankHistory: null,
+    rankTrend: null,
+    rankChange30d: null,
+  };
+  
   try {
     // Clean domain (remove www, protocol, path)
     const cleanDomain = domain
@@ -306,14 +328,37 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
     
     if (!response.ok) {
       console.log(`Tranco API returned ${response.status} for ${cleanDomain}`);
-      return { rank: null, monthlyPageviews: null, monthlyImpressions: null, confidence: null };
+      return emptyResult;
     }
     
     const data = await response.json();
     
-    // Get most recent rank from the ranks array
+    // Get ranks array (contains 30 days of history)
     if (data.ranks && data.ranks.length > 0) {
-      const rank = data.ranks[0].rank;
+      const rank = data.ranks[0].rank; // Most recent rank
+      
+      // Store full history for trend analysis
+      const rankHistory: RankHistoryEntry[] = data.ranks.map((r: { date: string; rank: number }) => ({
+        date: r.date,
+        rank: r.rank,
+      }));
+      
+      // Calculate trend (positive change = improving, lower rank is better)
+      let rankTrend: 'growing' | 'stable' | 'declining' = 'stable';
+      let rankChange30d = 0;
+      
+      if (rankHistory.length >= 2) {
+        const newestRank = rankHistory[0].rank;
+        const oldestRank = rankHistory[rankHistory.length - 1].rank;
+        rankChange30d = oldestRank - newestRank; // Positive = improved (lower rank)
+        
+        const threshold = 1000; // 1000 rank positions is significant
+        if (rankChange30d > threshold) {
+          rankTrend = 'growing';
+        } else if (rankChange30d < -threshold) {
+          rankTrend = 'declining';
+        }
+      }
       
       // Calculate estimated traffic using power-law formula
       const annualPageviews = Math.round(PAGEVIEW_COEFFICIENT * Math.pow(rank, PAGEVIEW_EXPONENT));
@@ -326,22 +371,25 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
       else if (rank <= 1000000) confidence = 'medium';
       else confidence = 'low';
       
-      console.log(`Tranco rank for ${cleanDomain}: #${rank}, est. ${monthlyImpressions} impressions/mo`);
+      console.log(`Tranco rank for ${cleanDomain}: #${rank}, trend: ${rankTrend} (${rankChange30d > 0 ? '+' : ''}${rankChange30d}), est. ${monthlyImpressions} impressions/mo`);
       
       return {
         rank,
         monthlyPageviews,
         monthlyImpressions,
         confidence,
+        rankHistory,
+        rankTrend,
+        rankChange30d,
       };
     }
     
     console.log(`No Tranco rank found for ${cleanDomain}`);
-    return { rank: null, monthlyPageviews: null, monthlyImpressions: null, confidence: null };
+    return emptyResult;
     
   } catch (err) {
     console.error(`Tranco lookup failed for ${domain}:`, err);
-    return { rank: null, monthlyPageviews: null, monthlyImpressions: null, confidence: null };
+    return emptyResult;
   }
 }
 
