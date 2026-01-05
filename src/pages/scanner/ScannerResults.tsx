@@ -26,9 +26,11 @@ import {
   XCircle,
   Clock,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  BarChart3
 } from 'lucide-react';
 import type { DomainResult, CompetitivePosition } from '@/types/scanner';
+import { formatTrafficNumber } from '@/utils/trafficEstimation';
 import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
 
 const MEETING_URL = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
@@ -42,7 +44,7 @@ export default function ScannerResults() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate('/scanner');
+      navigate('/');
       return;
     }
 
@@ -234,6 +236,18 @@ export default function ScannerResults() {
                         <Badge variant="outline" className="border-border">
                           {results.length} Domains Scanned
                         </Badge>
+                        {(() => {
+                          const totalImpressions = results.reduce(
+                            (sum, r) => sum + (r.estimated_monthly_impressions || 0), 
+                            0
+                          );
+                          return totalImpressions > 0 ? (
+                            <Badge variant="outline" className="border-primary text-primary">
+                              <BarChart3 className="h-3 w-3 mr-1" />
+                              {formatTrafficNumber(totalImpressions)} impressions/mo
+                            </Badge>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                     {/* Grade */}
@@ -365,6 +379,12 @@ export default function ScannerResults() {
                         <span className="text-sm text-muted-foreground">
                           {Math.round(result.addressability_gap_pct)}% gap
                         </span>
+                        {result.estimated_monthly_impressions && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <BarChart3 className="h-3 w-3" />
+                            {formatTrafficNumber(result.estimated_monthly_impressions)}/mo
+                          </span>
+                        )}
                         {expandedDomains.has(result.domain) ? (
                           <ChevronUp className="h-5 w-5 text-muted-foreground" />
                         ) : (
@@ -375,7 +395,52 @@ export default function ScannerResults() {
                     
                     {expandedDomains.has(result.domain) && (
                       <div className="border-t border-border p-4 bg-secondary/30">
-                        <div className="grid md:grid-cols-3 gap-6">
+                        <div className="grid md:grid-cols-4 gap-6">
+                          {/* Traffic Estimation */}
+                          {result.tranco_rank && (
+                            <div>
+                              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                                <BarChart3 className="h-4 w-4 text-primary" />
+                                Traffic Volume
+                              </h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Tranco Rank</span>
+                                  <span className="text-foreground">#{result.tranco_rank.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Est. Pageviews</span>
+                                  <span className="text-foreground">
+                                    {result.estimated_monthly_pageviews 
+                                      ? formatTrafficNumber(result.estimated_monthly_pageviews) 
+                                      : 'N/A'}/mo
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Est. Impressions</span>
+                                  <span className="text-foreground">
+                                    {result.estimated_monthly_impressions 
+                                      ? formatTrafficNumber(result.estimated_monthly_impressions) 
+                                      : 'N/A'}/mo
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Confidence</span>
+                                  <Badge 
+                                    variant="outline"
+                                    className={
+                                      result.traffic_confidence === 'high' ? 'text-success border-success' :
+                                      result.traffic_confidence === 'medium' ? 'text-warning border-warning' :
+                                      'text-muted-foreground border-muted-foreground'
+                                    }
+                                  >
+                                    {result.traffic_confidence || 'N/A'}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
                           {/* Cookie Analysis */}
                           <div>
                             <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">

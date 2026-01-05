@@ -84,6 +84,12 @@ export interface DomainResult {
   privacy_risk_level: PrivacyRiskLevel;
   competitive_positioning: CompetitivePosition;
   
+  // Traffic estimation (from Tranco)
+  tranco_rank?: number | null;
+  estimated_monthly_pageviews?: number | null;
+  estimated_monthly_impressions?: number | null;
+  traffic_confidence?: 'high' | 'medium' | 'low' | null;
+  
   // Raw data
   cookies_raw?: CookieData[];
   vendors_raw?: VendorData;

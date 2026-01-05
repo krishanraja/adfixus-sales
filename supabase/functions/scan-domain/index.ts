@@ -13,6 +13,13 @@ const SCANNER_SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') |
 // Browserless API for dynamic scanning
 const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY') || '';
 
+// Tranco API for traffic estimation
+const TRANCO_API_KEY = Deno.env.get('TRANCO_API_KEY') || '';
+
+// Traffic estimation constants (power-law formula from CrUX research)
+const PAGEVIEW_COEFFICIENT = 7.73e12;
+const PAGEVIEW_EXPONENT = -1.06;
+
 // Vendor detection patterns
 const VENDOR_PATTERNS = {
   google_analytics: [/google-analytics\.com/, /gtag\(/, /G-[A-Z0-9]{10}/, /UA-\d+-\d+/],
@@ -64,6 +71,13 @@ interface Cookie {
   httpOnly: boolean;
   secure: boolean;
   sameSite: string;
+}
+
+interface TrancoData {
+  rank: number | null;
+  monthlyPageviews: number | null;
+  monthlyImpressions: number | null;
+  confidence: 'high' | 'medium' | 'low' | null;
 }
 
 serve(async (req) => {
@@ -146,9 +160,17 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
   for (const domain of domains) {
     try {
       console.log(`Scanning domain: ${domain}`);
+      
+      // Fetch Tranco rank first (with rate limiting)
+      const trancoData = await fetchTrancoData(domain);
+      console.log(`Tranco data for ${domain}:`, trancoData);
+      
+      // Small delay for Tranco API rate limiting (1 query/second)
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      
       const result = await scanDomain(domain);
       
-      // Insert result
+      // Insert result with Tranco data
       await supabase.from('domain_results').insert({
         scan_id: scanId,
         domain,
@@ -186,6 +208,11 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         cookies_raw: result.cookies_raw,
         vendors_raw: result.vendors_raw,
         network_requests_summary: result.network_requests_summary,
+        // Tranco traffic data
+        tranco_rank: trancoData.rank,
+        estimated_monthly_pageviews: trancoData.monthlyPageviews,
+        estimated_monthly_impressions: trancoData.monthlyImpressions,
+        traffic_confidence: trancoData.confidence,
       });
 
       completedCount++;
@@ -249,6 +276,73 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
     .eq('id', scanId);
 
   console.log(`Scan ${scanId} completed`);
+}
+
+// Fetch Tranco rank and estimate traffic
+async function fetchTrancoData(domain: string): Promise<TrancoData> {
+  try {
+    // Clean domain (remove www, protocol, path)
+    const cleanDomain = domain
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .split('/')[0]
+      .split(':')[0];
+    
+    console.log(`Fetching Tranco rank for: ${cleanDomain}`);
+    
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+    };
+    
+    // Add API key if available
+    if (TRANCO_API_KEY) {
+      headers['Authorization'] = `Bearer ${TRANCO_API_KEY}`;
+    }
+    
+    const response = await fetch(
+      `https://tranco-list.eu/api/ranks/domain/${cleanDomain}`,
+      { headers }
+    );
+    
+    if (!response.ok) {
+      console.log(`Tranco API returned ${response.status} for ${cleanDomain}`);
+      return { rank: null, monthlyPageviews: null, monthlyImpressions: null, confidence: null };
+    }
+    
+    const data = await response.json();
+    
+    // Get most recent rank from the ranks array
+    if (data.ranks && data.ranks.length > 0) {
+      const rank = data.ranks[0].rank;
+      
+      // Calculate estimated traffic using power-law formula
+      const annualPageviews = Math.round(PAGEVIEW_COEFFICIENT * Math.pow(rank, PAGEVIEW_EXPONENT));
+      const monthlyPageviews = Math.round(annualPageviews / 12);
+      const monthlyImpressions = monthlyPageviews * 4; // Assume 4 ad slots per page
+      
+      // Determine confidence level
+      let confidence: 'high' | 'medium' | 'low';
+      if (rank <= 100000) confidence = 'high';
+      else if (rank <= 1000000) confidence = 'medium';
+      else confidence = 'low';
+      
+      console.log(`Tranco rank for ${cleanDomain}: #${rank}, est. ${monthlyImpressions} impressions/mo`);
+      
+      return {
+        rank,
+        monthlyPageviews,
+        monthlyImpressions,
+        confidence,
+      };
+    }
+    
+    console.log(`No Tranco rank found for ${cleanDomain}`);
+    return { rank: null, monthlyPageviews: null, monthlyImpressions: null, confidence: null };
+    
+  } catch (err) {
+    console.error(`Tranco lookup failed for ${domain}:`, err);
+    return { rank: null, monthlyPageviews: null, monthlyImpressions: null, confidence: null };
+  }
 }
 
 async function scanDomain(domain: string) {
