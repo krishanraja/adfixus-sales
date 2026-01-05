@@ -50,19 +50,30 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       body: { healthCheck: true },
     }).catch((err) => {
       // Catch network errors that might not be in response.error
-      const errorMsg = err?.message || String(err) || '';
-      console.error('[scannerApi] [DIAGNOSTIC] Invoke promise rejected:', errorMsg);
+      // Preserve full error structure including name, stack, and cause
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      const errorName = errorObj.name || '';
+      const errorMsg = errorObj.message || String(err) || '';
+      const errorStack = errorObj.stack || '';
+      const errorCause = (errorObj as any).cause || (errorObj as any).originalError || null;
       
-      // Check if it's a network/DNS error
-      if (errorMsg.includes('NAME_NOT_RESOLVED') || 
-          errorMsg.includes('ERR_NAME_NOT_RESOLVED') ||
-          errorMsg.includes('Failed to fetch') ||
-          errorMsg.includes('NetworkError') ||
-          errorMsg.includes('fetch')) {
-        return { error: { message: 'NETWORK_ERROR: ' + errorMsg } };
-      }
+      console.error('[scannerApi] [DIAGNOSTIC] Invoke promise rejected:', {
+        name: errorName,
+        message: errorMsg,
+        stack: errorStack,
+        cause: errorCause,
+      });
       
-      return { error: { message: errorMsg } };
+      // Return error object with full structure preserved
+      return { 
+        error: {
+          name: errorName,
+          message: errorMsg,
+          stack: errorStack,
+          cause: errorCause,
+          originalError: (errorObj as any).originalError,
+        }
+      };
     });
     
     const response = await Promise.race([invokePromise, timeoutPromise]);
