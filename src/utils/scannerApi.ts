@@ -4,6 +4,33 @@ import { supabase } from '@/integrations/supabase/client';
 import { scannerSupabase } from '@/integrations/supabase/scanner-client';
 import type { DomainScan, DomainResult, PublisherContext, ScanRequest } from '@/types/scanner';
 
+// Health check to verify edge functions are deployed and accessible
+export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; error?: string }> {
+  try {
+    console.log('[scannerApi] Checking edge function health...');
+    
+    const response = await supabase.functions.invoke('scan-domain', {
+      body: { healthCheck: true },
+    });
+    
+    // If we get any response (even an error), the function exists
+    if (response.error?.message?.includes('NAME_NOT_RESOLVED') || 
+        response.error?.message?.includes('Failed to fetch')) {
+      console.error('[scannerApi] Edge function not deployed or not accessible');
+      return { healthy: false, error: 'Scanner service is not deployed' };
+    }
+    
+    console.log('[scannerApi] Edge function is healthy');
+    return { healthy: true };
+  } catch (error) {
+    console.error('[scannerApi] Edge function health check failed:', error);
+    return { 
+      healthy: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
 export async function createScan(
   domains: string[],
   context?: PublisherContext

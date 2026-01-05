@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScannerAuth } from '@/hooks/useScannerAuth';
 import { useDomainScan } from '@/hooks/useDomainScan';
-import { parseDomains, parseCSVFile } from '@/utils/scannerApi';
+import { parseDomains, parseCSVFile, checkEdgeFunctionHealth } from '@/utils/scannerApi';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,28 @@ export default function ScannerInput() {
 
   const [domainInput, setDomainInput] = useState('');
   const [context, setContext] = useState<PublisherContext>({});
+  const [serviceStatus, setServiceStatus] = useState<'checking' | 'healthy' | 'unavailable'>('checking');
+
+  // Check if edge functions are available on mount
+  useEffect(() => {
+    const checkHealth = async () => {
+      console.log('[ScannerInput] Checking scanner service health...');
+      const { healthy, error } = await checkEdgeFunctionHealth();
+      if (healthy) {
+        console.log('[ScannerInput] Scanner service is healthy');
+        setServiceStatus('healthy');
+      } else {
+        console.error('[ScannerInput] Scanner service unavailable:', error);
+        setServiceStatus('unavailable');
+        toast({
+          title: 'Scanner Service',
+          description: 'Scanner is initializing. This may take a moment on first use.',
+          variant: 'default',
+        });
+      }
+    };
+    checkHealth();
+  }, [toast]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

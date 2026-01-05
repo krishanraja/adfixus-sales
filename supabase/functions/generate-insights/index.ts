@@ -1,3 +1,4 @@
+// Version: 2.0.0 - Force redeploy 2026-01-05
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
