@@ -188,12 +188,21 @@ export function generatePainPoints(
     ? VERTICAL_CPMS[context.publisherVertical] 
     : VERTICAL_CPMS.other;
   
+  // Calculate total estimated impressions from Tranco data if no user-provided impressions
+  const totalEstimatedImpressions = results.reduce(
+    (sum, r) => sum + (r.estimated_monthly_impressions || 0), 
+    0
+  );
+  
+  // Use user-provided impressions first, then fall back to Tranco estimates
+  const effectiveImpressions = context?.monthlyImpressions || totalEstimatedImpressions;
+  
   // Safari Blindness
   const safariAffected = results.filter(r => r.safari_blocked_cookies > 0);
   if (safariAffected.length > 0) {
     const avgGap = safariAffected.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / safariAffected.length;
-    const estimatedLoss = context?.monthlyImpressions 
-      ? calculateMonthlyRevenueLoss(context.monthlyImpressions, avgGap, cpm)
+    const estimatedLoss = effectiveImpressions > 0
+      ? calculateMonthlyRevenueLoss(effectiveImpressions, avgGap, cpm)
       : undefined;
     
     painPoints.push({
@@ -209,8 +218,8 @@ export function generatePainPoints(
   // No Conversion API
   const noCapiDomains = results.filter(r => !r.has_conversion_api);
   if (noCapiDomains.length > 0) {
-    const estimatedTam = context?.monthlyImpressions 
-      ? Math.round((context.monthlyImpressions / 1000) * cpm * BENCHMARKS.conversionApiBudgetCapture * 12)
+    const estimatedTam = effectiveImpressions > 0
+      ? Math.round((effectiveImpressions / 1000) * cpm * BENCHMARKS.conversionApiBudgetCapture * 12)
       : undefined;
     
     painPoints.push({
@@ -240,8 +249,8 @@ export function generatePainPoints(
     (r.has_liveramp || r.has_id5 || r.has_ttd) && !r.has_ppid
   );
   if (rentingIdentity.length > 0) {
-    const techTaxLoss = context?.monthlyImpressions 
-      ? Math.round((context.monthlyImpressions / 1000) * cpm * BENCHMARKS.idGraphTechTax * 12)
+    const techTaxLoss = effectiveImpressions > 0
+      ? Math.round((effectiveImpressions / 1000) * cpm * BENCHMARKS.idGraphTechTax * 12)
       : undefined;
     
     painPoints.push({
@@ -294,10 +303,19 @@ export function generateOpportunities(
     ? VERTICAL_CPMS[context.publisherVertical] 
     : VERTICAL_CPMS.other;
   
+  // Calculate total estimated impressions from Tranco data
+  const totalEstimatedImpressions = results.reduce(
+    (sum, r) => sum + (r.estimated_monthly_impressions || 0), 
+    0
+  );
+  
+  // Use user-provided impressions first, then fall back to Tranco estimates
+  const effectiveImpressions = context?.monthlyImpressions || totalEstimatedImpressions;
+  
   // Safari Recovery
   const avgGap = results.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / results.length;
-  if (avgGap > 10 && context?.monthlyImpressions) {
-    const monthlyGain = calculateMonthlyRevenueLoss(context.monthlyImpressions, avgGap, cpm);
+  if (avgGap > 10 && effectiveImpressions > 0) {
+    const monthlyGain = calculateMonthlyRevenueLoss(effectiveImpressions, avgGap, cpm);
     opportunities.push({
       id: 'safari-recovery',
       title: 'Recover Safari/Firefox Traffic',
@@ -312,8 +330,8 @@ export function generateOpportunities(
   
   // Conversion API
   const noCapiCount = results.filter(r => !r.has_conversion_api).length;
-  if (noCapiCount > 0 && context?.monthlyImpressions) {
-    const tam = Math.round((context.monthlyImpressions / 1000) * cpm * 0.25 * 12);
+  if (noCapiCount > 0 && effectiveImpressions > 0) {
+    const tam = Math.round((effectiveImpressions / 1000) * cpm * 0.25 * 12);
     opportunities.push({
       id: 'capi-unlock',
       title: 'Unlock Performance Budget Access',
@@ -328,8 +346,8 @@ export function generateOpportunities(
   
   // Tech Tax Elimination
   const rentingCount = results.filter(r => (r.has_liveramp || r.has_id5 || r.has_ttd) && !r.has_ppid).length;
-  if (rentingCount > 0 && context?.monthlyImpressions) {
-    const annualSavings = Math.round((context.monthlyImpressions / 1000) * cpm * BENCHMARKS.idGraphTechTax * 12);
+  if (rentingCount > 0 && effectiveImpressions > 0) {
+    const annualSavings = Math.round((effectiveImpressions / 1000) * cpm * BENCHMARKS.idGraphTechTax * 12);
     opportunities.push({
       id: 'tech-tax-elimination',
       title: 'Eliminate Tech Tax',
@@ -348,8 +366,8 @@ export function generateOpportunities(
       id: 'deduplication',
       title: 'Cross-Domain Deduplication',
       description: 'Deploy federated identity across owned properties for accurate reach metrics.',
-      estimatedGain: context.monthlyImpressions 
-        ? Math.round((context.monthlyImpressions / 1000) * cpm * 0.15 * 12)
+      estimatedGain: effectiveImpressions > 0
+        ? Math.round((effectiveImpressions / 1000) * cpm * 0.15 * 12)
         : 0,
       timeline: '4 weeks technical, immediate reach accuracy improvement',
       roi: 'Premium deal flow restoration from verified reach metrics',
