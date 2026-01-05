@@ -297,7 +297,7 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       if (isFunctionsFetchError && (hasNetworkErrorInMessage || hasDNSInStack || causeHasDNS)) {
         const errorMessage = `Edge function not accessible. This usually means:
 1. The edge function is not deployed (check Supabase dashboard)
-2. VITE_SUPABASE_URL is incorrect (should be: https://ojtfnhzqhfsprebvpmvx.supabase.co)
+2. VITE_SUPABASE_URL is incorrect (should be: https://lshyhtgvqdmrakrbcgox.supabase.co)
 3. Network connectivity issues
 
 Please verify your environment configuration and ensure the edge function is deployed.`;
@@ -316,7 +316,7 @@ Please verify your environment configuration and ensure the edge function is dep
       if (hasNetworkErrorInMessage || hasDNSInStack || causeHasDNS || isTimeout) {
         const errorMessage = `Edge function not accessible. This usually means:
 1. The edge function is not deployed (check Supabase dashboard)
-2. VITE_SUPABASE_URL is incorrect (should be: https://ojtfnhzqhfsprebvpmvx.supabase.co)
+2. VITE_SUPABASE_URL is incorrect (should be: https://lshyhtgvqdmrakrbcgox.supabase.co)
 3. Network connectivity issues
 
 Please verify your environment configuration and ensure the edge function is deployed.`;

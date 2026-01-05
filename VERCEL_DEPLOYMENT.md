@@ -44,7 +44,7 @@ If not auto-detected, manually set:
 
 **Required:**
 ```
-VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
+VITE_SUPABASE_URL=https://lshyhtgvqdmrakrbcgox.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key-here
 ```
 
@@ -149,7 +149,7 @@ vercel --prod
   - [ ] URL format is correct (no trailing slash, https://, correct project ID)
 
 - [ ] **Supabase Project Verified:**
-  - [ ] Project `ojtfnhzqhfsprebvpmvx` exists in Supabase Dashboard
+  - [ ] Project `lshyhtgvqdmrakrbcgox` exists in Supabase Dashboard
   - [ ] Project status is "Active"
   - [ ] Edge functions are deployed (check Supabase Dashboard → Edge Functions)
 
@@ -181,7 +181,7 @@ vercel --prod
 
 **Solution:**
 1. Check URL format in Vercel Dashboard
-2. Must be: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+2. Must be: `https://lshyhtgvqdmrakrbcgox.supabase.co`
 3. Must NOT have trailing slash
 4. Must use `https://` (not `http://`)
 5. Fix in Vercel Dashboard and redeploy
@@ -260,7 +260,7 @@ vercel --prod
 
 **Check:**
 - Use "Check Configuration" button - shows DNS resolution status
-- Test URL directly: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+- Test URL directly: `https://lshyhtgvqdmrakrbcgox.supabase.co`
 
 **Solution:**
 1. Go to Supabase Dashboard

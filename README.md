@@ -138,7 +138,7 @@ Set these in Vercel Dashboard → Project Settings → Environment Variables:
 
 ```bash
 # Main Supabase project - Used for edge function calls
-VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
+VITE_SUPABASE_URL=https://lshyhtgvqdmrakrbcgox.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key-here
 ```
 
@@ -162,7 +162,7 @@ VITE_MEETING_BOOKING_URL=https://outlook.office.com/book/SalesTeambooking@adfixu
 
 2. Fill in the required values:
    - Get `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from your Supabase project settings
-   - The URL should be: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+   - The URL should be: `https://lshyhtgvqdmrakrbcgox.supabase.co`
 
 3. Restart your dev server after changing `.env`:
    ```bash
@@ -183,7 +183,7 @@ VITE_MEETING_BOOKING_URL=https://outlook.office.com/book/SalesTeambooking@adfixu
 
 - [ ] `VITE_SUPABASE_URL` is set in Vercel Dashboard
   - Format: `https://[project-id].supabase.co`
-  - Example: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+  - Example: `https://lshyhtgvqdmrakrbcgox.supabase.co`
   - Must NOT have trailing slash
   - Must use HTTPS protocol
   
@@ -208,7 +208,7 @@ VITE_MEETING_BOOKING_URL=https://outlook.office.com/book/SalesTeambooking@adfixu
 - [ ] Test build locally (optional but recommended):
   ```bash
   # Set env vars temporarily
-  export VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
+  export VITE_SUPABASE_URL=https://lshyhtgvqdmrakrbcgox.supabase.co
   export VITE_SUPABASE_PUBLISHABLE_KEY=your-key-here
   
   # Build should succeed
@@ -345,7 +345,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 **Solution:**
 1. Go to Vercel Dashboard → Project Settings → Environment Variables
-2. Add `VITE_SUPABASE_URL` with value: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+2. Add `VITE_SUPABASE_URL` with value: `https://lshyhtgvqdmrakrbcgox.supabase.co`
 3. Add `VITE_SUPABASE_PUBLISHABLE_KEY` with your Supabase anon key
 4. **Critical**: Set for ALL environments (Production, Preview, Development)
 5. **Trigger new deployment** after adding variables (Vercel → Deployments → Redeploy)
@@ -381,14 +381,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 - Console shows URL normalization warnings
 
 **Common Format Issues:**
-- ❌ Trailing slash: `https://ojtfnhzqhfsprebvpmvx.supabase.co/`
-- ❌ Missing protocol: `ojtfnhzqhfsprebvpmvx.supabase.co`
-- ❌ Extra whitespace: ` https://ojtfnhzqhfsprebvpmvx.supabase.co `
+- ❌ Trailing slash: `https://lshyhtgvqdmrakrbcgox.supabase.co/`
+- ❌ Missing protocol: `lshyhtgvqdmrakrbcgox.supabase.co`
+- ❌ Extra whitespace: ` https://lshyhtgvqdmrakrbcgox.supabase.co `
 - ❌ Wrong project ID: `https://wrong-id.supabase.co`
 
 **Solution:**
 1. URL is automatically normalized, but fix in Vercel Dashboard:
-2. Use exact format: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+2. Use exact format: `https://lshyhtgvqdmrakrbcgox.supabase.co`
 3. No trailing slash, no extra spaces, correct project ID
 4. Redeploy after fixing
 
@@ -424,14 +424,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 **Solution:**
 1. Go to Supabase Dashboard
-2. Verify project `ojtfnhzqhfsprebvpmvx` exists
+2. Verify project `lshyhtgvqdmrakrbcgox` exists
 3. Check project status (should be "Active")
 4. If project was deleted, create new project and update URL
 
 **Verification:**
-- Test URL directly: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+- Test URL directly: `https://lshyhtgvqdmrakrbcgox.supabase.co`
 - Use "Check Configuration" button in scanner UI
-- Check DNS resolution: `nslookup ojtfnhzqhfsprebvpmvx.supabase.co`
+- Check DNS resolution: `nslookup lshyhtgvqdmrakrbcgox.supabase.co`
 
 ---
 

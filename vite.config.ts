@@ -41,7 +41,7 @@ function validateEnvVars(): Plugin {
           throw new Error(
             `Invalid VITE_SUPABASE_URL format: ${url}\n` +
             `Expected format: https://[project-id].supabase.co\n` +
-            `Example: https://ojtfnhzqhfsprebvpmvx.supabase.co\n` +
+            `Example: https://lshyhtgvqdmrakrbcgox.supabase.co\n` +
             `Note: URL will be normalized to: ${normalizedUrl}`
           );
         }
