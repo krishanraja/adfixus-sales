@@ -26,7 +26,7 @@ export default function ScannerInput() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate('/scanner');
+      navigate('/');
     }
   }, [authLoading, isAuthenticated, navigate]);
 
@@ -86,7 +86,7 @@ export default function ScannerInput() {
 
   const handleLogout = () => {
     logout();
-    navigate('/scanner');
+    navigate('/');
   };
 
   const parsedDomains = parseDomains(domainInput);
