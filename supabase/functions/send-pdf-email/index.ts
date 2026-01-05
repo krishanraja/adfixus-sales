@@ -1,11 +1,35 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+// Resend API wrapper
+async function sendEmail(apiKey: string, options: {
+  from: string;
+  to: string[];
+  subject: string;
+  html: string;
+  attachments?: Array<{ filename: string; content: string | Uint8Array }>;
+}) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(options),
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Resend API error: ${error}`);
+  }
+  
+  return response.json();
+}
 
 interface EmailRequest {
   pdfBase64: string;
@@ -50,8 +74,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     console.log("RESEND_API_KEY found successfully");
-
-    const resend = new Resend(resendApiKey);
     
     const requestBody = await req.json();
     console.log("Request body received:", JSON.stringify(requestBody, null, 2));
@@ -101,11 +123,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Generate comprehensive email content that matches PDF depth
     const getGradeColor = (grade: string) => {
-      const colors = {
+      const colors: Record<string, string> = {
         'A+': '#059669', 'A': '#10b981', 'B': '#3b82f6', 
         'C': '#f59e0b', 'D': '#f97316', 'F': '#ef4444'
       };
       return colors[grade] || '#ef4444';
+    };
+    
+    const categoryNames: Record<string, string> = {
+      durability: 'ID Durability',
+      'cross-domain': 'Cross-Domain',
+      privacy: 'Privacy',
+      browser: 'Browser Support'
     };
 
     const generateDetailedRecommendations = () => {
@@ -374,22 +403,23 @@ const handler = async (req: Request): Promise<Response> => {
               ${Object.entries(quizResults.scores || {})
                 .filter(([category]) => category !== 'sales-mix')
                 .map(([category, data]: [string, any]) => {
-                  const categoryNames = {
+                  const catNames: Record<string, string> = {
                     'durability': 'Identity Durability',
                     'cross-domain': 'Cross-Domain Visibility', 
                     'privacy': 'Privacy & Compliance',
                     'browser': 'Browser Resilience'
                   };
+                  const catName = catNames[category] || category;
                   return `
                     <div style="margin: 20px 0; padding: 20px; background-color: #1a1a1a; border-radius: 8px; border-left: 6px solid ${getGradeColor(data.grade)};">
                       <div style="display: flex; align-items: center; margin-bottom: 10px;">
                         <span class="grade-badge" style="background-color: ${getGradeColor(data.grade)}; display: inline-block; padding: 8px 16px; border-radius: 25px; color: #ffffff; font-weight: bold; font-size: 16px; margin-right: 15px;">
                           ${data.grade}
                         </span>
-                        <h4 style="margin: 0; font-size: 18px; color: #ffffff; font-family: 'Montserrat', sans-serif;">${categoryNames[category] || category}</h4>
+                        <h4 style="margin: 0; font-size: 18px; color: #ffffff; font-family: 'Montserrat', sans-serif;">${catName}</h4>
                       </div>
                       <p style="margin: 5px 0; color: #a0a0a0;"><strong style="color: #ffffff;">Score:</strong> ${Math.round(data.score)}/4</p>
-                      <p style="margin: 5px 0; font-size: 14px; line-height: 1.5; color: #a0a0a0;">Category performance indicates ${data.grade === 'A+' || data.grade === 'A' ? 'excellent' : data.grade === 'B' ? 'good' : data.grade === 'C' ? 'moderate' : 'significant improvement needed'} ${categoryNames[category]?.toLowerCase()} capabilities.</p>
+                      <p style="margin: 5px 0; font-size: 14px; line-height: 1.5; color: #a0a0a0;">Category performance indicates ${data.grade === 'A+' || data.grade === 'A' ? 'excellent' : data.grade === 'B' ? 'good' : data.grade === 'C' ? 'moderate' : 'significant improvement needed'} ${catName.toLowerCase()} capabilities.</p>
                     </div>
                   `;
                 }).join('')}
@@ -652,7 +682,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Attempting to send email with Resend...");
-    const emailResponse = await resend.emails.send({
+    const emailResponse = await sendEmail(resendApiKey, {
       from: "AdFixus ROI Calculator <hello@idfixus.com>",
       to: ["krish.raja@adfixus.com", "roland.irwin@adfixus.com"],
       subject: `New AdFixus Analysis: ${userName} from ${userCompany}`,
