@@ -37,7 +37,7 @@ If not auto-detected, manually set:
 
 ### 3. Set Environment Variables
 
-**Critical:** Set these in Vercel Dashboard before deploying:
+**Critical:** Set these in Vercel Dashboard **BEFORE** first deployment:
 
 1. Go to Project Settings → Environment Variables
 2. Add the following variables:
@@ -48,13 +48,27 @@ VITE_SUPABASE_URL=https://ojtfnhzqhfsprebvpmvx.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key-here
 ```
 
+**Important Format Requirements:**
+- URL must NOT have trailing slash
+- URL must use `https://` protocol
+- URL format: `https://[project-id].supabase.co`
+- No extra whitespace
+
 **Optional:**
 ```
 VITE_MEETING_BOOKING_URL=https://outlook.office.com/book/SalesTeambooking@adfixus.com
 ```
 
-3. **Important:** Set for all environments (Production, Preview, Development)
+3. **Critical:** Set for ALL environments:
+   - ✅ Production
+   - ✅ Preview  
+   - ✅ Development
+   
+   (Click each environment checkbox when adding variable)
+
 4. Click "Save" after adding each variable
+
+**Note:** Build will fail if required env vars are missing (prevents broken deployments)
 
 ### 4. Deploy
 
@@ -124,48 +138,177 @@ vercel --prod
 
 ---
 
+## Pre-Deployment Checklist
+
+**Before deploying, verify:**
+
+- [ ] **Environment Variables Set:**
+  - [ ] `VITE_SUPABASE_URL` is set in Vercel Dashboard
+  - [ ] `VITE_SUPABASE_PUBLISHABLE_KEY` is set in Vercel Dashboard
+  - [ ] Variables are set for Production, Preview, AND Development
+  - [ ] URL format is correct (no trailing slash, https://, correct project ID)
+
+- [ ] **Supabase Project Verified:**
+  - [ ] Project `ojtfnhzqhfsprebvpmvx` exists in Supabase Dashboard
+  - [ ] Project status is "Active"
+  - [ ] Edge functions are deployed (check Supabase Dashboard → Edge Functions)
+
+- [ ] **Build Validation:**
+  - [ ] Build will fail if env vars missing (automatic validation)
+  - [ ] Build logs show: `[build] Environment variables validated successfully`
+
+---
+
 ## Troubleshooting
 
-### Build Fails
+### Build Fails with "Missing required environment variables"
+
+**Cause:** Required env vars not set in Vercel Dashboard
+
+**Solution:**
+1. Go to Vercel Dashboard → Project Settings → Environment Variables
+2. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
+3. Set for all environments (Production, Preview, Development)
+4. Trigger new deployment
+
+**Prevention:** Always set env vars before first deployment
+
+---
+
+### Build Fails with "Invalid VITE_SUPABASE_URL format"
+
+**Cause:** URL format is incorrect
+
+**Solution:**
+1. Check URL format in Vercel Dashboard
+2. Must be: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+3. Must NOT have trailing slash
+4. Must use `https://` (not `http://`)
+5. Fix in Vercel Dashboard and redeploy
+
+**Note:** URL is automatically normalized at runtime, but fix in Vercel for consistency
+
+---
+
+### ERR_NAME_NOT_RESOLVED After Deployment
+
+**Symptoms:**
+- Scanner shows "Scanner Service Unavailable"
+- Browser console shows DNS resolution failure
+- Network tab shows `ERR_NAME_NOT_RESOLVED`
+
+**All Possible Causes & Solutions:**
+
+#### Cause 1: Environment Variable Not Set (MOST COMMON)
 
 **Check:**
-1. Build logs in Vercel Dashboard
-2. TypeScript errors: `npm run lint`
-3. Missing dependencies: `npm install`
-
-### Environment Variables Not Working
-
-**Symptoms:**
-- `ERR_NAME_NOT_RESOLVED` errors
-- Scanner shows "Service Unavailable"
-- Console shows `[DIAGNOSTIC] VITE_SUPABASE_URL set: false`
+- Browser console: `[DIAGNOSTIC] VITE_SUPABASE_URL set: false`
+- Vercel Dashboard → Environment Variables
 
 **Solution:**
-1. Verify variables are set in Vercel Dashboard
-2. Check variable names match exactly (case-sensitive)
-3. Ensure variables are set for correct environment
-4. Redeploy after adding variables
-5. Check browser console for `[DIAGNOSTIC]` logs
+1. Add `VITE_SUPABASE_URL` in Vercel Dashboard
+2. Set for ALL environments
+3. Trigger new deployment
+4. Use "Check Configuration" button in scanner UI to verify
 
-### Edge Functions Not Accessible
+---
 
-**Symptoms:**
-- Health check fails
-- DNS resolution errors
+#### Cause 2: Environment Variable Set for Wrong Environment
+
+**Check:**
+- Which environment is your deployment using? (Production/Preview)
+- Are env vars set for that specific environment?
 
 **Solution:**
-1. Verify `VITE_SUPABASE_URL` is correct
-2. Check Supabase Dashboard → Edge Functions are deployed
-3. Test edge function URL directly: `https://ojtfnhzqhfsprebvpmvx.supabase.co/functions/v1/scan-domain`
-4. Check browser console for `[DIAGNOSTIC]` logs showing actual URL
+1. Go to Vercel Dashboard → Environment Variables
+2. Edit each variable
+3. Check ALL three environments: Production, Preview, Development
+4. Save and redeploy
+
+---
+
+#### Cause 3: Build Happened Before Env Vars Were Set
+
+**Check:**
+- When were env vars added vs when was build completed?
+- Build logs show env var validation?
+
+**Solution:**
+1. Go to Vercel Dashboard → Deployments
+2. Click "Redeploy" on latest deployment
+3. Or push new commit to trigger rebuild
+4. Build will now include env vars
+
+---
+
+#### Cause 4: URL Format Issues
+
+**Check:**
+- Browser console for normalization warnings
+- Use "Check Configuration" button to see normalized URL
+
+**Solution:**
+1. Fix URL in Vercel Dashboard:
+   - Remove trailing slash if present
+   - Ensure `https://` protocol
+   - Remove any extra whitespace
+2. Redeploy after fixing
+
+---
+
+#### Cause 5: Supabase Project Doesn't Exist
+
+**Check:**
+- Use "Check Configuration" button - shows DNS resolution status
+- Test URL directly: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+
+**Solution:**
+1. Go to Supabase Dashboard
+2. Verify project exists and is active
+3. If deleted, create new project and update URL in Vercel
+
+---
+
+#### Cause 6: Edge Function Not Deployed
+
+**Check:**
+- Supabase Dashboard → Edge Functions
+- Function `scan-domain` exists and is deployed
+
+**Solution:**
+1. Deploy edge function in Supabase Dashboard
+2. Check function logs for errors
+3. Verify function is accessible
+
+---
+
+### Using the Diagnostic Tool
+
+The scanner UI includes comprehensive diagnostics:
+
+1. **When service is unavailable**, click "Check Configuration" button
+2. **Review diagnostic results:**
+   - Environment variable status
+   - URL format validation
+   - DNS resolution
+   - URL accessibility
+   - Specific recommendations
+3. **Follow recommendations** to fix the issue
+4. **Click "Retry Connection"** after fixing
+
+**Diagnostic checks all root causes automatically and provides actionable feedback.**
+
+---
 
 ### Multiple GoTrueClient Warning
 
 **Solution:**
-- This is now minimized with isolated storage
+- This warning is minimized with isolated storage
 - Hard refresh browser (Cmd+Shift+R / Ctrl+Shift+R)
 - Clear browser cache
-- Warning is harmless but can be ignored
+- Warning is mostly harmless but indicates both clients are active
+
+**Note:** This is a known limitation when using two Supabase clients. Functionality is not affected.
 
 ---
 

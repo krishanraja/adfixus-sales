@@ -3,6 +3,170 @@
 import { supabase } from '@/integrations/supabase/client';
 import { scannerSupabase } from '@/integrations/supabase/scanner-client';
 import type { DomainScan, DomainResult, PublisherContext, ScanRequest } from '@/types/scanner';
+import { normalizeSupabaseUrl, validateSupabaseUrlFormat } from '@/utils/envValidation';
+
+/**
+ * Diagnostic result interface
+ */
+export interface DiagnosticResult {
+  envVarSet: boolean;
+  envVarFormat: 'valid' | 'invalid' | 'unknown';
+  url: string | null;
+  urlAccessible: boolean;
+  dnsResolves: boolean;
+  recommendations: string[];
+}
+
+/**
+ * Comprehensive diagnostic for environment and configuration
+ * Checks all possible root causes of ERR_NAME_NOT_RESOLVED errors
+ */
+export async function diagnoseConfiguration(): Promise<DiagnosticResult> {
+  const diagnostics: DiagnosticResult = {
+    envVarSet: false,
+    envVarFormat: 'unknown',
+    url: null,
+    urlAccessible: false,
+    dnsResolves: false,
+    recommendations: [],
+  };
+  
+  // Check if env var is set
+  const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+  diagnostics.envVarSet = !!rawUrl;
+  
+  console.log('[scannerApi] [DIAGNOSTIC] Starting configuration diagnosis...');
+  console.log('[scannerApi] [DIAGNOSTIC] VITE_SUPABASE_URL set:', diagnostics.envVarSet);
+  
+  if (!rawUrl) {
+    diagnostics.recommendations.push(
+      'VITE_SUPABASE_URL is not set. Set it in Vercel Dashboard → Project Settings → Environment Variables'
+    );
+    diagnostics.recommendations.push(
+      'Ensure the variable is set for all environments: Production, Preview, and Development'
+    );
+    diagnostics.recommendations.push(
+      'After setting, trigger a new deployment in Vercel'
+    );
+    console.error('[scannerApi] [DIAGNOSTIC] Environment variable not set');
+    return diagnostics;
+  }
+  
+  // Normalize and validate URL
+  const normalizedUrl = normalizeSupabaseUrl(rawUrl);
+  const formatCheck = validateSupabaseUrlFormat(normalizedUrl);
+  diagnostics.url = normalizedUrl;
+  diagnostics.envVarFormat = formatCheck.valid ? 'valid' : 'invalid';
+  
+  console.log('[scannerApi] [DIAGNOSTIC] Raw URL:', rawUrl);
+  console.log('[scannerApi] [DIAGNOSTIC] Normalized URL:', normalizedUrl);
+  console.log('[scannerApi] [DIAGNOSTIC] URL format valid:', formatCheck.valid);
+  
+  if (rawUrl !== normalizedUrl) {
+    console.warn('[scannerApi] [DIAGNOSTIC] URL was normalized:', { from: rawUrl, to: normalizedUrl });
+    diagnostics.recommendations.push(
+      `URL was normalized from "${rawUrl}" to "${normalizedUrl}". Consider updating Vercel env var to the normalized format.`
+    );
+  }
+  
+  if (!formatCheck.valid) {
+    diagnostics.recommendations.push(
+      `URL format is invalid: ${formatCheck.error}`
+    );
+    diagnostics.recommendations.push(
+      'Expected format: https://[project-id].supabase.co'
+    );
+    diagnostics.recommendations.push(
+      'Example: https://ojtfnhzqhfsprebvpmvx.supabase.co'
+    );
+    console.error('[scannerApi] [DIAGNOSTIC] URL format invalid:', formatCheck.error);
+    return diagnostics;
+  }
+  
+  // Test URL accessibility and DNS resolution
+  try {
+    console.log('[scannerApi] [DIAGNOSTIC] Testing URL accessibility...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    const response = await fetch(`${normalizedUrl}/rest/v1/`, {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    diagnostics.urlAccessible = response.ok || response.status < 500;
+    diagnostics.dnsResolves = true; // If fetch doesn't throw, DNS resolved
+    
+    console.log('[scannerApi] [DIAGNOSTIC] URL accessible:', diagnostics.urlAccessible);
+    console.log('[scannerApi] [DIAGNOSTIC] DNS resolves:', diagnostics.dnsResolves);
+    console.log('[scannerApi] [DIAGNOSTIC] Response status:', response.status);
+    
+    if (!diagnostics.urlAccessible && response.status >= 500) {
+      diagnostics.recommendations.push(
+        'Supabase URL is reachable but returned server error. Check Supabase project status.'
+      );
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[scannerApi] [DIAGNOSTIC] URL test failed:', errorMessage);
+    
+    if (error instanceof TypeError && errorMessage.includes('Failed to fetch')) {
+      diagnostics.dnsResolves = false;
+      diagnostics.recommendations.push(
+        'DNS resolution failed. The domain cannot be resolved.'
+      );
+      diagnostics.recommendations.push(
+        'Possible causes:'
+      );
+      diagnostics.recommendations.push(
+        '  1. Supabase project does not exist or was deleted'
+      );
+      diagnostics.recommendations.push(
+        '  2. Project ID is incorrect'
+      );
+      diagnostics.recommendations.push(
+        '  3. Network/DNS issues'
+      );
+      diagnostics.recommendations.push(
+        'Action: Verify project exists in Supabase Dashboard'
+      );
+    } else if (error instanceof Error && error.name === 'AbortError') {
+      diagnostics.urlAccessible = false;
+      diagnostics.recommendations.push(
+        'URL accessibility test timed out. Check network connectivity.'
+      );
+    } else {
+      diagnostics.urlAccessible = false;
+      diagnostics.recommendations.push(
+        `Could not reach Supabase URL: ${errorMessage}`
+      );
+      diagnostics.recommendations.push(
+        'Check network connectivity and firewall settings.'
+      );
+    }
+  }
+  
+  // If all checks pass but still having issues, provide general recommendations
+  if (diagnostics.envVarSet && diagnostics.envVarFormat === 'valid' && diagnostics.dnsResolves) {
+    diagnostics.recommendations.push(
+      'Configuration appears correct. If issues persist:'
+    );
+    diagnostics.recommendations.push(
+      '  1. Check Vercel build logs for env var warnings'
+    );
+    diagnostics.recommendations.push(
+      '  2. Verify edge function is deployed in Supabase Dashboard'
+    );
+    diagnostics.recommendations.push(
+      '  3. Try clearing Vercel build cache and redeploying'
+    );
+  }
+  
+  console.log('[scannerApi] [DIAGNOSTIC] Diagnosis complete:', diagnostics);
+  return diagnostics;
+}
 
 // Health check to verify edge functions are deployed and accessible
 export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; error?: string }> {

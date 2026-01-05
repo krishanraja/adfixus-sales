@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScannerAuth } from '@/hooks/useScannerAuth';
 import { useDomainScan } from '@/hooks/useDomainScan';
-import { parseDomains, parseCSVFile, checkEdgeFunctionHealth } from '@/utils/scannerApi';
+import { parseDomains, parseCSVFile, checkEdgeFunctionHealth, diagnoseConfiguration, type DiagnosticResult } from '@/utils/scannerApi';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,62 @@ export default function ScannerInput() {
   const [serviceStatus, setServiceStatus] = useState<'checking' | 'healthy' | 'unavailable'>('checking');
   const [serviceError, setServiceError] = useState<string | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticResult | null>(null);
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   const { error: scanError } = useDomainScan();
+
+  // Run comprehensive diagnostics
+  const runDiagnostics = useCallback(async () => {
+    setIsRunningDiagnostics(true);
+    console.log('[ScannerInput] Running configuration diagnostics...');
+    
+    try {
+      const result = await diagnoseConfiguration();
+      setDiagnostics(result);
+      
+      // Show specific error based on diagnostics
+      if (!result.envVarSet) {
+        toast({
+          title: 'Configuration Error',
+          description: 'VITE_SUPABASE_URL is not set. Please configure it in Vercel Dashboard → Project Settings → Environment Variables.',
+          variant: 'destructive',
+        });
+      } else if (result.envVarFormat === 'invalid') {
+        toast({
+          title: 'Configuration Error',
+          description: `VITE_SUPABASE_URL format is invalid. ${result.recommendations[0] || 'Check the URL format.'}`,
+          variant: 'destructive',
+        });
+      } else if (!result.dnsResolves) {
+        toast({
+          title: 'DNS Resolution Failed',
+          description: 'Cannot resolve Supabase domain. Check if the project exists in Supabase Dashboard.',
+          variant: 'destructive',
+        });
+      } else if (!result.urlAccessible) {
+        toast({
+          title: 'Connection Issue',
+          description: 'Supabase URL is not accessible. Check network connectivity or project status.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Configuration Check Complete',
+          description: 'Configuration appears correct. If issues persist, check edge function deployment.',
+          variant: 'default',
+        });
+      }
+    } catch (error) {
+      console.error('[ScannerInput] Diagnostics failed:', error);
+      toast({
+        title: 'Diagnostics Error',
+        description: 'Failed to run diagnostics. Check browser console for details.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRunningDiagnostics(false);
+    }
+  }, [toast]);
 
   // Check if edge functions are available on mount and provide retry function
   const checkHealth = useCallback(async () => {
@@ -53,22 +108,18 @@ export default function ScannerInput() {
       console.log('[ScannerInput] Scanner service is healthy');
       setServiceStatus('healthy');
       setServiceError(null);
+      setDiagnostics(null); // Clear diagnostics if service is healthy
     } else {
       console.error('[ScannerInput] Scanner service unavailable:', error);
       setServiceStatus('unavailable');
       setServiceError(error || 'Scanner service is not available');
       
-      if (error?.includes('not deployed') || error?.includes('not accessible')) {
-        toast({
-          title: 'Scanner Service Unavailable',
-          description: 'The scanner service is not accessible. Please check your configuration or try again later.',
-          variant: 'destructive',
-        });
-      }
+      // Automatically run diagnostics when health check fails
+      runDiagnostics();
     }
     
     setIsCheckingHealth(false);
-  }, [toast]);
+  }, [toast, runDiagnostics]);
 
   useEffect(() => {
     checkHealth();
@@ -382,12 +433,63 @@ export default function ScannerInput() {
           {serviceStatus === 'unavailable' && (
             <Card className="mt-6 border-destructive/50 bg-destructive/10">
               <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
+                <div className="space-y-4">
+                  <div>
                     <h3 className="font-semibold text-destructive mb-2">Scanner Service Unavailable</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">
                       {serviceError || 'The scanner service is not accessible. This may be a temporary issue.'}
                     </p>
+                  </div>
+                  
+                  {/* Diagnostic Results */}
+                  {diagnostics && (
+                    <div className="bg-background/50 rounded-lg p-4 space-y-3 border border-border/50">
+                      <h4 className="font-medium text-foreground text-sm">Configuration Diagnostics</h4>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Environment Variable:</span>
+                          <Badge variant={diagnostics.envVarSet ? "outline" : "destructive"} className="text-xs">
+                            {diagnostics.envVarSet ? 'Set' : 'Not Set'}
+                          </Badge>
+                        </div>
+                        {diagnostics.envVarSet && (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">URL Format:</span>
+                              <Badge variant={diagnostics.envVarFormat === 'valid' ? "outline" : "destructive"} className="text-xs">
+                                {diagnostics.envVarFormat === 'valid' ? 'Valid' : 'Invalid'}
+                              </Badge>
+                            </div>
+                            {diagnostics.url && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">URL:</span>
+                                <code className="text-xs bg-secondary/50 px-2 py-1 rounded">{diagnostics.url}</code>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">DNS Resolution:</span>
+                              <Badge variant={diagnostics.dnsResolves ? "outline" : "destructive"} className="text-xs">
+                                {diagnostics.dnsResolves ? 'Resolves' : 'Failed'}
+                              </Badge>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
+                      {diagnostics.recommendations.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-border/50">
+                          <h5 className="font-medium text-foreground text-xs mb-2">Recommendations:</h5>
+                          <ul className="list-disc list-inside space-y-1 text-xs text-muted-foreground">
+                            {diagnostics.recommendations.map((rec, idx) => (
+                              <li key={idx}>{rec}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -404,6 +506,25 @@ export default function ScannerInput() {
                         <>
                           <CheckCircle className="h-3 w-3 mr-2" />
                           Retry Connection
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={runDiagnostics}
+                      disabled={isRunningDiagnostics}
+                      className="border-primary/50 text-primary hover:bg-primary/10"
+                    >
+                      {isRunningDiagnostics ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2" />
+                          Running...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-3 w-3 mr-2" />
+                          Check Configuration
                         </>
                       )}
                     </Button>

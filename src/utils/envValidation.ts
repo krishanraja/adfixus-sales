@@ -13,21 +13,100 @@ interface ValidationResult {
 }
 
 /**
- * Validates Supabase configuration for the main Lovable Cloud project
+ * Normalizes Supabase URL to ensure correct format
+ * - Trims whitespace
+ * - Removes trailing slashes
+ * - Ensures https:// protocol
+ */
+export function normalizeSupabaseUrl(url: string): string {
+  if (!url) return url;
+  
+  // Trim whitespace
+  let normalized = url.trim();
+  
+  // Remove trailing slash
+  normalized = normalized.replace(/\/+$/, '');
+  
+  // Ensure https:// protocol
+  if (!normalized.startsWith('https://')) {
+    if (normalized.startsWith('http://')) {
+      normalized = normalized.replace('http://', 'https://');
+    } else {
+      normalized = `https://${normalized}`;
+    }
+  }
+  
+  return normalized;
+}
+
+/**
+ * Validates Supabase URL format strictly
+ * Returns validation result with error message if invalid
+ */
+export function validateSupabaseUrlFormat(url: string): { valid: boolean; error?: string } {
+  if (!url) {
+    return { valid: false, error: 'URL is empty' };
+  }
+  
+  // Must start with https://
+  if (!url.startsWith('https://')) {
+    return { valid: false, error: 'URL must use HTTPS protocol' };
+  }
+  
+  // Must match Supabase domain pattern: https://[project-id].supabase.co
+  const supabasePattern = /^https:\/\/[a-z0-9-]+\.supabase\.co$/;
+  if (!supabasePattern.test(url)) {
+    return { 
+      valid: false, 
+      error: `URL format invalid. Expected: https://[project-id].supabase.co, Got: ${url}` 
+    };
+  }
+  
+  // Must not have path (check after https://)
+  const afterProtocol = url.substring(8); // After "https://"
+  const pathIndex = afterProtocol.indexOf('/');
+  if (pathIndex !== -1) {
+    return { valid: false, error: 'URL must not contain a path' };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Validates Supabase configuration for the main Supabase project
  * Used for edge function calls
+ * Automatically normalizes URL format
  */
 export function validateSupabaseConfig(): SupabaseConfig {
-  const url = import.meta.env.VITE_SUPABASE_URL;
+  const rawUrl = import.meta.env.VITE_SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   
   const errors: string[] = [];
   
-  if (!url) {
+  if (!rawUrl) {
     errors.push('VITE_SUPABASE_URL is not set. This is required for edge function calls.');
-  } else if (!url.startsWith('https://')) {
-    errors.push(`VITE_SUPABASE_URL must be a valid HTTPS URL. Got: ${url}`);
-  } else if (!url.includes('.supabase.co')) {
-    errors.push(`VITE_SUPABASE_URL appears invalid. Expected format: https://[project-id].supabase.co`);
+  } else {
+    // Normalize URL (trim, remove trailing slash, ensure https://)
+    const normalizedUrl = normalizeSupabaseUrl(rawUrl);
+    
+    // Log if URL was normalized (for debugging)
+    if (rawUrl !== normalizedUrl && import.meta.env.DEV) {
+      console.warn('[envValidation] URL was normalized:', { from: rawUrl, to: normalizedUrl });
+    }
+    
+    // Validate format
+    const formatCheck = validateSupabaseUrlFormat(normalizedUrl);
+    if (!formatCheck.valid) {
+      errors.push(`VITE_SUPABASE_URL format error: ${formatCheck.error}`);
+      if (rawUrl !== normalizedUrl) {
+        errors.push(`Original URL: ${rawUrl}, Normalized: ${normalizedUrl}`);
+      }
+    }
+    
+    // Return normalized URL if valid
+    if (errors.length === 0) {
+      return { url: normalizedUrl, key: key || '' };
+    }
   }
   
   if (!key) {
@@ -37,7 +116,7 @@ export function validateSupabaseConfig(): SupabaseConfig {
   }
   
   if (errors.length > 0) {
-    const errorMessage = `Supabase configuration errors:\n${errors.map(e => `  - ${e}`).join('\n')}\n\nPlease check your .env file or environment variables.`;
+    const errorMessage = `Supabase configuration errors:\n${errors.map(e => `  - ${e}`).join('\n')}\n\nPlease check your .env file or environment variables in Vercel Dashboard.`;
     
     if (import.meta.env.DEV) {
       console.error('[envValidation]', errorMessage);
@@ -49,7 +128,9 @@ export function validateSupabaseConfig(): SupabaseConfig {
     }
   }
   
-  return { url, key };
+  // This should never be reached, but TypeScript needs it
+  const normalizedUrl = rawUrl ? normalizeSupabaseUrl(rawUrl) : '';
+  return { url: normalizedUrl, key: key || '' };
 }
 
 /**
