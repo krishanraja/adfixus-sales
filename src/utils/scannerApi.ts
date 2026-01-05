@@ -1,40 +1,45 @@
 // Scanner API utilities
 
-import { getScannerFunctionUrl, scannerSupabase } from '@/integrations/supabase/scanner-client';
+import { supabase } from '@/integrations/supabase/client';
+import { scannerSupabase } from '@/integrations/supabase/scanner-client';
 import type { DomainScan, DomainResult, PublisherContext, ScanRequest } from '@/types/scanner';
 
 export async function createScan(
   domains: string[],
   context?: PublisherContext
 ): Promise<{ scanId: string; error?: string }> {
+  console.log('[scannerApi] Starting scan for domains:', domains);
+  console.log('[scannerApi] Context:', context);
+  
   try {
-    const response = await fetch(getScannerFunctionUrl('scan-domain'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaHlodGd2cWRtcmFrcmJjZ294Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1ODY5NDEsImV4cCI6MjA4MzE2Mjk0MX0.ltwoNJ4MitSMmjL1mKhKPlAOtLv-63naF3qTqJES_CI',
-      },
-      body: JSON.stringify({
-        domains,
-        context,
-      } as ScanRequest),
+    // Call edge function via Lovable's Supabase client (where functions are deployed)
+    const { data, error } = await supabase.functions.invoke('scan-domain', {
+      body: { domains, context } as ScanRequest,
     });
     
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('Scan creation failed:', error);
-      return { scanId: '', error: error || 'Failed to create scan' };
+    console.log('[scannerApi] Response:', { data, error });
+    
+    if (error) {
+      console.error('[scannerApi] Function error:', error);
+      return { scanId: '', error: error.message };
     }
     
-    const data = await response.json();
+    if (!data?.scanId) {
+      console.error('[scannerApi] No scanId in response:', data);
+      return { scanId: '', error: 'No scan ID returned' };
+    }
+    
+    console.log('[scannerApi] Scan created successfully:', data.scanId);
     return { scanId: data.scanId };
   } catch (error) {
-    console.error('Scan creation error:', error);
+    console.error('[scannerApi] Exception:', error);
     return { scanId: '', error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
 export async function getScanStatus(scanId: string): Promise<DomainScan | null> {
+  console.log('[scannerApi] Fetching scan status:', scanId);
+  
   const { data, error } = await scannerSupabase
     .from('domain_scans')
     .select('*')
@@ -42,14 +47,17 @@ export async function getScanStatus(scanId: string): Promise<DomainScan | null> 
     .single();
   
   if (error) {
-    console.error('Error fetching scan status:', error);
+    console.error('[scannerApi] Error fetching scan status:', error);
     return null;
   }
   
+  console.log('[scannerApi] Scan status:', data);
   return data as DomainScan;
 }
 
 export async function getScanResults(scanId: string): Promise<DomainResult[]> {
+  console.log('[scannerApi] Fetching scan results:', scanId);
+  
   const { data, error } = await scannerSupabase
     .from('domain_results')
     .select('*')
@@ -57,10 +65,11 @@ export async function getScanResults(scanId: string): Promise<DomainResult[]> {
     .order('scanned_at', { ascending: true });
   
   if (error) {
-    console.error('Error fetching scan results:', error);
+    console.error('[scannerApi] Error fetching scan results:', error);
     return [];
   }
   
+  console.log('[scannerApi] Scan results count:', data?.length);
   return data as DomainResult[];
 }
 
@@ -95,11 +104,13 @@ export async function parseCSVFile(file: File): Promise<string[]> {
   });
 }
 
-// Subscribe to real-time scan updates
+// Subscribe to real-time scan updates (uses scanner database)
 export function subscribeScanUpdates(
   scanId: string,
   onUpdate: (scan: DomainScan) => void
 ) {
+  console.log('[scannerApi] Subscribing to scan updates:', scanId);
+  
   const channel = scannerSupabase
     .channel(`scan-${scanId}`)
     .on(
@@ -111,21 +122,25 @@ export function subscribeScanUpdates(
         filter: `id=eq.${scanId}`,
       },
       (payload) => {
+        console.log('[scannerApi] Scan update received:', payload.new);
         onUpdate(payload.new as DomainScan);
       }
     )
     .subscribe();
   
   return () => {
+    console.log('[scannerApi] Unsubscribing from scan updates:', scanId);
     scannerSupabase.removeChannel(channel);
   };
 }
 
-// Subscribe to real-time result updates
+// Subscribe to real-time result updates (uses scanner database)
 export function subscribeResultUpdates(
   scanId: string,
   onResult: (result: DomainResult) => void
 ) {
+  console.log('[scannerApi] Subscribing to result updates:', scanId);
+  
   const channel = scannerSupabase
     .channel(`results-${scanId}`)
     .on(
@@ -137,12 +152,14 @@ export function subscribeResultUpdates(
         filter: `scan_id=eq.${scanId}`,
       },
       (payload) => {
+        console.log('[scannerApi] Result update received:', payload.new);
         onResult(payload.new as DomainResult);
       }
     )
     .subscribe();
   
   return () => {
+    console.log('[scannerApi] Unsubscribing from result updates:', scanId);
     scannerSupabase.removeChannel(channel);
   };
 }

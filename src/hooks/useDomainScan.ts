@@ -48,11 +48,15 @@ export function useDomainScan(): UseDomainScanResult {
       return;
     }
 
+    console.log('[useDomainScan] Setting up real-time subscriptions for:', scan.id);
+
     const unsubscribeScan = subscribeScanUpdates(scan.id, (updatedScan) => {
+      console.log('[useDomainScan] Scan updated:', updatedScan.status);
       setScan(updatedScan);
     });
 
     const unsubscribeResults = subscribeResultUpdates(scan.id, (newResult) => {
+      console.log('[useDomainScan] New result for:', newResult.domain);
       setResults(prev => {
         // Avoid duplicates
         if (prev.some(r => r.id === newResult.id)) {
@@ -63,6 +67,7 @@ export function useDomainScan(): UseDomainScanResult {
     });
 
     return () => {
+      console.log('[useDomainScan] Cleaning up subscriptions');
       unsubscribeScan();
       unsubscribeResults();
     };
@@ -72,6 +77,10 @@ export function useDomainScan(): UseDomainScanResult {
     domains: string[], 
     publisherContext?: PublisherContext
   ): Promise<string | null> => {
+    console.log('[useDomainScan] Starting scan...');
+    console.log('[useDomainScan] Domains:', domains);
+    console.log('[useDomainScan] Context:', publisherContext);
+    
     setIsLoading(true);
     setError(null);
     setResults([]);
@@ -81,14 +90,18 @@ export function useDomainScan(): UseDomainScanResult {
     const { scanId, error: scanError } = await createScan(domains, publisherContext);
     
     if (scanError || !scanId) {
+      console.error('[useDomainScan] Scan failed:', scanError);
       setError(scanError || 'Failed to start scan');
       setIsLoading(false);
       return null;
     }
 
+    console.log('[useDomainScan] Scan started:', scanId);
+
     // Fetch initial scan status
     const initialScan = await getScanStatus(scanId);
     if (initialScan) {
+      console.log('[useDomainScan] Initial scan status:', initialScan.status);
       setScan(initialScan);
     }
 
@@ -97,6 +110,7 @@ export function useDomainScan(): UseDomainScanResult {
   }, []);
 
   const loadScan = useCallback(async (scanId: string) => {
+    console.log('[useDomainScan] Loading scan:', scanId);
     setIsLoading(true);
     setError(null);
 
@@ -106,11 +120,14 @@ export function useDomainScan(): UseDomainScanResult {
     ]);
 
     if (!scanData) {
+      console.error('[useDomainScan] Scan not found:', scanId);
       setError('Scan not found');
       setIsLoading(false);
       return;
     }
 
+    console.log('[useDomainScan] Loaded scan:', scanData.status, 'with', resultsData.length, 'results');
+    
     setScan(scanData);
     setResults(resultsData);
     

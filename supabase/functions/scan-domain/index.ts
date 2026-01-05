@@ -3,12 +3,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Scanner Supabase credentials
+// External Scanner Supabase credentials - stored in secrets
 const SCANNER_SUPABASE_URL = 'https://lshyhtgvqdmrakrbcgox.supabase.co';
-const SCANNER_SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const SCANNER_SUPABASE_SERVICE_KEY = Deno.env.get('SCANNER_SUPABASE_SERVICE_KEY') || '';
 
 // Browserless API for dynamic scanning
 const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY') || '';
@@ -89,15 +90,22 @@ interface TrancoData {
 }
 
 serve(async (req) => {
+  // CRITICAL: Handle OPTIONS preflight with explicit 200 status
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    console.log('[scan-domain] Handling CORS preflight');
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
-    console.log('Domain scan function called');
+    const origin = req.headers.get('origin') || 'unknown';
+    console.log('[scan-domain] Request received from:', origin);
+    
     const { domains, context }: ScanRequest = await req.json();
+    console.log('[scan-domain] Domains:', domains);
+    console.log('[scan-domain] Context:', context);
 
     if (!domains || domains.length === 0) {
+      console.error('[scan-domain] No domains provided');
       return new Response(
         JSON.stringify({ error: 'No domains provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -105,19 +113,26 @@ serve(async (req) => {
     }
 
     if (domains.length > 20) {
+      console.error('[scan-domain] Too many domains:', domains.length);
       return new Response(
         JSON.stringify({ error: 'Maximum 20 domains allowed per scan' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Starting scan for ${domains.length} domains`);
+    // Verify we have the scanner service key
+    if (!SCANNER_SUPABASE_SERVICE_KEY) {
+      console.error('[scan-domain] SCANNER_SUPABASE_SERVICE_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'Scanner database not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Create Supabase client for scanner database
-    const supabase = createClient(
-      SCANNER_SUPABASE_URL,
-      SCANNER_SUPABASE_SERVICE_KEY || Deno.env.get('SUPABASE_ANON_KEY') || ''
-    );
+    console.log(`[scan-domain] Starting scan for ${domains.length} domains`);
+
+    // Create Supabase client for EXTERNAL scanner database
+    const supabase = createClient(SCANNER_SUPABASE_URL, SCANNER_SUPABASE_SERVICE_KEY);
 
     // Create scan record
     const { data: scanRecord, error: insertError } = await supabase
@@ -134,7 +149,7 @@ serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error('Failed to create scan record:', insertError);
+      console.error('[scan-domain] Failed to create scan record:', insertError);
       return new Response(
         JSON.stringify({ error: 'Failed to create scan record', details: insertError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -142,19 +157,19 @@ serve(async (req) => {
     }
 
     const scanId = scanRecord.id;
-    console.log(`Created scan record: ${scanId}`);
+    console.log(`[scan-domain] Created scan record: ${scanId}`);
 
     // Process domains (async - don't wait for completion)
     processDomains(supabase, scanId, domains).catch(err => {
-      console.error('Background processing error:', err);
+      console.error('[scan-domain] Background processing error:', err);
     });
 
     return new Response(
       JSON.stringify({ scanId, message: 'Scan started' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Scan error:', error);
+    console.error('[scan-domain] Error:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -167,11 +182,11 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
 
   for (const domain of domains) {
     try {
-      console.log(`Scanning domain: ${domain}`);
+      console.log(`[scan-domain] Scanning domain: ${domain}`);
       
       // Fetch Tranco rank first (with rate limiting)
       const trancoData = await fetchTrancoData(domain);
-      console.log(`Tranco data for ${domain}:`, trancoData);
+      console.log(`[scan-domain] Tranco data for ${domain}:`, trancoData);
       
       // Small delay for Tranco API rate limiting (1 query/second)
       await new Promise(resolve => setTimeout(resolve, 1100));
@@ -236,7 +251,7 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         .eq('id', scanId);
 
     } catch (err) {
-      console.error(`Error scanning ${domain}:`, err);
+      console.error(`[scan-domain] Error scanning ${domain}:`, err);
       
       await supabase.from('domain_results').insert({
         scan_id: scanId,
@@ -287,7 +302,7 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
     .update({ status: 'completed' })
     .eq('id', scanId);
 
-  console.log(`Scan ${scanId} completed`);
+  console.log(`[scan-domain] Scan ${scanId} completed`);
 }
 
 // Fetch Tranco rank and estimate traffic with 30-day trend analysis
@@ -310,7 +325,7 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
       .split('/')[0]
       .split(':')[0];
     
-    console.log(`Fetching Tranco rank for: ${cleanDomain}`);
+    console.log(`[scan-domain] Fetching Tranco rank for: ${cleanDomain}`);
     
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -327,7 +342,7 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
     );
     
     if (!response.ok) {
-      console.log(`Tranco API returned ${response.status} for ${cleanDomain}`);
+      console.log(`[scan-domain] Tranco API returned ${response.status} for ${cleanDomain}`);
       return emptyResult;
     }
     
@@ -371,7 +386,7 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
       else if (rank <= 1000000) confidence = 'medium';
       else confidence = 'low';
       
-      console.log(`Tranco rank for ${cleanDomain}: #${rank}, trend: ${rankTrend} (${rankChange30d > 0 ? '+' : ''}${rankChange30d}), est. ${monthlyImpressions} impressions/mo`);
+      console.log(`[scan-domain] Tranco rank for ${cleanDomain}: #${rank}, trend: ${rankTrend} (${rankChange30d > 0 ? '+' : ''}${rankChange30d}), est. ${monthlyImpressions} impressions/mo`);
       
       return {
         rank,
@@ -384,11 +399,11 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
       };
     }
     
-    console.log(`No Tranco rank found for ${cleanDomain}`);
+    console.log(`[scan-domain] No Tranco rank found for ${cleanDomain}`);
     return emptyResult;
     
   } catch (err) {
-    console.error(`Tranco lookup failed for ${domain}:`, err);
+    console.error(`[scan-domain] Tranco lookup failed for ${domain}:`, err);
     return emptyResult;
   }
 }
@@ -401,7 +416,7 @@ async function scanDomain(domain: string) {
     try {
       return await scanWithBrowserless(url, domain);
     } catch (err) {
-      console.log(`Browserless failed for ${domain}, falling back to static:`, err);
+      console.log(`[scan-domain] Browserless failed for ${domain}, falling back to static:`, err);
     }
   }
   
@@ -505,85 +520,70 @@ function analyzeResults(html: string, cookies: Cookie[], domain: string) {
       break;
     }
   }
-
-  // TCF detection
-  const tcfCompliant = /__tcfapi|__tcfapiLocator|__cmp|gdpr.*consent/i.test(html);
-
-  // Pre-consent tracking detection
-  const loadsPreConsent = !cmpVendor && (hasGoogleAnalytics || hasMetaPixel || hasCriteo);
-
+  
+  // TCF compliance detection
+  const tcfCompliant = /__tcfapi|__cmp|__gpp/i.test(html);
+  
+  // Detect if scripts load pre-consent
+  const loadsPreConsent = /optanon-show|cookieconsent|consent-manager/i.test(html) === false &&
+    (hasGoogleAnalytics || hasMetaPixel || hasCriteo);
+  
   // SSP detection
   const detectedSsps = SSP_PATTERNS
     .filter(ssp => ssp.pattern.test(html))
     .map(ssp => ssp.name);
-
+  
   // Header bidding detection
-  const hasHeaderBidding = hasPrebid || hasAmazonTam || detectedSsps.length > 1;
-
+  const hasHeaderBidding = hasPrebid || hasAmazonTam || /hb_pb|prebid|header.*bidding/i.test(html);
+  
   // Conversion API detection
-  const hasConversionApi = hasMetaCapi || /enhanced.*conversion|gtag.*conversion/i.test(html);
-
+  const hasConversionApi = hasMetaCapi || /capi|server.*side.*tracking|conversion.*api/i.test(html);
+  
   // Cookie analysis
-  const totalCookies = cookies.length > 0 ? cookies.length : estimateCookiesFromHtml(html);
-  const thirdPartyCookies = cookies.filter(c => !c.domain.includes(domain)).length;
-  const firstPartyCookies = totalCookies - thirdPartyCookies;
+  const totalCookies = cookies.length || estimateCookiesFromHtml(html);
+  const firstPartyCookies = cookies.filter(c => c.domain.includes(domain)).length;
+  const thirdPartyCookies = totalCookies - firstPartyCookies;
+  
+  // Cookie duration analysis
+  const now = Date.now() / 1000;
+  const cookieDurations = cookies.map(c => (c.expires - now) / 86400);
+  const maxCookieDuration = Math.max(0, ...cookieDurations);
   const sessionCookies = cookies.filter(c => c.expires === -1 || c.expires === 0).length;
-  const persistentCookies = totalCookies - sessionCookies;
+  const persistentCookies = cookies.filter(c => c.expires > now).length;
   
-  // Safari would block third-party cookies
-  const safariBlockedCookies = thirdPartyCookies > 0 ? thirdPartyCookies : Math.floor(totalCookies * 0.58);
+  // Safari ITP impact - 3rd party cookies and long-duration 1st party
+  const safariBlocked = thirdPartyCookies + 
+    cookies.filter(c => c.domain.includes(domain) && (c.expires - now) > 7 * 86400).length;
   
-  // Max cookie duration
-  const maxCookieDuration = cookies.length > 0
-    ? Math.max(...cookies.map(c => c.expires > 0 ? Math.floor((c.expires * 1000 - Date.now()) / (1000 * 60 * 60 * 24)) : 0))
-    : 365;
-
-  // Revenue impact calculations
-  const safariMarketShare = 0.52;
-  const blockedRatio = totalCookies > 0 ? safariBlockedCookies / totalCookies : 0.58;
-  const addressabilityGapPct = blockedRatio * safariMarketShare * 100;
-  const estimatedSafariLossPct = addressabilityGapPct * 0.30;
-
-  // ID bloat severity
-  let idBloatSeverity: string;
-  if (totalCookies > 100) idBloatSeverity = 'critical';
-  else if (totalCookies > 70) idBloatSeverity = 'high';
-  else if (totalCookies > 40) idBloatSeverity = 'medium';
-  else idBloatSeverity = 'low';
-
-  // Privacy risk level
-  let privacyRiskLevel: string;
-  if (loadsPreConsent || !cmpVendor) privacyRiskLevel = 'high-risk';
-  else if (!tcfCompliant) privacyRiskLevel = 'moderate';
-  else privacyRiskLevel = 'compliant';
-
-  // Competitive positioning
-  let competitivePositioning: string;
-  const hasIdGraph = hasLiveramp || hasId5 || hasTtd;
-  const thirdPartyRatio = totalCookies > 0 ? thirdPartyCookies / totalCookies : 0.58;
+  // Calculate scores
+  const addressabilityGap = calculateAddressabilityGap(
+    hasGoogleAnalytics, hasMetaPixel, hasPpid, hasLiveramp, hasId5, thirdPartyCookies
+  );
   
-  if (hasConversionApi && hasPpid) {
-    competitivePositioning = 'walled-garden-parity';
-  } else if (hasIdGraph && !hasPpid) {
-    competitivePositioning = 'middle-pack';
-  } else if (thirdPartyRatio > 0.6 && !hasPpid) {
-    competitivePositioning = 'at-risk';
-  } else if (!hasIdGraph && !hasPpid && !hasConversionApi) {
-    competitivePositioning = 'commoditized';
-  } else {
-    competitivePositioning = 'middle-pack';
-  }
-
+  const safariLoss = Math.min(30 + (safariBlocked * 2), 50);
+  
+  const idBloatSeverity = calculateIdBloat(
+    hasLiveramp, hasId5, hasCriteo, hasTtd, thirdPartyCookies
+  );
+  
+  const privacyRisk = calculatePrivacyRisk(
+    loadsPreConsent, !tcfCompliant, thirdPartyCookies, maxCookieDuration
+  );
+  
+  const competitivePosition = calculateCompetitivePosition(
+    hasConversionApi, hasPpid, hasHeaderBidding, addressabilityGap
+  );
+  
   return {
-    status: 'success' as const,
+    status: 'completed' as const,
     error_message: null,
     total_cookies: totalCookies,
     first_party_cookies: firstPartyCookies,
     third_party_cookies: thirdPartyCookies,
-    max_cookie_duration_days: maxCookieDuration,
+    max_cookie_duration_days: Math.round(maxCookieDuration),
     session_cookies: sessionCookies,
     persistent_cookies: persistentCookies,
-    safari_blocked_cookies: safariBlockedCookies,
+    safari_blocked_cookies: safariBlocked,
     has_google_analytics: hasGoogleAnalytics,
     has_gtm: hasGtm,
     has_gcm: hasGcm,
@@ -601,53 +601,124 @@ function analyzeResults(html: string, cookies: Cookie[], domain: string) {
     has_header_bidding: hasHeaderBidding,
     has_conversion_api: hasConversionApi,
     detected_ssps: detectedSsps,
-    addressability_gap_pct: Math.round(addressabilityGapPct * 100) / 100,
-    estimated_safari_loss_pct: Math.round(estimatedSafariLossPct * 100) / 100,
+    addressability_gap_pct: addressabilityGap,
+    estimated_safari_loss_pct: safariLoss,
     id_bloat_severity: idBloatSeverity,
-    privacy_risk_level: privacyRiskLevel,
-    competitive_positioning: competitivePositioning,
-    cookies_raw: cookies,
+    privacy_risk_level: privacyRisk,
+    competitive_positioning: competitivePosition,
+    cookies_raw: cookies.slice(0, 50), // Limit stored cookies
     vendors_raw: {
-      googleAnalytics: hasGoogleAnalytics,
+      google_analytics: hasGoogleAnalytics,
       gtm: hasGtm,
       gcm: hasGcm,
-      metaPixel: hasMetaPixel,
-      metaCapi: hasMetaCapi,
+      meta_pixel: hasMetaPixel,
+      meta_capi: hasMetaCapi,
       ttd: hasTtd,
       liveramp: hasLiveramp,
       id5: hasId5,
       criteo: hasCriteo,
-      ppid: hasPpid,
       prebid: hasPrebid,
-      headerBidding: hasHeaderBidding,
-      conversionApi: hasConversionApi,
-      detectedSsps,
-      cmpVendor,
-      tcfCompliant,
-      loadsPreConsent,
+      amazon_tam: hasAmazonTam,
     },
     network_requests_summary: {
-      totalRequests: 0,
-      thirdPartyRequests: 0,
-      trackingRequests: 0,
-      adRequests: 0,
+      total_vendors: detectedSsps.length + (hasGoogleAnalytics ? 1 : 0) + (hasMetaPixel ? 1 : 0),
+      ad_tech_requests: detectedSsps.length,
+      analytics_requests: (hasGoogleAnalytics ? 1 : 0) + (hasGtm ? 1 : 0),
     },
   };
 }
 
 function estimateCookiesFromHtml(html: string): number {
-  // Estimate cookies based on detected vendors
-  let estimate = 10; // Base cookies
+  // Estimate cookies based on detected scripts
+  let estimate = 0;
+  if (VENDOR_PATTERNS.google_analytics.some(p => p.test(html))) estimate += 3;
+  if (VENDOR_PATTERNS.gtm.some(p => p.test(html))) estimate += 2;
+  if (VENDOR_PATTERNS.meta_pixel.some(p => p.test(html))) estimate += 4;
+  if (VENDOR_PATTERNS.criteo.some(p => p.test(html))) estimate += 5;
+  if (VENDOR_PATTERNS.liveramp.some(p => p.test(html))) estimate += 3;
+  if (VENDOR_PATTERNS.ttd.some(p => p.test(html))) estimate += 3;
+  return estimate;
+}
+
+function calculateAddressabilityGap(
+  hasGA: boolean,
+  hasMeta: boolean,
+  hasPpid: boolean,
+  hasLiveramp: boolean,
+  hasId5: boolean,
+  thirdPartyCookies: number
+): number {
+  // Base gap from industry averages
+  let gap = 52;
   
-  if (/google-analytics|gtag/.test(html)) estimate += 8;
-  if (/googletagmanager/.test(html)) estimate += 5;
-  if (/facebook|fbq/.test(html)) estimate += 6;
-  if (/criteo/.test(html)) estimate += 10;
-  if (/liveramp|rlcdn/.test(html)) estimate += 8;
-  if (/thetradedesk|adsrvr/.test(html)) estimate += 5;
-  if (/id5-sync/.test(html)) estimate += 3;
-  if (/prebid/.test(html)) estimate += 15;
-  if (/doubleclick|googletag/.test(html)) estimate += 12;
+  // PPID reduces gap significantly
+  if (hasPpid) gap -= 15;
   
-  return Math.min(estimate, 150);
+  // ID partners help
+  if (hasLiveramp) gap -= 8;
+  if (hasId5) gap -= 5;
+  
+  // Heavy 3P cookie reliance increases gap
+  if (thirdPartyCookies > 20) gap += 10;
+  else if (thirdPartyCookies > 10) gap += 5;
+  
+  // No modern ID solution increases gap
+  if (!hasPpid && !hasLiveramp && !hasId5) gap += 12;
+  
+  return Math.max(20, Math.min(80, gap));
+}
+
+function calculateIdBloat(
+  hasLiveramp: boolean,
+  hasId5: boolean,
+  hasCriteo: boolean,
+  hasTtd: boolean,
+  thirdPartyCookies: number
+): 'low' | 'medium' | 'high' | 'critical' {
+  const idVendors = [hasLiveramp, hasId5, hasCriteo, hasTtd].filter(Boolean).length;
+  
+  if (idVendors >= 3 || thirdPartyCookies > 30) return 'critical';
+  if (idVendors >= 2 || thirdPartyCookies > 20) return 'high';
+  if (idVendors >= 1 || thirdPartyCookies > 10) return 'medium';
+  return 'low';
+}
+
+function calculatePrivacyRisk(
+  loadsPreConsent: boolean,
+  noTcf: boolean,
+  thirdPartyCookies: number,
+  maxCookieDuration: number
+): 'low' | 'moderate' | 'elevated' | 'high-risk' {
+  let score = 0;
+  
+  if (loadsPreConsent) score += 3;
+  if (noTcf) score += 2;
+  if (thirdPartyCookies > 20) score += 2;
+  if (maxCookieDuration > 365) score += 2;
+  if (maxCookieDuration > 730) score += 1;
+  
+  if (score >= 6) return 'high-risk';
+  if (score >= 4) return 'elevated';
+  if (score >= 2) return 'moderate';
+  return 'low';
+}
+
+function calculateCompetitivePosition(
+  hasConversionApi: boolean,
+  hasPpid: boolean,
+  hasHeaderBidding: boolean,
+  addressabilityGap: number
+): 'leader' | 'competitive' | 'at-risk' | 'lagging' {
+  let score = 0;
+  
+  if (hasConversionApi) score += 3;
+  if (hasPpid) score += 3;
+  if (hasHeaderBidding) score += 2;
+  if (addressabilityGap < 40) score += 2;
+  if (addressabilityGap < 30) score += 1;
+  
+  if (score >= 8) return 'leader';
+  if (score >= 5) return 'competitive';
+  if (score >= 2) return 'at-risk';
+  return 'lagging';
 }

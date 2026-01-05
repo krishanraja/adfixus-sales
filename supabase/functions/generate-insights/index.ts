@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -45,11 +46,16 @@ interface PublisherContext {
 }
 
 serve(async (req) => {
+  // CRITICAL: Handle OPTIONS preflight with explicit 200 status
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    console.log('[generate-insights] Handling CORS preflight');
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
+    const origin = req.headers.get('origin') || 'unknown';
+    console.log('[generate-insights] Request received from:', origin);
+    
     const { results, context, scanId }: { 
       results: DomainSummary[]; 
       context?: PublisherContext;
@@ -57,7 +63,7 @@ serve(async (req) => {
     } = await req.json();
 
     if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
+      console.error('[generate-insights] LOVABLE_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -100,7 +106,7 @@ ${results.map(r => `
 
 Provide strategic insights for this portfolio.`;
 
-    console.log(`Generating AI insights for scan ${scanId}`);
+    console.log(`[generate-insights] Generating AI insights for scan ${scanId}`);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -120,7 +126,7 @@ Provide strategic insights for this portfolio.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      console.error('[generate-insights] AI gateway error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -149,19 +155,19 @@ Provide strategic insights for this portfolio.`;
     try {
       insights = JSON.parse(content);
     } catch {
-      console.error('Failed to parse AI response:', content);
+      console.error('[generate-insights] Failed to parse AI response:', content);
       throw new Error('Invalid AI response format');
     }
 
-    console.log('AI insights generated successfully');
+    console.log('[generate-insights] AI insights generated successfully');
 
     return new Response(
       JSON.stringify(insights),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Generate insights error:', error);
+    console.error('[generate-insights] Error:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
