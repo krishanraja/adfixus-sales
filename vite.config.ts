@@ -7,19 +7,23 @@ function validateEnvVars(): Plugin {
   return {
     name: 'validate-env-vars',
     buildStart() {
-      const requiredVars = [
-        'VITE_SUPABASE_URL',
-        'VITE_SUPABASE_PUBLISHABLE_KEY'
-      ];
-      
-      const missing = requiredVars.filter(v => !process.env[v]);
-      
-      if (missing.length > 0) {
-        throw new Error(
-          `Missing required environment variables: ${missing.join(', ')}\n` +
-          `Please set these in Vercel Dashboard → Project Settings → Environment Variables\n` +
-          `Required for: Production, Preview, and Development environments`
-        );
+      // Only validate in production builds, not in development
+      // Vercel sets these during build, so we validate them
+      if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+        const requiredVars = [
+          'VITE_SUPABASE_URL',
+          'VITE_SUPABASE_PUBLISHABLE_KEY'
+        ];
+        
+        const missing = requiredVars.filter(v => !process.env[v]);
+        
+        if (missing.length > 0) {
+          throw new Error(
+            `Missing required environment variables: ${missing.join(', ')}\n` +
+            `Please set these in Vercel Dashboard → Project Settings → Environment Variables\n` +
+            `Required for: Production, Preview, and Development environments`
+          );
+        }
       }
       
       // Validate URL format
