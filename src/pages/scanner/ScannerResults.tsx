@@ -33,11 +33,11 @@ import {
   FileText,
   FileSpreadsheet,
   BarChart3,
-  Sparkles,
-  Brain
+  Sparkles
 } from 'lucide-react';
 import type { DomainResult, CompetitivePosition, PublisherContext } from '@/types/scanner';
 import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
+import adfixusIcon from '@/assets/adfixus-logo.png';
 
 const MEETING_URL = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
 
@@ -93,13 +93,19 @@ export default function ScannerResults() {
     }
   };
 
-  if (authLoading || isLoading) {
+  // Only show full-screen loading during initial auth/data fetch
+  // NOT during scan processing (that has its own UI)
+  if (authLoading || (isLoading && !scan)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="relative mx-auto mb-6">
             <div className="h-20 w-20 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-            <Brain className="h-8 w-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <img 
+              src={adfixusIcon} 
+              alt="AdFixus" 
+              className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
+            />
           </div>
           <p className="text-muted-foreground animate-pulse">AI is analyzing your portfolio...</p>
         </div>
@@ -204,7 +210,11 @@ export default function ScannerResults() {
                   <div className="relative mx-auto w-20 h-20 mb-6">
                     <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
                     <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                    <Brain className="h-8 w-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                    <img 
+                      src={adfixusIcon} 
+                      alt="AdFixus" 
+                      className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
+                    />
                   </div>
                   <h2 className="text-2xl font-bold text-foreground mb-2">AI Analysis in Progress</h2>
                   <p className="text-muted-foreground">
@@ -241,8 +251,31 @@ export default function ScannerResults() {
         </section>
       )}
 
+      {/* Empty State - Scan completed but no results */}
+      {!isProcessing && scan?.status === 'completed' && results.length === 0 && (
+        <section className="relative py-12 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <Card className="glass-card border-border/50">
+              <CardContent className="pt-8 pb-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="h-8 w-8 text-destructive" />
+                </div>
+                <h2 className="text-xl font-semibold text-foreground mb-2">No Results Found</h2>
+                <p className="text-muted-foreground mb-6">
+                  The scan completed but no domain results were found. This may indicate all domains failed to scan.
+                </p>
+                <Button onClick={() => navigate('/scanner/input')} variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Start New Scan
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
+
       {/* Results Content */}
-      {!isProcessing && revenueImpact && (
+      {!isProcessing && scan?.status === 'completed' && results.length > 0 && revenueImpact && (
         <>
           {/* Executive Summary */}
           <section className="relative py-10 px-4 border-b border-border/50">

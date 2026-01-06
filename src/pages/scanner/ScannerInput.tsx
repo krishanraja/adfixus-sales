@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import type { PublisherContext, PublisherVertical } from '@/types/scanner';
 import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
+import adfixusIcon from '@/assets/adfixus-logo.png';
 
 export default function ScannerInput() {
   const navigate = useNavigate();
@@ -209,7 +210,11 @@ export default function ScannerInput() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="relative">
           <div className="h-16 w-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-          <Brain className="h-6 w-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <img 
+            src={adfixusIcon} 
+            alt="AdFixus" 
+            className="h-6 w-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
+          />
         </div>
       </div>
     );
