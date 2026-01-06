@@ -4,6 +4,38 @@ All notable changes to the AdFixus Identity ROI Calculator & Domain Scanner proj
 
 ---
 
+## [5.0.0] - 2026-01-06 - Architecture Fix: Single Supabase Project
+
+### 🚀 Critical Fix
+- **Root Cause Identified**: Codebase was configured for a different Supabase project (`ojtfnhzqhfsprebvpmvx`) that the user didn't have access to
+- **Single Project Architecture**: All edge functions and database now on same project (`lshyhtgvqdmrakrbcgox`)
+- **Edge Functions Deployed**: All 4 edge functions deployed to correct project
+
+### 🔧 Configuration Changes
+- **supabase/config.toml**: Changed `project_id` to `lshyhtgvqdmrakrbcgox`
+- **HANDOFF.md**: Updated architecture to reflect single-project setup
+- **ARCHITECTURE.md**: Updated project references
+- **scannerApi.ts**: Fixed error message URLs to point to correct project
+
+### ✅ Verified Working
+- Health check returns `healthy: true`
+- Domain scans complete successfully with results
+- Real-time updates working
+- PDF/CSV export available
+
+### 📋 Edge Functions Deployed
+- `scan-domain` - Domain scanning and analysis
+- `generate-insights` - AI-powered strategic insights
+- `send-pdf-email` - Email delivery
+- `monitor-domain-changes` - Domain monitoring
+
+### 🔐 Required Secrets (set in Supabase Dashboard)
+- `SCANNER_SUPABASE_SERVICE_KEY` - Service role key for database writes
+- `BROWSERLESS_API_KEY` - For headless Chrome scanning
+- `OPENAI_API_KEY` - For AI insights (optional)
+
+---
+
 ## [4.1.0] - 2026-01-05 - Health Check False Positive Fix
 
 ### 🐛 Critical Bug Fixes
