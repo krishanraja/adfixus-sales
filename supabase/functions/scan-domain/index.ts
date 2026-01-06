@@ -79,6 +79,7 @@ interface CookieAnalysis {
   firstParty: number;
   thirdParty: number;
   safariBlocked: number;
+  safariCapped: number;
   maxDurationDays: number;
   sessionCookies: number;
   persistentCookies: number;
@@ -265,8 +266,7 @@ async function processDomains(supabase: ReturnType<typeof createClient>, scanId:
       const result = await scanDomain(domain);
       console.log(`[scan-domain] Scan result for ${domain}: ${result.status}, cookies: ${result.total_cookies}, method: ${result.scan_method}`);
       
-      // Build insert object with only columns that exist in the database
-      // Note: tranco_rank, estimated_monthly_impressions, etc. columns need to be added to DB
+      // Build insert object with all columns including Tranco data
       const insertData = {
         scan_id: scanId,
         domain,
@@ -276,6 +276,9 @@ async function processDomains(supabase: ReturnType<typeof createClient>, scanId:
         first_party_cookies: result.first_party_cookies,
         third_party_cookies: result.third_party_cookies,
         max_cookie_duration_days: result.max_cookie_duration_days,
+        session_cookies: result.session_cookies,
+        persistent_cookies: result.persistent_cookies,
+        safari_blocked_cookies: result.safari_blocked_cookies,
         has_google_analytics: result.has_google_analytics,
         has_gtm: result.has_gtm,
         has_gcm: result.has_gcm,
@@ -300,6 +303,15 @@ async function processDomains(supabase: ReturnType<typeof createClient>, scanId:
         competitive_positioning: result.competitive_positioning,
         cookies_raw: result.cookies_raw,
         vendors_raw: result.vendors_raw,
+        // Tranco data (new columns)
+        tranco_rank: trancoData.rank,
+        estimated_monthly_pageviews: trancoData.monthlyPageviews,
+        estimated_monthly_impressions: trancoData.monthlyImpressions,
+        traffic_confidence: trancoData.confidence,
+        tranco_rank_history: trancoData.rankHistory,
+        rank_trend: trancoData.rankTrend,
+        rank_change_30d: trancoData.rankChange30d,
+        scan_method: result.scan_method,
       };
       
       console.log(`[scan-domain] Inserting result for ${domain}...`);
@@ -580,18 +592,28 @@ export default async function ({ page, context }) {
   // Get HTML
   const html = await page.content();
   
-  // Classify cookies
+  // Classify cookies with proper domain matching
   const now = Date.now() / 1000;
-  const firstPartyCookies = cookies.filter(c => 
-    c.domain.includes(targetDomain) || c.domain === '.' + targetDomain || c.domain === targetDomain
-  );
-  const thirdPartyCookies = cookies.filter(c => 
-    !c.domain.includes(targetDomain) && c.domain !== '.' + targetDomain
-  );
   
-  // Safari ITP analysis
-  const safariBlocked = thirdPartyCookies.length + 
-    firstPartyCookies.filter(c => c.expires > 0 && (c.expires - now) > 7 * 86400).length;
+  // Helper function for proper cookie domain matching
+  const isFirstPartyCookie = (cookieDomain) => {
+    // Remove leading dot from cookie domain
+    const cleanCookieDomain = cookieDomain.replace(/^\\./, '');
+    // Check if cookie domain matches target domain or is a subdomain
+    return cleanCookieDomain === targetDomain || 
+           cleanCookieDomain.endsWith('.' + targetDomain) ||
+           targetDomain.endsWith('.' + cleanCookieDomain);
+  };
+  
+  const firstPartyCookies = cookies.filter(c => isFirstPartyCookie(c.domain));
+  const thirdPartyCookies = cookies.filter(c => !isFirstPartyCookie(c.domain));
+  
+  // Safari ITP 2.3+ analysis
+  // ITP blocks: ALL third-party cookies + first-party cookies >7 days (capped)
+  const safariBlocked = thirdPartyCookies.length;
+  const safariCapped = firstPartyCookies.filter(c => 
+    c.expires > 0 && (c.expires - now) > 7 * 86400
+  ).length;
   
   const maxDuration = Math.max(0, ...cookies.map(c => c.expires > 0 ? (c.expires - now) / 86400 : 0));
   
@@ -616,6 +638,7 @@ export default async function ({ page, context }) {
         firstParty: firstPartyCookies.length,
         thirdParty: thirdPartyCookies.length,
         safariBlocked: safariBlocked,
+        safariCapped: safariCapped,
         maxDurationDays: Math.round(maxDuration),
         sessionCookies: cookies.filter(c => c.expires === -1 || c.expires === 0).length,
         persistentCookies: cookies.filter(c => c.expires > now).length,
@@ -740,7 +763,14 @@ function analyzeNetworkResults(data: BrowserlessResult, domain: string): ScanRes
     hasGoogleAnalytics, hasMetaPixel, hasPpid, hasLiveramp, hasId5, cookieAnalysis?.thirdParty || 0
   );
   
-  const safariLoss = Math.min(30 + ((cookieAnalysis?.safariBlocked || 0) * 2), 50);
+  // Safari ITP impact: third-party cookies fully blocked + first-party capped at 7 days
+  // Base loss from third-party blocking + additional loss from cookie capping
+  const thirdPartyBlocked = cookieAnalysis?.safariBlocked || 0;
+  const firstPartyCapped = cookieAnalysis?.safariCapped || 0;
+  const safariLoss = Math.min(
+    25 + (thirdPartyBlocked * 1.5) + (firstPartyCapped * 0.5), 
+    50
+  );
   
   const idBloatSeverity = calculateIdBloat(
     hasLiveramp, hasId5, hasCriteo, hasTTD, cookieAnalysis?.thirdParty || 0

@@ -73,11 +73,9 @@ serve(async (req) => {
       );
     }
 
+    // Browse AI API is optional - change detection works without it
     if (!BROWSE_AI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'Browse AI API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log('[monitor-domain-changes] Browse AI API key not configured - using basic comparison');
     }
 
     console.log(`[monitor-domain-changes] Monitoring changes for domain: ${domain}, scanId: ${scanId}`);

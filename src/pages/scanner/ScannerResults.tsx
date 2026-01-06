@@ -739,15 +739,15 @@ export default function ScannerResults() {
                             <div className="flex flex-wrap gap-2">
                               {result.has_google_analytics && <Badge variant="secondary" className="text-xs">GA4</Badge>}
                               {result.has_gtm && <Badge variant="secondary" className="text-xs">GTM</Badge>}
-                              {result.has_gcm && <Badge variant="secondary" className="text-xs">GCM</Badge>}
+                              {result.has_gcm && <Badge variant="secondary" className="text-xs">Consent Mode</Badge>}
                               {result.has_meta_pixel && <Badge variant="secondary" className="text-xs">Meta Pixel</Badge>}
-                              {result.has_meta_capi && <Badge className="bg-success/20 text-success border-success/30 text-xs">CAPI</Badge>}
+                              {result.has_meta_capi && <Badge variant="secondary" className="text-xs">Meta Conversions API</Badge>}
                               {result.has_ttd && <Badge variant="secondary" className="text-xs">TTD</Badge>}
                               {result.has_liveramp && <Badge variant="secondary" className="text-xs">LiveRamp</Badge>}
                               {result.has_id5 && <Badge variant="secondary" className="text-xs">ID5</Badge>}
                               {result.has_criteo && <Badge variant="secondary" className="text-xs">Criteo</Badge>}
                               {result.has_prebid && <Badge variant="secondary" className="text-xs">Prebid</Badge>}
-                              {result.has_ppid && <Badge className="bg-success/20 text-success border-success/30 text-xs">PPID</Badge>}
+                              {result.has_ppid && <Badge variant="secondary" className="text-xs">Publisher 1P ID</Badge>}
                               {result.cmp_vendor && <Badge variant="outline" className="text-xs">{result.cmp_vendor}</Badge>}
                             </div>
                           </div>

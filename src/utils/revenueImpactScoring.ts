@@ -197,10 +197,15 @@ export function generatePainPoints(
   // Use user-provided impressions first, then fall back to Tranco estimates
   const effectiveImpressions = context?.monthlyImpressions || totalEstimatedImpressions;
   
-  // Safari Blindness
-  const safariAffected = results.filter(r => r.safari_blocked_cookies > 0);
-  if (safariAffected.length > 0) {
-    const avgGap = safariAffected.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / safariAffected.length;
+  // Safari/Firefox Addressability Gap
+  // Calculate based on addressability_gap_pct OR safari_blocked_cookies
+  const avgGap = results.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / results.length;
+  
+  if (avgGap > 10) {
+    const affectedDomains = results
+      .filter(r => r.addressability_gap_pct > 10 || r.safari_blocked_cookies > 0)
+      .map(r => r.domain);
+    
     const estimatedLoss = effectiveImpressions > 0
       ? calculateMonthlyRevenueLoss(effectiveImpressions, avgGap, cpm)
       : undefined;
@@ -208,10 +213,12 @@ export function generatePainPoints(
     painPoints.push({
       id: 'safari-blindness',
       title: 'Safari/Firefox Blindness',
-      description: `${Math.round(avgGap)}% of your inventory is invisible to advertisers on Safari & Firefox.`,
+      description: effectiveImpressions > 0
+        ? `${Math.round(avgGap)}% of your inventory is invisible to advertisers on Safari & Firefox.`
+        : `${Math.round(avgGap)}% addressability gap on Safari/Firefox. Add traffic data to estimate revenue impact.`,
       severity: avgGap > 30 ? 'critical' : avgGap > 20 ? 'high' : 'medium',
       estimatedLoss,
-      affectedDomains: safariAffected.map(r => r.domain),
+      affectedDomains: affectedDomains.length > 0 ? affectedDomains : results.map(r => r.domain),
     });
   }
   
@@ -312,14 +319,18 @@ export function generateOpportunities(
   // Use user-provided impressions first, then fall back to Tranco estimates
   const effectiveImpressions = context?.monthlyImpressions || totalEstimatedImpressions;
   
-  // Safari Recovery
+  // Safari Recovery - show even without impressions data
   const avgGap = results.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / results.length;
-  if (avgGap > 10 && effectiveImpressions > 0) {
-    const monthlyGain = calculateMonthlyRevenueLoss(effectiveImpressions, avgGap, cpm);
+  if (avgGap > 10) {
+    const monthlyGain = effectiveImpressions > 0 
+      ? calculateMonthlyRevenueLoss(effectiveImpressions, avgGap, cpm) 
+      : 0;
     opportunities.push({
       id: 'safari-recovery',
       title: 'Recover Safari/Firefox Traffic',
-      description: 'Deploy server-side first-party ID to make Safari/Firefox traffic addressable.',
+      description: effectiveImpressions > 0
+        ? 'Deploy server-side first-party ID to make Safari/Firefox traffic addressable.'
+        : `Deploy server-side first-party ID to recover ${Math.round(avgGap)}% of unaddressable inventory.`,
       estimatedGain: monthlyGain * 12,
       timeline: '2 weeks to deployment, 60 days to full realization',
       roi: '140% lift from Safari addressability recovery',
@@ -328,14 +339,18 @@ export function generateOpportunities(
     });
   }
   
-  // Conversion API
+  // Conversion API - critical regardless of impressions
   const noCapiCount = results.filter(r => !r.has_conversion_api).length;
-  if (noCapiCount > 0 && effectiveImpressions > 0) {
-    const tam = Math.round((effectiveImpressions / 1000) * cpm * 0.25 * 12);
+  if (noCapiCount > 0) {
+    const tam = effectiveImpressions > 0 
+      ? Math.round((effectiveImpressions / 1000) * cpm * 0.25 * 12) 
+      : 0;
     opportunities.push({
       id: 'capi-unlock',
       title: 'Unlock Performance Budget Access',
-      description: 'Implement Conversion API to compete for performance advertising budgets.',
+      description: effectiveImpressions > 0
+        ? 'Implement Conversion API to compete for performance advertising budgets.'
+        : 'Implement Conversion API - critical for accessing Meta/Google performance budgets.',
       estimatedGain: tam,
       timeline: '4 weeks technical setup, 90 days to first retained deals',
       roi: '3x addressable impressions, 2x CTR vs contextual',
@@ -344,17 +359,23 @@ export function generateOpportunities(
     });
   }
   
-  // Tech Tax Elimination
+  // Tech Tax Elimination - show if renting identity
   const rentingCount = results.filter(r => (r.has_liveramp || r.has_id5 || r.has_ttd) && !r.has_ppid).length;
-  if (rentingCount > 0 && effectiveImpressions > 0) {
-    const annualSavings = Math.round((effectiveImpressions / 1000) * cpm * BENCHMARKS.idGraphTechTax * 12);
+  if (rentingCount > 0) {
+    const annualSavings = effectiveImpressions > 0 
+      ? Math.round((effectiveImpressions / 1000) * cpm * BENCHMARKS.idGraphTechTax * 12) 
+      : 0;
     opportunities.push({
       id: 'tech-tax-elimination',
       title: 'Eliminate Tech Tax',
-      description: 'Replace rented ID graphs with owned PPID infrastructure.',
+      description: effectiveImpressions > 0
+        ? 'Replace rented ID graphs with owned PPID infrastructure.'
+        : 'Replace rented ID graphs with owned identity - save 30-50% margin on ID fees.',
       estimatedGain: annualSavings,
       timeline: '6 weeks federated deployment',
-      roi: `$${(annualSavings / 12).toLocaleString()}/month saved on ID graph fees`,
+      roi: effectiveImpressions > 0
+        ? `$${(annualSavings / 12).toLocaleString()}/month saved on ID graph fees`
+        : 'Save 30-50% on identity graph costs',
       priority: 3,
       adfixusProduct: 'AFxID Publisher Suite',
     });
@@ -376,7 +397,7 @@ export function generateOpportunities(
     });
   }
   
-  // Privacy compliance
+  // Privacy compliance - always relevant
   const highRiskCount = results.filter(r => r.privacy_risk_level === 'high-risk').length;
   if (highRiskCount > 0) {
     opportunities.push({
