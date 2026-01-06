@@ -68,6 +68,10 @@ async function testEdgeFunctionCors(url: string): Promise<{
       headers['apikey'] = anonKey;
     }
     
+    // #region agent log
+    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:71',message:'OPTIONS request starting',data:{functionUrl,headers:Object.keys(headers),hasAnonKey:!!anonKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     const response = await fetch(functionUrl, {
       method: 'OPTIONS',
       headers: headers,
@@ -76,7 +80,21 @@ async function testEdgeFunctionCors(url: string): Promise<{
     
     clearTimeout(timeoutId);
     
+    // #region agent log
+    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:79',message:'OPTIONS response received',data:{status:response.status,statusText:response.statusText,headersCount:Array.from(response.headers.entries()).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     result.optionsStatus = response.status;
+    
+    // Extract ALL headers first to see what we're actually getting
+    const allHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      allHeaders[key] = value;
+    });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:90',message:'All response headers',data:{allHeaders,headerKeys:Object.keys(allHeaders)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     
     // Extract CORS headers
     const corsHeaderNames = [
@@ -93,13 +111,22 @@ async function testEdgeFunctionCors(url: string): Promise<{
       }
     });
     
+    // #region agent log
+    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:108',message:'CORS headers extracted',data:{corsHeaders:result.corsHeaders,hasAllowOrigin:!!result.corsHeaders['Access-Control-Allow-Origin']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
     // CORS is working if:
     // 1. Status is 200 (not 404, 500, etc.)
     // 2. CORS headers are present
     result.corsWorking = response.status === 200 && 
       result.corsHeaders['Access-Control-Allow-Origin'] !== undefined;
     
+    // #region agent log
+    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:115',message:'CORS working check',data:{status:response.status,is200:response.status===200,hasCorsHeader:!!result.corsHeaders['Access-Control-Allow-Origin'],corsWorking:result.corsWorking},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
     console.log('[scannerApi] [DIAGNOSTIC] OPTIONS response status:', result.optionsStatus);
+    console.log('[scannerApi] [DIAGNOSTIC] All response headers:', allHeaders);
     console.log('[scannerApi] [DIAGNOSTIC] CORS headers:', result.corsHeaders);
     console.log('[scannerApi] [DIAGNOSTIC] CORS working:', result.corsWorking);
     
