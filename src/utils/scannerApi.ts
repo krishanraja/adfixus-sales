@@ -14,6 +14,9 @@ export interface DiagnosticResult {
   url: string | null;
   urlAccessible: boolean;
   dnsResolves: boolean;
+  edgeFunctionDeployed: boolean;
+  edgeFunctionCorsWorking: boolean;
+  edgeFunctionError: string | null;
   recommendations: string[];
 }
 
@@ -21,6 +24,99 @@ export interface DiagnosticResult {
  * Comprehensive diagnostic for environment and configuration
  * Checks all possible root causes of ERR_NAME_NOT_RESOLVED errors
  */
+/**
+ * Test edge function CORS configuration
+ */
+async function testEdgeFunctionCors(url: string): Promise<{
+  corsWorking: boolean;
+  optionsStatus: number | null;
+  corsHeaders: Record<string, string>;
+  error?: string;
+}> {
+  const result = {
+    corsWorking: false,
+    optionsStatus: null as number | null,
+    corsHeaders: {} as Record<string, string>,
+    error: undefined as string | undefined,
+  };
+
+  try {
+    const functionUrl = `${url}/functions/v1/scan-domain`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://adfixus-sales.vercel.app';
+    
+    console.log('[scannerApi] [DIAGNOSTIC] Testing edge function CORS...');
+    console.log('[scannerApi] [DIAGNOSTIC] Function URL:', functionUrl);
+    console.log('[scannerApi] [DIAGNOSTIC] Origin:', origin);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const response = await fetch(functionUrl, {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    result.optionsStatus = response.status;
+    
+    // Extract CORS headers
+    const corsHeaderNames = [
+      'Access-Control-Allow-Origin',
+      'Access-Control-Allow-Methods',
+      'Access-Control-Allow-Headers',
+      'Access-Control-Max-Age',
+    ];
+    
+    corsHeaderNames.forEach(headerName => {
+      const headerValue = response.headers.get(headerName);
+      if (headerValue) {
+        result.corsHeaders[headerName] = headerValue;
+      }
+    });
+    
+    // CORS is working if:
+    // 1. Status is 200 (not 404, 500, etc.)
+    // 2. CORS headers are present
+    result.corsWorking = response.status === 200 && 
+      result.corsHeaders['Access-Control-Allow-Origin'] !== undefined;
+    
+    console.log('[scannerApi] [DIAGNOSTIC] OPTIONS response status:', result.optionsStatus);
+    console.log('[scannerApi] [DIAGNOSTIC] CORS headers:', result.corsHeaders);
+    console.log('[scannerApi] [DIAGNOSTIC] CORS working:', result.corsWorking);
+    
+    if (!result.corsWorking) {
+      if (response.status === 404) {
+        result.error = 'Edge function not found (404). Function may not be deployed.';
+      } else if (response.status >= 500) {
+        result.error = `Edge function server error (${response.status}). Check function logs.`;
+      } else if (response.status !== 200) {
+        result.error = `Edge function returned unexpected status (${response.status}). Expected 200 for OPTIONS.`;
+      } else if (!result.corsHeaders['Access-Control-Allow-Origin']) {
+        result.error = 'CORS headers missing. Edge function OPTIONS handler not returning CORS headers.';
+      }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[scannerApi] [DIAGNOSTIC] CORS test failed:', errorMessage);
+    
+    if (error instanceof TypeError && errorMessage.includes('Failed to fetch')) {
+      result.error = 'Failed to reach edge function. Check if function is deployed and URL is correct.';
+    } else if (error instanceof Error && error.name === 'AbortError') {
+      result.error = 'CORS test timed out. Edge function may be slow to respond or not deployed.';
+    } else {
+      result.error = `CORS test error: ${errorMessage}`;
+    }
+  }
+  
+  return result;
+}
+
 export async function diagnoseConfiguration(): Promise<DiagnosticResult> {
   const diagnostics: DiagnosticResult = {
     envVarSet: false,
@@ -28,6 +124,9 @@ export async function diagnoseConfiguration(): Promise<DiagnosticResult> {
     url: null,
     urlAccessible: false,
     dnsResolves: false,
+    edgeFunctionDeployed: false,
+    edgeFunctionCorsWorking: false,
+    edgeFunctionError: null,
     recommendations: [],
   };
   
@@ -148,8 +247,53 @@ export async function diagnoseConfiguration(): Promise<DiagnosticResult> {
     }
   }
   
+  // Test edge function deployment and CORS if basic configuration is valid
+  if (diagnostics.envVarSet && diagnostics.envVarFormat === 'valid' && diagnostics.dnsResolves && diagnostics.url) {
+    console.log('[scannerApi] [DIAGNOSTIC] Testing edge function deployment and CORS...');
+    
+    const corsTest = await testEdgeFunctionCors(diagnostics.url);
+    
+    diagnostics.edgeFunctionDeployed = corsTest.optionsStatus !== null && corsTest.optionsStatus !== 404;
+    diagnostics.edgeFunctionCorsWorking = corsTest.corsWorking;
+    diagnostics.edgeFunctionError = corsTest.error || null;
+    
+    if (corsTest.optionsStatus === 404) {
+      diagnostics.recommendations.push(
+        'Edge function not found (404). The scan-domain function is not deployed.'
+      );
+      diagnostics.recommendations.push(
+        'Action: Deploy the edge function in Supabase Dashboard → Edge Functions → Deploy scan-domain'
+      );
+    } else if (corsTest.optionsStatus !== 200) {
+      diagnostics.recommendations.push(
+        `Edge function OPTIONS request returned status ${corsTest.optionsStatus}. Expected 200.`
+      );
+      diagnostics.recommendations.push(
+        'Action: Check edge function logs in Supabase Dashboard for errors'
+      );
+    } else if (!corsTest.corsWorking) {
+      diagnostics.recommendations.push(
+        'Edge function OPTIONS handler is not returning CORS headers correctly.'
+      );
+      diagnostics.recommendations.push(
+        'Action: Verify edge function OPTIONS handler returns status 200 with CORS headers'
+      );
+      diagnostics.recommendations.push(
+        'Required headers: Access-Control-Allow-Origin, Access-Control-Allow-Methods, Access-Control-Allow-Headers'
+      );
+    } else {
+      diagnostics.recommendations.push(
+        'Edge function CORS configuration appears correct.'
+      );
+    }
+    
+    if (corsTest.error) {
+      diagnostics.recommendations.push(`Error: ${corsTest.error}`);
+    }
+  }
+  
   // If all checks pass but still having issues, provide general recommendations
-  if (diagnostics.envVarSet && diagnostics.envVarFormat === 'valid' && diagnostics.dnsResolves) {
+  if (diagnostics.envVarSet && diagnostics.envVarFormat === 'valid' && diagnostics.dnsResolves && diagnostics.edgeFunctionCorsWorking) {
     diagnostics.recommendations.push(
       'Configuration appears correct. If issues persist:'
     );
@@ -157,7 +301,7 @@ export async function diagnoseConfiguration(): Promise<DiagnosticResult> {
       '  1. Check Vercel build logs for env var warnings'
     );
     diagnostics.recommendations.push(
-      '  2. Verify edge function is deployed in Supabase Dashboard'
+      '  2. Check edge function logs in Supabase Dashboard for runtime errors'
     );
     diagnostics.recommendations.push(
       '  3. Try clearing Vercel build cache and redeploying'
@@ -293,6 +437,45 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       // Check for timeout
       const isTimeout = errorMsg === 'TIMEOUT';
       
+      // Check for CORS errors - these are distinct from DNS/network errors
+      const hasCorsError = 
+        errorMsg.includes('CORS') ||
+        errorMsg.includes('cors') ||
+        errorMsg.includes('preflight') ||
+        errorMsg.includes('access control') ||
+        errorMsg.includes('Access-Control') ||
+        errorStack.includes('CORS') ||
+        errorStack.includes('cors') ||
+        errorStack.includes('preflight') ||
+        errorStack.includes('access control') ||
+        (errorCause && (
+          String(errorCause).includes('CORS') ||
+          String(errorCause).includes('cors') ||
+          String(errorCause).includes('preflight')
+        )) ||
+        // ERR_FAILED combined with FunctionsFetchError often indicates CORS block
+        (isFunctionsFetchError && errorMsg.includes('ERR_FAILED'));
+      
+      // If CORS error detected, provide specific CORS guidance
+      if (hasCorsError) {
+        const corsErrorMessage = `CORS (Cross-Origin Resource Sharing) error detected. The edge function preflight request is failing.
+
+This usually means:
+1. Edge function OPTIONS handler is not returning 200 status
+2. Edge function CORS headers are missing or incorrect
+3. Edge function may not be deployed (OPTIONS returns 404/500)
+
+Action steps:
+1. Check Supabase Dashboard → Edge Functions → scan-domain → Logs
+2. Verify OPTIONS requests are being handled (look for "Handling CORS preflight" in logs)
+3. Test OPTIONS request directly: curl -X OPTIONS https://lshyhtgvqdmrakrbcgox.supabase.co/functions/v1/scan-domain -H "Origin: ${typeof window !== 'undefined' ? window.location.origin : 'https://adfixus-sales.vercel.app'}" -v
+4. Verify edge function returns status 200 with CORS headers for OPTIONS requests
+
+If edge function is not deployed, deploy it in Supabase Dashboard.`;
+        console.error('[scannerApi] CORS error detected - preflight request failing');
+        return { healthy: false, error: corsErrorMessage };
+      }
+      
       // If FunctionsFetchError with network indicators, treat as DNS failure
       if (isFunctionsFetchError && (hasNetworkErrorInMessage || hasDNSInStack || causeHasDNS)) {
         const errorMessage = `Edge function not accessible. This usually means:
@@ -350,6 +533,42 @@ Please verify your environment configuration and ensure the edge function is dep
       constructor: errorObj.constructor?.name,
       keys: Object.keys(errorObj),
     });
+    
+    // Check for CORS errors in exception handler
+    const hasCorsError = 
+      errorMessage.includes('CORS') ||
+      errorMessage.includes('cors') ||
+      errorMessage.includes('preflight') ||
+      errorMessage.includes('access control') ||
+      errorMessage.includes('Access-Control') ||
+      errorStack.includes('CORS') ||
+      errorStack.includes('cors') ||
+      errorStack.includes('preflight') ||
+      errorStack.includes('access control') ||
+      (errorCause && (
+        String(errorCause).includes('CORS') ||
+        String(errorCause).includes('cors') ||
+        String(errorCause).includes('preflight')
+      ));
+    
+    if (hasCorsError) {
+      const corsErrorMessage = `CORS (Cross-Origin Resource Sharing) error detected. The edge function preflight request is failing.
+
+This usually means:
+1. Edge function OPTIONS handler is not returning 200 status
+2. Edge function CORS headers are missing or incorrect
+3. Edge function may not be deployed (OPTIONS returns 404/500)
+
+Action steps:
+1. Check Supabase Dashboard → Edge Functions → scan-domain → Logs
+2. Verify OPTIONS requests are being handled
+3. Test OPTIONS request directly with curl
+4. Verify edge function returns status 200 with CORS headers for OPTIONS requests
+
+If edge function is not deployed, deploy it in Supabase Dashboard.`;
+      console.error('[scannerApi] CORS error detected in exception handler');
+      return { healthy: false, error: corsErrorMessage };
+    }
     
     // Check if it's a network/DNS error
     const hasNetworkErrorInMessage = 
@@ -419,12 +638,23 @@ export async function createScan(
       // Provide user-friendly error messages
       let userFriendlyError = error.message || 'Failed to start scan';
       
-      if (error.message?.includes('NAME_NOT_RESOLVED') || 
+      // Check for CORS errors first
+      if (error.message?.includes('CORS') || 
+          error.message?.includes('cors') ||
+          error.message?.includes('preflight') ||
+          error.message?.includes('access control')) {
+        userFriendlyError = 'CORS (Cross-Origin Resource Sharing) error. The edge function preflight request is failing.\n\n' +
+          'This usually means:\n' +
+          '1. Edge function OPTIONS handler is not returning 200 status\n' +
+          '2. Edge function CORS headers are missing or incorrect\n' +
+          '3. Edge function may not be deployed\n\n' +
+          'Check Supabase Dashboard → Edge Functions → scan-domain → Logs to verify OPTIONS requests are handled.';
+      } else if (error.message?.includes('NAME_NOT_RESOLVED') || 
           error.message?.includes('ERR_NAME_NOT_RESOLVED') ||
           error.message?.includes('Failed to fetch') ||
           error.message?.includes('NetworkError')) {
         userFriendlyError = 'Failed to connect to scanner service. This usually means:\n' +
-          '1. The edge function is not deployed (check Lovable Cloud dashboard)\n' +
+          '1. The edge function is not deployed (check Supabase dashboard)\n' +
           '2. VITE_SUPABASE_URL is incorrect\n' +
           '3. Network connectivity issues\n\n' +
           'Please verify your configuration and try again.';

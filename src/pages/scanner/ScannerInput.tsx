@@ -77,10 +77,22 @@ export default function ScannerInput() {
           description: 'Supabase URL is not accessible. Check network connectivity or project status.',
           variant: 'destructive',
         });
+      } else if (!result.edgeFunctionDeployed) {
+        toast({
+          title: 'Edge Function Not Deployed',
+          description: 'The scan-domain edge function is not deployed. Deploy it in Supabase Dashboard → Edge Functions.',
+          variant: 'destructive',
+        });
+      } else if (!result.edgeFunctionCorsWorking) {
+        toast({
+          title: 'CORS Configuration Issue',
+          description: 'Edge function CORS preflight is failing. Check edge function OPTIONS handler returns 200 with CORS headers.',
+          variant: 'destructive',
+        });
       } else {
         toast({
           title: 'Configuration Check Complete',
-          description: 'Configuration appears correct. If issues persist, check edge function deployment.',
+          description: 'Configuration appears correct. Edge function is deployed and CORS is working.',
           variant: 'default',
         });
       }
@@ -472,6 +484,28 @@ export default function ScannerInput() {
                                 {diagnostics.dnsResolves ? 'Resolves' : 'Failed'}
                               </Badge>
                             </div>
+                            {diagnostics.url && (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground">Edge Function Deployed:</span>
+                                  <Badge variant={diagnostics.edgeFunctionDeployed ? "outline" : "destructive"} className="text-xs">
+                                    {diagnostics.edgeFunctionDeployed ? 'Yes' : 'No'}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground">CORS Working:</span>
+                                  <Badge variant={diagnostics.edgeFunctionCorsWorking ? "outline" : "destructive"} className="text-xs">
+                                    {diagnostics.edgeFunctionCorsWorking ? 'Yes' : 'No'}
+                                  </Badge>
+                                </div>
+                                {diagnostics.edgeFunctionError && (
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-muted-foreground">Edge Function Error:</span>
+                                    <span className="text-xs text-destructive">{diagnostics.edgeFunctionError}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </>
                         )}
                       </div>
