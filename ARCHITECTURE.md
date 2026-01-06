@@ -308,4 +308,4 @@ Uses Tailwind's default spacing: 4px increments (p-1 = 4px, p-4 = 16px, etc.)
 | Tranco | Traffic rank data | No auth required |
 | OpenAI | AI insights | `OPENAI_API_KEY` secret |
 | Resend | Email delivery | `RESEND_API_KEY` secret |
-| Supabase (external) | Scanner database | `SCANNER_SUPABASE_*` secrets |
+| Supabase | Edge functions + Scanner database | `lshyhtgvqdmrakrbcgox` project |

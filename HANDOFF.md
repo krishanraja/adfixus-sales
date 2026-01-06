@@ -61,32 +61,32 @@ We use **React hooks** for all state. No Redux, Zustand, or other state librarie
 ### Backend Architecture
 
 ```
-Supabase Cloud (Project: ojtfnhzqhfsprebvpmvx)
+Supabase Cloud (Project: lshyhtgvqdmrakrbcgox)
 ├── Edge Functions (deployed on Supabase)
 │   ├── scan-domain      → Orchestrates domain scanning
 │   ├── generate-insights → AI-powered analysis
 │   └── send-pdf-email   → Email delivery
-└── Internal DB (not used by scanner)
+├── Database
+│   ├── domain_scans table → Scan metadata
+│   └── domain_results table → Per-domain results
+└── Realtime subscriptions for live updates
 
 Vercel (Frontend Deployment)
 ├── Static site hosting
 ├── Environment variables configured in Vercel Dashboard
 └── Auto-deploys on git push
-
-External Scanner Database (separate Supabase project)
-├── domain_scans table → Scan metadata
-└── domain_results table → Per-domain results
 ```
 
-### Why Two Databases?
+### Single Supabase Project Architecture
 
-The scanner uses a **separate external database** to:
-1. Keep scanner data isolated from main app data
-2. Allow the scanner to be shared across multiple frontends
-3. Enable service-key access for write operations
+The scanner uses a **single Supabase project** (`lshyhtgvqdmrakrbcgox`) for:
+1. Edge functions (scan-domain, generate-insights, send-pdf-email)
+2. Database tables (domain_scans, domain_results)
+3. Realtime subscriptions for live scan updates
 
-The frontend **reads** from the external DB via `scannerSupabase` client.
-Edge functions **write** to it using the service key.
+The frontend **calls** edge functions via the `supabase` client.
+Edge functions **write** to the database using the service key.
+The frontend **reads** from the database via the `scannerSupabase` client.
 
 ---
 
@@ -371,9 +371,9 @@ Secrets are managed in Lovable Cloud:
    - Ensure it's set for Production, Preview, and Development environments
 2. **Check browser console:**
    - Look for `[DIAGNOSTIC]` logs showing actual URL being used
-   - Verify URL matches: `https://ojtfnhzqhfsprebvpmvx.supabase.co`
+   - Verify URL matches: `https://lshyhtgvqdmrakrbcgox.supabase.co`
 3. **Check Supabase:**
-   - Verify `supabase/config.toml` has correct function entries
+   - Verify `supabase/config.toml` has `project_id = "lshyhtgvqdmrakrbcgox"`
    - Check Supabase Dashboard → Edge Functions are deployed
    - Force redeploy by adding version comment in function file
 4. **Network:**
@@ -437,7 +437,7 @@ Secrets are managed in Lovable Cloud:
 |-------------|-----|
 | Preview | Check Vercel preview deployment |
 | Production | Check Vercel production URL |
-| Edge Functions | `https://ojtfnhzqhfsprebvpmvx.supabase.co/functions/v1/` |
+| Edge Functions | `https://lshyhtgvqdmrakrbcgox.supabase.co/functions/v1/` |
 
 ### Key Files to Know
 

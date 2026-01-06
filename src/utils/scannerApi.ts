@@ -547,7 +547,7 @@ This usually means:
 Action steps:
 1. Check Supabase Dashboard → Edge Functions → scan-domain → Logs
 2. Verify OPTIONS requests are being handled (look for "Handling CORS preflight" in logs)
-3. Test OPTIONS request directly: curl -X OPTIONS https://lshyhtgvqdmrakrbcgox.supabase.co/functions/v1/scan-domain -H "Origin: ${typeof window !== 'undefined' ? window.location.origin : 'https://adfixus-sales.vercel.app'}" -v
+3. Test OPTIONS request directly in browser DevTools or with curl
 4. Verify edge function returns status 200 with CORS headers for OPTIONS requests
 
 If edge function is not deployed, deploy it in Supabase Dashboard.`;
