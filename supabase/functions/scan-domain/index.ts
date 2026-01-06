@@ -319,9 +319,9 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         throw new Error(`Failed to insert result: ${insertError.message}`);
       }
       
-      if (!insertData || insertData.length === 0) {
-        throw new Error('Database insertion returned no data');
-      }
+      // Note: Supabase v2 .insert() returns null for data unless .select() is chained
+      // The insertError check above is sufficient - no need to check insertData
+      console.log(`[scan-domain] Successfully inserted result for ${domain}`);
 
       completedCount++;
       
@@ -527,13 +527,18 @@ async function scanDomain(domain: string) {
   // Try Browserless first if available
   if (BROWSERLESS_API_KEY) {
     try {
+      console.log(`[scan-domain] Attempting Browserless scan for ${domain}`);
       return await scanWithBrowserless(url, domain);
     } catch (err) {
-      // Fall through to static fetch
+      // Log the error before falling through to static fetch
+      console.error(`[scan-domain] Browserless failed for ${domain}:`, err instanceof Error ? err.message : err);
     }
+  } else {
+    console.log(`[scan-domain] No BROWSERLESS_API_KEY configured, using static fetch for ${domain}`);
   }
   
   // Fallback to static analysis
+  console.log(`[scan-domain] Falling back to static fetch for ${domain}`);
   try {
     return await scanWithFetch(url, domain);
   } catch (err) {

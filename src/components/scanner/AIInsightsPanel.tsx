@@ -103,7 +103,7 @@ export function AIInsightsPanel({ results, context, scanId }: AIInsightsPanelPro
                     AI Strategic Analysis
                     <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
                       <Sparkles className="h-3 w-3 mr-1" />
-                      Gemini 2.5
+                      GPT-4o
                     </Badge>
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">

@@ -1,4 +1,4 @@
-// Version: 2.0.0 - Force redeploy 2026-01-05
+// Version: 3.0.0 - Use OpenAI API instead of Lovable gateway - 2026-01-06
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -7,7 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+// Use OpenAI API key directly
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
 const SYSTEM_PROMPT = `You are an elite AdOps strategic analyst with deep expertise in publisher revenue optimization, identity infrastructure, and programmatic advertising. You analyze domain scan results and provide executive-level insights.
 
@@ -63,10 +64,10 @@ serve(async (req) => {
       scanId: string;
     } = await req.json();
 
-    if (!LOVABLE_API_KEY) {
-      console.error('[generate-insights] LOVABLE_API_KEY not configured');
+    if (!OPENAI_API_KEY) {
+      console.error('[generate-insights] OPENAI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'AI service not configured' }),
+        JSON.stringify({ error: 'AI service not configured. Please set OPENAI_API_KEY in Supabase secrets.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -107,27 +108,30 @@ ${results.map(r => `
 
 Provide strategic insights for this portfolio.`;
 
-    console.log(`[generate-insights] Generating AI insights for scan ${scanId}`);
+    console.log(`[generate-insights] Generating AI insights for scan ${scanId} using OpenAI`);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Call OpenAI API directly
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },
         ],
         response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 1000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[generate-insights] AI gateway error:', response.status, errorText);
+      console.error('[generate-insights] OpenAI API error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -135,14 +139,14 @@ Provide strategic insights for this portfolio.`;
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
+      if (response.status === 401) {
         return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Invalid OpenAI API key. Please check your OPENAI_API_KEY secret.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText.substring(0, 200)}`);
     }
 
     const aiResponse = await response.json();
@@ -160,7 +164,7 @@ Provide strategic insights for this portfolio.`;
       throw new Error('Invalid AI response format');
     }
 
-    console.log('[generate-insights] AI insights generated successfully');
+    console.log('[generate-insights] AI insights generated successfully via OpenAI');
 
     return new Response(
       JSON.stringify(insights),
