@@ -43,6 +43,7 @@ export function useDomainScan(): UseDomainScanResult {
   }, [results, context]);
 
   // Subscribe to real-time updates when we have a scan
+  // Includes polling fallback for reliability
   useEffect(() => {
     if (!scan?.id || scan.status === 'completed' || scan.status === 'failed') {
       return;
@@ -50,26 +51,90 @@ export function useDomainScan(): UseDomainScanResult {
 
     console.log('[useDomainScan] Setting up real-time subscriptions for:', scan.id);
 
-    const unsubscribeScan = subscribeScanUpdates(scan.id, (updatedScan) => {
-      console.log('[useDomainScan] Scan updated:', updatedScan.status);
-      setScan(updatedScan);
-    });
+    let unsubscribeScan: (() => void) | null = null;
+    let unsubscribeResults: (() => void) | null = null;
+    let pollInterval: NodeJS.Timeout | null = null;
 
-    const unsubscribeResults = subscribeResultUpdates(scan.id, (newResult) => {
-      console.log('[useDomainScan] New result for:', newResult.domain);
-      setResults(prev => {
-        // Avoid duplicates
-        if (prev.some(r => r.id === newResult.id)) {
-          return prev;
-        }
-        return [...prev, newResult];
+    try {
+      // Set up real-time subscriptions
+      unsubscribeScan = subscribeScanUpdates(scan.id, (updatedScan) => {
+        console.log('[useDomainScan] Scan updated via subscription:', updatedScan.status);
+        setScan(updatedScan);
       });
-    });
+
+      unsubscribeResults = subscribeResultUpdates(scan.id, (newResult) => {
+        console.log('[useDomainScan] New result via subscription:', newResult.domain);
+        setResults(prev => {
+          // Avoid duplicates
+          if (prev.some(r => r.id === newResult.id)) {
+            return prev;
+          }
+          return [...prev, newResult];
+        });
+      });
+
+      // Polling fallback: poll every 2.5 seconds to ensure UI updates even if subscriptions fail
+      pollInterval = setInterval(async () => {
+        try {
+          const [currentScan, currentResults] = await Promise.all([
+            getScanStatus(scan.id),
+            getScanResults(scan.id),
+          ]);
+
+          if (currentScan) {
+            // Update scan if status or progress changed
+            setScan(prevScan => {
+              if (!prevScan) return currentScan;
+              
+              const hasChanged = 
+                prevScan.status !== currentScan.status ||
+                prevScan.completed_domains !== currentScan.completed_domains ||
+                prevScan.total_domains !== currentScan.total_domains;
+              
+              if (hasChanged) {
+                console.log('[useDomainScan] Scan updated via polling:', currentScan.status);
+                return currentScan;
+              }
+              return prevScan;
+            });
+          }
+
+          // Update results if new ones were found
+          if (currentResults.length > 0) {
+            setResults(prevResults => {
+              const newResults = currentResults.filter(
+                newResult => !prevResults.some(r => r.id === newResult.id)
+              );
+              
+              if (newResults.length > 0) {
+                console.log('[useDomainScan] New results via polling:', newResults.length);
+                return [...prevResults, ...newResults];
+              }
+              return prevResults;
+            });
+          }
+        } catch (pollError) {
+          console.error('[useDomainScan] Polling error:', pollError);
+          // Don't throw - polling is a fallback, errors are non-critical
+        }
+      }, 2500); // Poll every 2.5 seconds
+
+    } catch (error) {
+      console.error('[useDomainScan] Error setting up subscriptions:', error);
+      // If subscriptions fail, polling will still work as fallback
+    }
 
     return () => {
-      console.log('[useDomainScan] Cleaning up subscriptions');
-      unsubscribeScan();
-      unsubscribeResults();
+      console.log('[useDomainScan] Cleaning up subscriptions and polling');
+      if (unsubscribeScan) {
+        unsubscribeScan();
+      }
+      if (unsubscribeResults) {
+        unsubscribeResults();
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
   }, [scan?.id, scan?.status]);
 

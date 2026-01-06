@@ -806,6 +806,98 @@ export async function getScanResults(scanId: string): Promise<DomainResult[]> {
   return data as DomainResult[];
 }
 
+/**
+ * Subscribe to real-time updates for a scan
+ * Returns an unsubscribe function
+ */
+export function subscribeScanUpdates(
+  scanId: string,
+  callback: (scan: DomainScan) => void
+): () => void {
+  console.log('[scannerApi] Subscribing to scan updates for:', scanId);
+  
+  try {
+    const channel = scannerSupabase
+      .channel(`scan-${scanId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'domain_scans',
+          filter: `id=eq.${scanId}`,
+        },
+        (payload) => {
+          console.log('[scannerApi] Scan update received:', payload.new);
+          callback(payload.new as DomainScan);
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[scannerApi] Successfully subscribed to scan updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[scannerApi] Error subscribing to scan updates');
+        }
+      });
+
+    // Return unsubscribe function
+    return () => {
+      console.log('[scannerApi] Unsubscribing from scan updates');
+      scannerSupabase.removeChannel(channel);
+    };
+  } catch (error) {
+    console.error('[scannerApi] Failed to set up scan subscription:', error);
+    // Return no-op unsubscribe function if subscription fails
+    return () => {};
+  }
+}
+
+/**
+ * Subscribe to real-time updates for scan results
+ * Returns an unsubscribe function
+ */
+export function subscribeResultUpdates(
+  scanId: string,
+  callback: (result: DomainResult) => void
+): () => void {
+  console.log('[scannerApi] Subscribing to result updates for scan:', scanId);
+  
+  try {
+    const channel = scannerSupabase
+      .channel(`results-${scanId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'domain_results',
+          filter: `scan_id=eq.${scanId}`,
+        },
+        (payload) => {
+          console.log('[scannerApi] New result received:', payload.new);
+          callback(payload.new as DomainResult);
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[scannerApi] Successfully subscribed to result updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[scannerApi] Error subscribing to result updates');
+        }
+      });
+
+    // Return unsubscribe function
+    return () => {
+      console.log('[scannerApi] Unsubscribing from result updates');
+      scannerSupabase.removeChannel(channel);
+    };
+  } catch (error) {
+    console.error('[scannerApi] Failed to set up result subscription:', error);
+    // Return no-op unsubscribe function if subscription fails
+    return () => {};
+  }
+}
+
 export function parseDomains(input: string): string[] {
   return input
     .split(/[\n,]/)
