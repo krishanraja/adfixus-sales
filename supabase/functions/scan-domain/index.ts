@@ -1,4 +1,4 @@
-// Version: 2.3.0 - Fix CORS headers (return empty string body) - Force redeploy 2026-01-06
+// Version: 3.0.0 - Complete rewrite using Browserless /function API for comprehensive scanning
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
@@ -8,15 +8,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// External Scanner Supabase credentials - stored in secrets
+// Supabase credentials
 const SCANNER_SUPABASE_URL = 'https://lshyhtgvqdmrakrbcgox.supabase.co';
 const SCANNER_SUPABASE_SERVICE_KEY = Deno.env.get('SCANNER_SUPABASE_SERVICE_KEY') || '';
 
 // Browserless API for dynamic scanning
 const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY') || '';
-
-// Browse AI API for enhanced scanning and change detection
-const BROWSE_AI_API_KEY = Deno.env.get('BROWSE_AI_API_KEY') || '';
 
 // Tranco API for traffic estimation
 const TRANCO_API_KEY = Deno.env.get('TRANCO_API_KEY') || '';
@@ -25,38 +22,9 @@ const TRANCO_API_KEY = Deno.env.get('TRANCO_API_KEY') || '';
 const PAGEVIEW_COEFFICIENT = 7.73e12;
 const PAGEVIEW_EXPONENT = -1.06;
 
-// Vendor detection patterns
-const VENDOR_PATTERNS = {
-  google_analytics: [/google-analytics\.com/, /gtag\(/, /G-[A-Z0-9]{10}/, /UA-\d+-\d+/],
-  gtm: [/googletagmanager\.com/, /GTM-[A-Z0-9]{6,}/],
-  gcm: [/gtag\(['"]consent['"]/, /googletagmanager.*consent/],
-  meta_pixel: [/connect\.facebook\.net/, /fbq\(/, /fbevents\.js/, /\d{15,16}/],
-  meta_capi: [/facebook.*conversions/, /graph\.facebook\.com.*events/],
-  ttd: [/TTDUniversalPixelApi/, /thetradedesk\.com/, /adsrvr\.org/],
-  liveramp: [/idsync\.rlcdn\.com/, /idl_env/, /launchpad\.liveramp/],
-  id5: [/id5-sync\.com/, /id5id/, /id5\.sync/],
-  criteo: [/static\.criteo\.net/, /cto_bundle/, /criteo\.com.*rtax/],
-  prebid: [/prebid\.js/, /pbjs\.que/, /prebid.*\d+\.\d+\.\d+/],
-  amazon_tam: [/amazon-adsystem\.com/, /apstag/],
-};
-
-const CMP_PATTERNS = {
-  onetrust: [/cdn\.cookielaw\.org/, /optanon/, /onetrust/i],
-  cookiebot: [/consent\.cookiebot\.com/, /Cookiebot/],
-  quantcast: [/quantcast\.mgr\.consensu\.org/, /cmpui\.js/],
-  didomi: [/sdk\.privacy-center\.org/, /didomi/i],
-  trustarc: [/consent\.trustarc\.com/, /truste/i],
-};
-
-const SSP_PATTERNS = [
-  { name: 'Google Ad Manager', pattern: /googletag|doubleclick\.net|securepubads/i },
-  { name: 'AppNexus/Xandr', pattern: /adnxs\.com|appnexus/i },
-  { name: 'Rubicon', pattern: /rubiconproject\.com/i },
-  { name: 'Index Exchange', pattern: /casalemedia\.com|indexww\.com/i },
-  { name: 'OpenX', pattern: /openx\.net/i },
-  { name: 'PubMatic', pattern: /pubmatic\.com/i },
-  { name: 'Magnite', pattern: /magnite\.com|rubiconproject/i },
-];
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
 
 interface ScanRequest {
   domains: string[];
@@ -93,61 +61,109 @@ interface TrancoData {
   rankChange30d: number | null;
 }
 
+interface NetworkRequest {
+  url: string;
+  type: string;
+  domain: string;
+  isThirdParty: boolean;
+}
+
+interface AdTechRequest {
+  vendor: string;
+  url: string;
+  domain: string;
+}
+
+interface CookieAnalysis {
+  total: number;
+  firstParty: number;
+  thirdParty: number;
+  safariBlocked: number;
+  maxDurationDays: number;
+  sessionCookies: number;
+  persistentCookies: number;
+}
+
+interface BrowserlessResult {
+  html: string;
+  cookies: Cookie[];
+  networkRequests: NetworkRequest[];
+  thirdPartyDomains: string[];
+  adTechRequests: AdTechRequest[];
+  cookieAnalysis: CookieAnalysis;
+  scanMethod: string;
+  error?: string;
+}
+
+interface ScanResult {
+  status: 'completed' | 'failed';
+  error_message: string | null;
+  scan_method: string;
+  total_cookies: number;
+  first_party_cookies: number;
+  third_party_cookies: number;
+  max_cookie_duration_days: number;
+  session_cookies: number;
+  persistent_cookies: number;
+  safari_blocked_cookies: number;
+  has_google_analytics: boolean;
+  has_gtm: boolean;
+  has_gcm: boolean;
+  has_meta_pixel: boolean;
+  has_meta_capi: boolean;
+  has_ttd: boolean;
+  has_liveramp: boolean;
+  has_id5: boolean;
+  has_criteo: boolean;
+  has_ppid: boolean;
+  cmp_vendor: string | null;
+  tcf_compliant: boolean;
+  loads_pre_consent: boolean;
+  has_prebid: boolean;
+  has_header_bidding: boolean;
+  has_conversion_api: boolean;
+  detected_ssps: string[];
+  addressability_gap_pct: number;
+  estimated_safari_loss_pct: number;
+  id_bloat_severity: 'low' | 'medium' | 'high' | 'critical';
+  privacy_risk_level: 'low' | 'moderate' | 'high' | 'critical';
+  competitive_positioning: 'walled-garden-parity' | 'middle-pack' | 'at-risk' | 'commoditized';
+  cookies_raw: Cookie[];
+  vendors_raw: Record<string, boolean>;
+  network_requests_summary: {
+    total_requests: number;
+    third_party_domains: number;
+    ad_tech_requests: number;
+    total_vendors: number;
+  };
+}
+
+// ============================================================================
+// MAIN SERVER
+// ============================================================================
+
 serve(async (req) => {
-  // CRITICAL: Handle OPTIONS preflight FIRST - before any other code
-  // This must be the absolute first check to ensure CORS works
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    try {
-      console.log('[scan-domain] Handling CORS preflight request');
-      console.log('[scan-domain] OPTIONS request origin:', req.headers.get('origin') || 'none');
-      
-      // Use plain object for headers (like send-pdf-email function) - Headers object doesn't serialize correctly
-      const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
-      };
-      
-      console.log('[scan-domain] Returning OPTIONS response with CORS headers');
-      console.log('[scan-domain] Headers being set:', JSON.stringify(headers));
-      
-      // Return empty body with explicit status and headers
-      // Some platforms require a body even for OPTIONS
-      const response = new Response('', { 
-        status: 200, 
-        headers: headers 
-      });
-      
-      // Log what headers are actually in the response object
-      console.log('[scan-domain] Response headers after creation:', Array.from(response.headers.entries()));
-      
-      return response;
-    } catch (optionsError) {
-      // Even if OPTIONS handler fails, return CORS headers
-      console.error('[scan-domain] Error in OPTIONS handler:', optionsError);
-      const errorHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      };
-      return new Response('', { 
-        status: 200, 
-        headers: errorHeaders 
-      });
-    }
+    return new Response('', { status: 200, headers: corsHeaders });
   }
 
   try {
     const origin = req.headers.get('origin') || 'unknown';
-    console.log('[scan-domain] Request received from:', origin);
+    console.log('[scan-domain] v3.0.0 - Request from:', origin);
     
-    // Handle health check requests
     const body = await req.json().catch(() => ({}));
+    
+    // Health check
     if (body.healthCheck === true) {
-      console.log('[scan-domain] Health check request received');
+      console.log('[scan-domain] Health check request');
       return new Response(
-        JSON.stringify({ status: 'healthy', message: 'Edge function is operational' }),
+        JSON.stringify({ 
+          status: 'healthy', 
+          version: '3.0.0',
+          message: 'Edge function operational with /function API',
+          browserlessConfigured: !!BROWSERLESS_API_KEY,
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -157,7 +173,6 @@ serve(async (req) => {
     console.log('[scan-domain] Context:', context);
 
     if (!domains || domains.length === 0) {
-      console.error('[scan-domain] No domains provided');
       return new Response(
         JSON.stringify({ error: 'No domains provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -165,29 +180,25 @@ serve(async (req) => {
     }
 
     if (domains.length > 20) {
-      console.error('[scan-domain] Too many domains:', domains.length);
       return new Response(
         JSON.stringify({ error: 'Maximum 20 domains allowed per scan' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify we have the scanner service key
     if (!SCANNER_SUPABASE_SERVICE_KEY) {
       console.error('[scan-domain] SCANNER_SUPABASE_SERVICE_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'Scanner database not configured' }),
+        JSON.stringify({ error: 'Scanner service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[scan-domain] Starting scan for ${domains.length} domains`);
-
-    // Create Supabase client for EXTERNAL scanner database
+    // Initialize Supabase client
     const supabase = createClient(SCANNER_SUPABASE_URL, SCANNER_SUPABASE_SERVICE_KEY);
 
     // Create scan record
-    const { data: scanRecord, error: insertError } = await supabase
+    const { data: scanData, error: scanError } = await supabase
       .from('domain_scans')
       .insert({
         status: 'processing',
@@ -200,84 +211,71 @@ serve(async (req) => {
       .select()
       .single();
 
-    if (insertError) {
-      console.error('[scan-domain] Failed to create scan record:', insertError);
+    if (scanError || !scanData) {
+      console.error('[scan-domain] Failed to create scan:', scanError);
       return new Response(
-        JSON.stringify({ error: 'Failed to create scan record', details: insertError.message }),
+        JSON.stringify({ error: 'Failed to create scan record' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const scanId = scanRecord.id;
-    console.log(`[scan-domain] Created scan record: ${scanId}`);
+    const scanId = scanData.id;
+    console.log('[scan-domain] Scan created:', scanId);
 
-    // Process domains (async - don't wait for completion)
+    // Process domains in background
     processDomains(supabase, scanId, domains).catch(err => {
       console.error('[scan-domain] Background processing error:', err);
-      // Update scan status to failed if processing crashes
-      supabase
-        .from('domain_scans')
-        .update({ status: 'failed' })
-        .eq('id', scanId)
-        .catch(updateErr => {
-          console.error('[scan-domain] Failed to update scan status to failed:', updateErr);
-        });
+      supabase.from('domain_scans').update({ status: 'failed' }).eq('id', scanId);
     });
 
     return new Response(
       JSON.stringify({ scanId, message: 'Scan started' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
     console.error('[scan-domain] Error:', error);
-    
-    // Ensure CORS headers are always included in error responses - use plain object
-    const errorHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Content-Type': 'application/json',
-    };
-    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: errorHeaders }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
-async function processDomains(supabase: any, scanId: string, domains: string[]) {
+// ============================================================================
+// DOMAIN PROCESSING
+// ============================================================================
+
+async function processDomains(supabase: ReturnType<typeof createClient>, scanId: string, domains: string[]) {
   let completedCount = 0;
 
-  try {
-    for (const domain of domains) {
-      try {
-        // Fetch Tranco rank first (with rate limiting)
-        const trancoData = await fetchTrancoData(domain);
-        
-        // Small delay for Tranco API rate limiting (1 query/second)
-        await new Promise(resolve => setTimeout(resolve, 1100));
-        
-        const result = await scanDomain(domain);
-        
-        // Validate result has required fields
-        if (!result || typeof result.status === 'undefined') {
-          throw new Error(`Invalid result object from scanDomain: ${JSON.stringify(result)}`);
-        }
+  for (const domain of domains) {
+    try {
+      console.log(`[scan-domain] Processing: ${domain}`);
       
-      // Insert result with Tranco data
-      const { data: insertData, error: insertError } = await supabase.from('domain_results').insert({
+      // Fetch Tranco data first
+      const trancoData = await fetchTrancoData(domain);
+      console.log(`[scan-domain] Tranco data for ${domain}:`, trancoData.rank ? `#${trancoData.rank}` : 'not ranked');
+      
+      // Rate limiting for Tranco API
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      
+      // Scan the domain
+      console.log(`[scan-domain] Starting scanDomain for ${domain}...`);
+      const result = await scanDomain(domain);
+      console.log(`[scan-domain] Scan result for ${domain}: ${result.status}, cookies: ${result.total_cookies}, method: ${result.scan_method}`);
+      
+      // Build insert object with only columns that exist in the database
+      // Note: tranco_rank, estimated_monthly_impressions, etc. columns need to be added to DB
+      const insertData = {
         scan_id: scanId,
         domain,
-        status: result.status,
+        status: result.status === 'completed' ? 'success' : 'failed',
         error_message: result.error_message,
         total_cookies: result.total_cookies,
         first_party_cookies: result.first_party_cookies,
         third_party_cookies: result.third_party_cookies,
         max_cookie_duration_days: result.max_cookie_duration_days,
-        session_cookies: result.session_cookies,
-        persistent_cookies: result.persistent_cookies,
-        safari_blocked_cookies: result.safari_blocked_cookies,
         has_google_analytics: result.has_google_analytics,
         has_gtm: result.has_gtm,
         has_gcm: result.has_gcm,
@@ -302,50 +300,48 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         competitive_positioning: result.competitive_positioning,
         cookies_raw: result.cookies_raw,
         vendors_raw: result.vendors_raw,
-        network_requests_summary: result.network_requests_summary,
-        // Tranco traffic data
-        tranco_rank: trancoData.rank,
-        estimated_monthly_pageviews: trancoData.monthlyPageviews,
-        estimated_monthly_impressions: trancoData.monthlyImpressions,
-        traffic_confidence: trancoData.confidence,
-        // Trend analysis
-        tranco_rank_history: trancoData.rankHistory,
-        rank_trend: trancoData.rankTrend,
-        rank_change_30d: trancoData.rankChange30d,
-      });
+      };
+      
+      console.log(`[scan-domain] Inserting result for ${domain}...`);
+      
+      // Insert result
+      const { error: insertError } = await supabase.from('domain_results').insert(insertData);
 
       if (insertError) {
-        console.error(`[scan-domain] Database insertion failed for ${domain}:`, insertError);
-        throw new Error(`Failed to insert result: ${insertError.message}`);
+        console.error(`[scan-domain] Insert error for ${domain}:`, JSON.stringify(insertError));
+        // Try inserting with minimal columns
+        console.log(`[scan-domain] Retrying with minimal columns for ${domain}...`);
+        const { error: minimalError } = await supabase.from('domain_results').insert({
+          scan_id: scanId,
+          domain,
+          status: result.status === 'completed' ? 'success' : 'failed',
+          error_message: `Insert failed: ${insertError.message}`,
+          total_cookies: result.total_cookies,
+          first_party_cookies: result.first_party_cookies,
+          third_party_cookies: result.third_party_cookies,
+          addressability_gap_pct: result.addressability_gap_pct,
+          estimated_safari_loss_pct: result.estimated_safari_loss_pct,
+          id_bloat_severity: result.id_bloat_severity,
+          privacy_risk_level: result.privacy_risk_level,
+          competitive_positioning: result.competitive_positioning,
+        });
+        if (minimalError) {
+          console.error(`[scan-domain] Minimal insert also failed for ${domain}:`, JSON.stringify(minimalError));
+        } else {
+          console.log(`[scan-domain] Minimal insert succeeded for ${domain}`);
+        }
+      } else {
+        console.log(`[scan-domain] Insert successful for ${domain}`);
       }
-      
-      // Note: Supabase v2 .insert() returns null for data unless .select() is chained
-      // The insertError check above is sufficient - no need to check insertData
-      console.log(`[scan-domain] Successfully inserted result for ${domain}`);
 
       completedCount++;
+      await supabase.from('domain_scans').update({ completed_domains: completedCount }).eq('id', scanId);
       
-      // Update scan progress
-      const { error: updateError } = await supabase
-        .from('domain_scans')
-        .update({ completed_domains: completedCount })
-        .eq('id', scanId);
-      
-      if (updateError) {
-        console.error(`[scan-domain] Failed to update scan progress:`, updateError);
-      }
-
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      const errorStack = err instanceof Error ? err.stack : undefined;
-      console.error(`[scan-domain] Error scanning ${domain}:`, {
-        message: errorMessage,
-        stack: errorStack,
-        error: err,
-      });
+      console.error(`[scan-domain] Error processing ${domain}:`, err instanceof Error ? err.stack : err);
       
-      // Try to insert failed result
-      const { data: failInsertData, error: failInsertError } = await supabase.from('domain_results').insert({
+      // Insert failed result
+      const { error: failedInsertError } = await supabase.from('domain_results').insert({
         scan_id: scanId,
         domain,
         status: 'failed',
@@ -353,72 +349,31 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         total_cookies: 0,
         first_party_cookies: 0,
         third_party_cookies: 0,
-        max_cookie_duration_days: 0,
-        session_cookies: 0,
-        persistent_cookies: 0,
-        safari_blocked_cookies: 0,
-        has_google_analytics: false,
-        has_gtm: false,
-        has_gcm: false,
-        has_meta_pixel: false,
-        has_meta_capi: false,
-        has_ttd: false,
-        has_liveramp: false,
-        has_id5: false,
-        has_criteo: false,
-        has_ppid: false,
-        tcf_compliant: false,
-        loads_pre_consent: false,
-        has_prebid: false,
-        has_header_bidding: false,
-        has_conversion_api: false,
-        detected_ssps: [],
         addressability_gap_pct: 52,
         estimated_safari_loss_pct: 30,
         id_bloat_severity: 'medium',
         privacy_risk_level: 'moderate',
         competitive_positioning: 'at-risk',
       });
-
-      if (failInsertError) {
-        console.error(`[scan-domain] Failed to insert error result:`, failInsertError);
-      }
-
-      completedCount++;
-      const { error: failUpdateError } = await supabase
-        .from('domain_scans')
-        .update({ completed_domains: completedCount })
-        .eq('id', scanId);
       
-      if (failUpdateError) {
-        console.error(`[scan-domain] Failed to update scan progress after error for ${scanId}:`, failUpdateError);
+      if (failedInsertError) {
+        console.error(`[scan-domain] Failed to insert error result for ${domain}:`, JSON.stringify(failedInsertError));
       }
-      }
+      
+      completedCount++;
+      await supabase.from('domain_scans').update({ completed_domains: completedCount }).eq('id', scanId);
     }
-
-    // Mark scan as completed
-    await supabase
-      .from('domain_scans')
-      .update({ status: 'completed' })
-      .eq('id', scanId);
-  } catch (err) {
-    console.error(`[scan-domain] Fatal error processing scan ${scanId}:`, err);
-    // Update scan status to failed
-    await supabase
-      .from('domain_scans')
-      .update({ 
-        status: 'failed',
-        completed_domains: completedCount 
-      })
-      .eq('id', scanId)
-      .catch(updateErr => {
-        console.error('[scan-domain] Failed to update scan status to failed:', updateErr);
-      });
-    throw err; // Re-throw to be caught by outer catch
   }
+
+  // Mark scan as completed
+  await supabase.from('domain_scans').update({ status: 'completed' }).eq('id', scanId);
+  console.log(`[scan-domain] Scan ${scanId} completed`);
 }
 
-// Fetch Tranco rank and estimate traffic with 30-day trend analysis
+// ============================================================================
+// TRANCO API
+// ============================================================================
+
 async function fetchTrancoData(domain: string): Promise<TrancoData> {
   const emptyResult: TrancoData = { 
     rank: null, 
@@ -431,7 +386,6 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
   };
   
   try {
-    // Clean domain (remove www, protocol, path)
     const cleanDomain = domain
       .replace(/^https?:\/\//, '')
       .replace(/^www\./, '')
@@ -440,11 +394,7 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
     
     console.log(`[scan-domain] Fetching Tranco rank for: ${cleanDomain}`);
     
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-    };
-    
-    // Add API key if available
+    const headers: Record<string, string> = { 'Accept': 'application/json' };
     if (TRANCO_API_KEY) {
       headers['Authorization'] = `Bearer ${TRANCO_API_KEY}`;
     }
@@ -461,26 +411,23 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
     
     const data = await response.json();
     
-    // Get ranks array (contains 30 days of history)
     if (data.ranks && data.ranks.length > 0) {
-      const rank = data.ranks[0].rank; // Most recent rank
+      const rank = data.ranks[0].rank;
       
-      // Store full history for trend analysis
       const rankHistory: RankHistoryEntry[] = data.ranks.map((r: { date: string; rank: number }) => ({
         date: r.date,
         rank: r.rank,
       }));
       
-      // Calculate trend (positive change = improving, lower rank is better)
       let rankTrend: 'growing' | 'stable' | 'declining' = 'stable';
       let rankChange30d = 0;
       
       if (rankHistory.length >= 2) {
         const newestRank = rankHistory[0].rank;
         const oldestRank = rankHistory[rankHistory.length - 1].rank;
-        rankChange30d = oldestRank - newestRank; // Positive = improved (lower rank)
+        rankChange30d = oldestRank - newestRank;
         
-        const threshold = 1000; // 1000 rank positions is significant
+        const threshold = 1000;
         if (rankChange30d > threshold) {
           rankTrend = 'growing';
         } else if (rankChange30d < -threshold) {
@@ -488,18 +435,16 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
         }
       }
       
-      // Calculate estimated traffic using power-law formula
       const annualPageviews = Math.round(PAGEVIEW_COEFFICIENT * Math.pow(rank, PAGEVIEW_EXPONENT));
       const monthlyPageviews = Math.round(annualPageviews / 12);
-      const monthlyImpressions = monthlyPageviews * 4; // Assume 4 ad slots per page
+      const monthlyImpressions = monthlyPageviews * 4;
       
-      // Determine confidence level
       let confidence: 'high' | 'medium' | 'low';
       if (rank <= 100000) confidence = 'high';
       else if (rank <= 1000000) confidence = 'medium';
       else confidence = 'low';
       
-      console.log(`[scan-domain] Tranco rank for ${cleanDomain}: #${rank}, trend: ${rankTrend} (${rankChange30d > 0 ? '+' : ''}${rankChange30d}), est. ${monthlyImpressions} impressions/mo`);
+      console.log(`[scan-domain] Tranco: ${cleanDomain} #${rank}, ${monthlyImpressions.toLocaleString()} imp/mo`);
       
       return {
         rank,
@@ -512,162 +457,197 @@ async function fetchTrancoData(domain: string): Promise<TrancoData> {
       };
     }
     
-    console.log(`[scan-domain] No Tranco rank found for ${cleanDomain}`);
     return emptyResult;
     
   } catch (err) {
-    console.error(`[scan-domain] Tranco lookup failed for ${domain}:`, err);
+    console.error(`[scan-domain] Tranco lookup failed:`, err);
     return emptyResult;
   }
 }
 
-async function scanDomain(domain: string) {
+// ============================================================================
+// DOMAIN SCANNING - BROWSERLESS /function API
+// ============================================================================
+
+async function scanDomain(domain: string): Promise<ScanResult> {
   const url = domain.startsWith('http') ? domain : `https://${domain}`;
+  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
   
-  // Try Browserless first if available
+  // Try Browserless /function API first (comprehensive)
   if (BROWSERLESS_API_KEY) {
     try {
-      console.log(`[scan-domain] Attempting Browserless scan for ${domain}`);
-      return await scanWithBrowserless(url, domain);
+      console.log(`[scan-domain] Scanning ${domain} with Browserless /function API`);
+      return await scanWithBrowserlessFunction(url, cleanDomain);
     } catch (err) {
-      // Log the error before falling through to static fetch
-      console.error(`[scan-domain] Browserless failed for ${domain}:`, err instanceof Error ? err.message : err);
+      console.error(`[scan-domain] Browserless /function failed for ${domain}:`, err);
     }
-  } else {
-    console.log(`[scan-domain] No BROWSERLESS_API_KEY configured, using static fetch for ${domain}`);
   }
   
-  // Fallback to static analysis
+  // Fallback to static fetch
   console.log(`[scan-domain] Falling back to static fetch for ${domain}`);
   try {
-    return await scanWithFetch(url, domain);
+    return await scanWithFetch(url, cleanDomain);
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[scan-domain] All scanning methods failed for ${domain}:`, errorMsg);
-    // Return error result instead of throwing - this ensures we always return a valid result object
-    return {
-      status: 'failed' as const,
-      error_message: `All scanning methods failed. Last error: ${errorMsg}`,
-      total_cookies: 0,
-      first_party_cookies: 0,
-      third_party_cookies: 0,
-      max_cookie_duration_days: 0,
-      session_cookies: 0,
-      persistent_cookies: 0,
-      safari_blocked_cookies: 0,
-      has_google_analytics: false,
-      has_gtm: false,
-      has_gcm: false,
-      has_meta_pixel: false,
-      has_meta_capi: false,
-      has_ttd: false,
-      has_liveramp: false,
-      has_id5: false,
-      has_criteo: false,
-      has_ppid: false,
-      cmp_vendor: null,
-      tcf_compliant: false,
-      loads_pre_consent: false,
-      has_prebid: false,
-      has_header_bidding: false,
-      has_conversion_api: false,
-      detected_ssps: [],
-      addressability_gap_pct: 52,
-      estimated_safari_loss_pct: 30,
-      id_bloat_severity: 'medium' as const,
-      privacy_risk_level: 'moderate' as const,
-      competitive_positioning: 'at-risk' as const,
-      cookies_raw: [],
-      vendors_raw: {},
-      network_requests_summary: {
-        total_vendors: 0,
-        ad_tech_requests: 0,
-        analytics_requests: 0,
-      },
-    };
+    console.error(`[scan-domain] All methods failed for ${domain}:`, err);
+    return createFailedResult(err instanceof Error ? err.message : 'All scanning methods failed');
   }
 }
 
-async function scanWithBrowserless(url: string, domain: string) {
-  const browserlessUrl = `https://chrome.browserless.io/content?token=${BROWSERLESS_API_KEY}`;
+async function scanWithBrowserlessFunction(url: string, domain: string): Promise<ScanResult> {
+  const functionUrl = `https://chrome.browserless.io/function?token=${BROWSERLESS_API_KEY}`;
   
-  const response = await fetch(browserlessUrl, {
+  // Puppeteer code to execute in Browserless
+  const puppeteerCode = `
+export default async function ({ page, context }) {
+  const networkRequests = [];
+  const thirdPartyDomains = new Set();
+  const adTechRequests = [];
+  const targetDomain = context.domain.replace(/^www\\./, '');
+  
+  // Ad tech vendor patterns
+  const adTechPatterns = [
+    { name: 'google_analytics', patterns: ['google-analytics.com', 'googletagmanager.com', 'analytics.google.com'] },
+    { name: 'meta_pixel', patterns: ['facebook.net', 'facebook.com/tr', 'connect.facebook'] },
+    { name: 'ttd', patterns: ['thetradedesk.com', 'adsrvr.org'] },
+    { name: 'liveramp', patterns: ['rlcdn.com', 'liveramp.com'] },
+    { name: 'id5', patterns: ['id5-sync.com'] },
+    { name: 'criteo', patterns: ['criteo.net', 'criteo.com'] },
+    { name: 'prebid', patterns: ['prebid.org', 'rubiconproject.com', 'pubmatic.com', 'openx.net', 'adnxs.com'] },
+    { name: 'gam', patterns: ['doubleclick.net', 'googlesyndication.com', 'googleadservices.com'] },
+  ];
+  
+  // Enable request interception
+  await page.setRequestInterception(true);
+  
+  page.on('request', (request) => {
+    try {
+      const requestUrl = request.url();
+      if (!requestUrl.startsWith('http')) {
+        request.continue();
+        return;
+      }
+      
+      const urlObj = new URL(requestUrl);
+      const hostname = urlObj.hostname;
+      
+      const isThirdParty = !hostname.includes(targetDomain);
+      
+      networkRequests.push({
+        url: requestUrl.substring(0, 200),
+        type: request.resourceType(),
+        domain: hostname,
+        isThirdParty: isThirdParty,
+      });
+      
+      if (isThirdParty) {
+        thirdPartyDomains.add(hostname);
+      }
+      
+      // Detect ad tech vendors
+      for (const vendor of adTechPatterns) {
+        if (vendor.patterns.some(p => hostname.includes(p) || requestUrl.includes(p))) {
+          adTechRequests.push({
+            vendor: vendor.name,
+            url: requestUrl.substring(0, 200),
+            domain: hostname,
+          });
+          break;
+        }
+      }
+    } catch (e) {
+      // Ignore URL parsing errors
+    }
+    
+    request.continue();
+  });
+  
+  // Navigate
+  try {
+    await page.goto(context.url, { 
+      waitUntil: 'networkidle2', 
+      timeout: 45000 
+    });
+  } catch (navError) {
+    console.log('Navigation completed with possible timeout');
+  }
+  
+  // Wait for late-loading scripts
+  await new Promise(r => setTimeout(r, 3000));
+  
+  // Get cookies
+  const cookies = await page.cookies();
+  
+  // Get HTML
+  const html = await page.content();
+  
+  // Classify cookies
+  const now = Date.now() / 1000;
+  const firstPartyCookies = cookies.filter(c => 
+    c.domain.includes(targetDomain) || c.domain === '.' + targetDomain || c.domain === targetDomain
+  );
+  const thirdPartyCookies = cookies.filter(c => 
+    !c.domain.includes(targetDomain) && c.domain !== '.' + targetDomain
+  );
+  
+  // Safari ITP analysis
+  const safariBlocked = thirdPartyCookies.length + 
+    firstPartyCookies.filter(c => c.expires > 0 && (c.expires - now) > 7 * 86400).length;
+  
+  const maxDuration = Math.max(0, ...cookies.map(c => c.expires > 0 ? (c.expires - now) / 86400 : 0));
+  
+  return {
+    data: {
+      html: html.substring(0, 50000),
+      cookies: cookies.slice(0, 50).map(c => ({
+        name: c.name,
+        domain: c.domain,
+        path: c.path,
+        expires: c.expires,
+        size: c.size || 0,
+        httpOnly: c.httpOnly,
+        secure: c.secure,
+        sameSite: c.sameSite,
+      })),
+      networkRequests: networkRequests.slice(0, 200),
+      thirdPartyDomains: Array.from(thirdPartyDomains).slice(0, 100),
+      adTechRequests: adTechRequests.slice(0, 100),
+      cookieAnalysis: {
+        total: cookies.length,
+        firstParty: firstPartyCookies.length,
+        thirdParty: thirdPartyCookies.length,
+        safariBlocked: safariBlocked,
+        maxDurationDays: Math.round(maxDuration),
+        sessionCookies: cookies.filter(c => c.expires === -1 || c.expires === 0).length,
+        persistentCookies: cookies.filter(c => c.expires > now).length,
+      },
+      scanMethod: 'browserless_function',
+    },
+    type: 'application/json',
+  };
+}
+`;
+
+  const response = await fetch(functionUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      url,
-      waitFor: 5000,
-      gotoOptions: {
-        waitUntil: 'networkidle2',
-        timeout: 45000,
-      },
+      code: puppeteerCode,
+      context: { url, domain },
     }),
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unable to read error response');
-    throw new Error(`Browserless error: ${response.status} - ${errorText.substring(0, 200)}`);
+    const errorText = await response.text();
+    throw new Error(`Browserless function error: ${response.status} - ${errorText.substring(0, 200)}`);
   }
 
-  const html = await response.text();
+  const responseData = await response.json();
+  const data = responseData.data as BrowserlessResult;
   
-  // Also get cookies via Browserless scrape endpoint
-  const cookieResponse = await fetch(`https://chrome.browserless.io/scrape?token=${BROWSERLESS_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      url,
-      waitFor: 5000,
-      elements: [{ selector: 'html' }],
-      cookies: true,
-    }),
-  });
-
-  let cookies: Cookie[] = [];
-  if (cookieResponse.ok) {
-    const cookieData = await cookieResponse.json();
-    cookies = cookieData.cookies || [];
-  }
-
-  return analyzeResults(html, cookies, domain);
+  return analyzeNetworkResults(data, domain);
 }
 
-async function scanWithBrowseAI(url: string, domain: string) {
-  console.log(`[scan-domain] scanWithBrowseAI: Fetching ${url} via Browse AI...`);
-  
-  // Browse AI API for running robots
-  // Note: This requires a robot to be set up in Browse AI dashboard first
-  // The robot should be configured to scrape the target URL and extract HTML/cookies
-  // For now, we'll use a simplified approach that can be enhanced later
-  
-  try {
-    // Browse AI typically requires:
-    // 1. A robot ID (created in Browse AI dashboard)
-    // 2. Running the robot via POST /v2/robots/{robotId}/tasks
-    // 3. Polling for results or using webhooks
-    
-    // For this implementation, we'll use Browse AI's direct scraping capabilities
-    // if available, or fall back to creating a task for an existing robot
-    
-    // Simplified implementation: Use Browse AI's API to get page content
-    // In production, you should:
-    // 1. Create a robot in Browse AI dashboard that scrapes pages
-    // 2. Store the robot ID in environment variables or database
-    // 3. Run the robot via API: POST /v2/robots/{robotId}/tasks
-    // 4. Extract HTML and cookies from the result
-    
-    // For now, we'll throw an error to indicate Browse AI needs configuration
-    // This allows the fallback chain to work while Browse AI is being set up
-    throw new Error('Browse AI robot not configured - please set up a robot in Browse AI dashboard and configure robot ID');
-    
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[scan-domain] Browse AI API error for ${url}:`, errorMsg);
-    throw err;
-  }
-}
-
-async function scanWithFetch(url: string, domain: string) {
+async function scanWithFetch(url: string, domain: string): Promise<ScanResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
 
@@ -675,122 +655,122 @@ async function scanWithFetch(url: string, domain: string) {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
       },
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unable to read error response');
-      throw new Error(`HTTP ${response.status} - ${errorText.substring(0, 200)}`);
+      throw new Error(`HTTP ${response.status}`);
     }
 
     const html = await response.text();
     clearTimeout(timeout);
 
-    // Static analysis can't capture cookies, so estimate based on scripts
-    return analyzeResults(html, [], domain);
+    // Create minimal result from HTML analysis
+    return analyzeHtmlOnly(html, domain);
+    
   } catch (err) {
     clearTimeout(timeout);
     throw err;
   }
 }
 
-function analyzeResults(html: string, cookies: Cookie[], domain: string) {
-  // Vendor detection
-  const hasGoogleAnalytics = VENDOR_PATTERNS.google_analytics.some(p => p.test(html));
-  const hasGtm = VENDOR_PATTERNS.gtm.some(p => p.test(html));
-  const hasGcm = VENDOR_PATTERNS.gcm.some(p => p.test(html));
-  const hasMetaPixel = VENDOR_PATTERNS.meta_pixel.some(p => p.test(html));
-  const hasMetaCapi = VENDOR_PATTERNS.meta_capi.some(p => p.test(html));
-  const hasTtd = VENDOR_PATTERNS.ttd.some(p => p.test(html));
-  const hasLiveramp = VENDOR_PATTERNS.liveramp.some(p => p.test(html));
-  const hasId5 = VENDOR_PATTERNS.id5.some(p => p.test(html));
-  const hasCriteo = VENDOR_PATTERNS.criteo.some(p => p.test(html));
-  const hasPrebid = VENDOR_PATTERNS.prebid.some(p => p.test(html));
-  const hasAmazonTam = VENDOR_PATTERNS.amazon_tam.some(p => p.test(html));
+// ============================================================================
+// ANALYSIS ENGINE
+// ============================================================================
+
+function analyzeNetworkResults(data: BrowserlessResult, domain: string): ScanResult {
+  const { html, cookies, networkRequests, thirdPartyDomains, adTechRequests, cookieAnalysis } = data;
   
-  // PPID detection - look for custom first-party ID patterns
-  const hasPpid = /ppid|publisher.*id|first.*party.*id|user_id.*cookie|login.*token/i.test(html);
+  // Vendor detection from network requests
+  const vendorCounts = new Map<string, number>();
+  for (const req of adTechRequests || []) {
+    vendorCounts.set(req.vendor, (vendorCounts.get(req.vendor) || 0) + 1);
+  }
+  
+  const hasGoogleAnalytics = vendorCounts.has('google_analytics') || vendorCounts.has('gam');
+  const hasMetaPixel = vendorCounts.has('meta_pixel');
+  const hasTTD = vendorCounts.has('ttd');
+  const hasLiveramp = vendorCounts.has('liveramp');
+  const hasId5 = vendorCounts.has('id5');
+  const hasCriteo = vendorCounts.has('criteo');
+  const hasPrebid = vendorCounts.has('prebid');
+  
+  // Also check HTML for patterns
+  const hasGtm = /googletagmanager\.com|GTM-[A-Z0-9]{6,}/i.test(html);
+  const hasGcm = /gtag\(['"]consent['"]|consent.*mode/i.test(html);
+  const hasMetaCapi = /graph\.facebook\.com.*events|facebook.*conversions|fbevents/i.test(html);
+  const hasPpid = /ppid|publisher.*id|first.*party.*id|__fpid/i.test(html);
   
   // CMP detection
   let cmpVendor: string | null = null;
-  for (const [vendor, patterns] of Object.entries(CMP_PATTERNS)) {
-    if (patterns.some(p => p.test(html))) {
-      cmpVendor = vendor;
-      break;
+  if (/onetrust|optanon/i.test(html)) cmpVendor = 'OneTrust';
+  else if (/cookiebot/i.test(html)) cmpVendor = 'Cookiebot';
+  else if (/quantcast/i.test(html)) cmpVendor = 'Quantcast';
+  else if (/sourcepoint/i.test(html)) cmpVendor = 'Sourcepoint';
+  else if (/didomi/i.test(html)) cmpVendor = 'Didomi';
+  else if (/trustarc|truste/i.test(html)) cmpVendor = 'TrustArc';
+  
+  // TCF compliance
+  const tcfCompliant = /__tcfapi|__cmp|__gpp/i.test(html);
+  
+  // Pre-consent tracking
+  const loadsPreConsent = !cmpVendor && (hasGoogleAnalytics || hasMetaPixel || hasCriteo);
+  
+  // SSP detection from third-party domains
+  const detectedSsps: string[] = [];
+  const sspPatterns = [
+    { name: 'Google Ad Manager', pattern: /googletag|doubleclick\.net|securepubads/i },
+    { name: 'Rubicon', pattern: /rubiconproject\.com/i },
+    { name: 'PubMatic', pattern: /pubmatic\.com/i },
+    { name: 'OpenX', pattern: /openx\.net/i },
+    { name: 'AppNexus', pattern: /adnxs\.com/i },
+    { name: 'Index Exchange', pattern: /casalemedia\.com/i },
+  ];
+  
+  for (const ssp of sspPatterns) {
+    if ((thirdPartyDomains || []).some(d => ssp.pattern.test(d))) {
+      detectedSsps.push(ssp.name);
     }
   }
   
-  // TCF compliance detection
-  const tcfCompliant = /__tcfapi|__cmp|__gpp/i.test(html);
-  
-  // Detect if scripts load pre-consent
-  const loadsPreConsent = /optanon-show|cookieconsent|consent-manager/i.test(html) === false &&
-    (hasGoogleAnalytics || hasMetaPixel || hasCriteo);
-  
-  // SSP detection
-  const detectedSsps = SSP_PATTERNS
-    .filter(ssp => ssp.pattern.test(html))
-    .map(ssp => ssp.name);
-  
-  // Header bidding detection
-  const hasHeaderBidding = hasPrebid || hasAmazonTam || /hb_pb|prebid|header.*bidding/i.test(html);
-  
-  // Conversion API detection
-  const hasConversionApi = hasMetaCapi || /capi|server.*side.*tracking|conversion.*api/i.test(html);
-  
-  // Cookie analysis
-  const totalCookies = cookies.length || estimateCookiesFromHtml(html);
-  const firstPartyCookies = cookies.filter(c => c.domain.includes(domain)).length;
-  const thirdPartyCookies = totalCookies - firstPartyCookies;
-  
-  // Cookie duration analysis
-  const now = Date.now() / 1000;
-  const cookieDurations = cookies.map(c => (c.expires - now) / 86400);
-  const maxCookieDuration = Math.max(0, ...cookieDurations);
-  const sessionCookies = cookies.filter(c => c.expires === -1 || c.expires === 0).length;
-  const persistentCookies = cookies.filter(c => c.expires > now).length;
-  
-  // Safari ITP impact - 3rd party cookies and long-duration 1st party
-  const safariBlocked = thirdPartyCookies + 
-    cookies.filter(c => c.domain.includes(domain) && (c.expires - now) > 7 * 86400).length;
-  
   // Calculate scores
   const addressabilityGap = calculateAddressabilityGap(
-    hasGoogleAnalytics, hasMetaPixel, hasPpid, hasLiveramp, hasId5, thirdPartyCookies
+    hasGoogleAnalytics, hasMetaPixel, hasPpid, hasLiveramp, hasId5, cookieAnalysis?.thirdParty || 0
   );
   
-  const safariLoss = Math.min(30 + (safariBlocked * 2), 50);
+  const safariLoss = Math.min(30 + ((cookieAnalysis?.safariBlocked || 0) * 2), 50);
   
   const idBloatSeverity = calculateIdBloat(
-    hasLiveramp, hasId5, hasCriteo, hasTtd, thirdPartyCookies
+    hasLiveramp, hasId5, hasCriteo, hasTTD, cookieAnalysis?.thirdParty || 0
   );
   
   const privacyRisk = calculatePrivacyRisk(
-    loadsPreConsent, !tcfCompliant, thirdPartyCookies, maxCookieDuration
+    loadsPreConsent, !tcfCompliant, cookieAnalysis?.thirdParty || 0, cookieAnalysis?.maxDurationDays || 0
   );
   
   const competitivePosition = calculateCompetitivePosition(
-    hasConversionApi, hasPpid, hasHeaderBidding, addressabilityGap
+    hasMetaCapi, hasPpid, hasPrebid, addressabilityGap
   );
   
   return {
-    status: 'completed' as const,
+    status: 'completed',
     error_message: null,
-    total_cookies: totalCookies,
-    first_party_cookies: firstPartyCookies,
-    third_party_cookies: thirdPartyCookies,
-    max_cookie_duration_days: Math.round(maxCookieDuration),
-    session_cookies: sessionCookies,
-    persistent_cookies: persistentCookies,
-    safari_blocked_cookies: safariBlocked,
+    scan_method: data.scanMethod || 'browserless_function',
+    total_cookies: cookieAnalysis?.total || 0,
+    first_party_cookies: cookieAnalysis?.firstParty || 0,
+    third_party_cookies: cookieAnalysis?.thirdParty || 0,
+    max_cookie_duration_days: cookieAnalysis?.maxDurationDays || 0,
+    session_cookies: cookieAnalysis?.sessionCookies || 0,
+    persistent_cookies: cookieAnalysis?.persistentCookies || 0,
+    safari_blocked_cookies: cookieAnalysis?.safariBlocked || 0,
     has_google_analytics: hasGoogleAnalytics,
     has_gtm: hasGtm,
     has_gcm: hasGcm,
     has_meta_pixel: hasMetaPixel,
     has_meta_capi: hasMetaCapi,
-    has_ttd: hasTtd,
+    has_ttd: hasTTD,
     has_liveramp: hasLiveramp,
     has_id5: hasId5,
     has_criteo: hasCriteo,
@@ -799,47 +779,171 @@ function analyzeResults(html: string, cookies: Cookie[], domain: string) {
     tcf_compliant: tcfCompliant,
     loads_pre_consent: loadsPreConsent,
     has_prebid: hasPrebid,
-    has_header_bidding: hasHeaderBidding,
-    has_conversion_api: hasConversionApi,
+    has_header_bidding: hasPrebid || detectedSsps.length > 0,
+    has_conversion_api: hasMetaCapi,
     detected_ssps: detectedSsps,
     addressability_gap_pct: addressabilityGap,
     estimated_safari_loss_pct: safariLoss,
     id_bloat_severity: idBloatSeverity,
     privacy_risk_level: privacyRisk,
     competitive_positioning: competitivePosition,
-    cookies_raw: cookies.slice(0, 50), // Limit stored cookies
+    cookies_raw: cookies || [],
     vendors_raw: {
       google_analytics: hasGoogleAnalytics,
       gtm: hasGtm,
       gcm: hasGcm,
       meta_pixel: hasMetaPixel,
       meta_capi: hasMetaCapi,
-      ttd: hasTtd,
+      ttd: hasTTD,
       liveramp: hasLiveramp,
       id5: hasId5,
       criteo: hasCriteo,
       prebid: hasPrebid,
-      amazon_tam: hasAmazonTam,
     },
     network_requests_summary: {
+      total_requests: networkRequests?.length || 0,
+      third_party_domains: thirdPartyDomains?.length || 0,
+      ad_tech_requests: adTechRequests?.length || 0,
       total_vendors: detectedSsps.length + (hasGoogleAnalytics ? 1 : 0) + (hasMetaPixel ? 1 : 0),
-      ad_tech_requests: detectedSsps.length,
-      analytics_requests: (hasGoogleAnalytics ? 1 : 0) + (hasGtm ? 1 : 0),
     },
   };
 }
 
-function estimateCookiesFromHtml(html: string): number {
-  // Estimate cookies based on detected scripts
-  let estimate = 0;
-  if (VENDOR_PATTERNS.google_analytics.some(p => p.test(html))) estimate += 3;
-  if (VENDOR_PATTERNS.gtm.some(p => p.test(html))) estimate += 2;
-  if (VENDOR_PATTERNS.meta_pixel.some(p => p.test(html))) estimate += 4;
-  if (VENDOR_PATTERNS.criteo.some(p => p.test(html))) estimate += 5;
-  if (VENDOR_PATTERNS.liveramp.some(p => p.test(html))) estimate += 3;
-  if (VENDOR_PATTERNS.ttd.some(p => p.test(html))) estimate += 3;
-  return estimate;
+function analyzeHtmlOnly(html: string, domain: string): ScanResult {
+  // Fallback HTML-only analysis
+  const hasGoogleAnalytics = /google-analytics\.com|gtag\(|G-[A-Z0-9]{10}/i.test(html);
+  const hasGtm = /googletagmanager\.com|GTM-[A-Z0-9]{6,}/i.test(html);
+  const hasGcm = /gtag\(['"]consent['"]/.test(html);
+  const hasMetaPixel = /connect\.facebook\.net|fbq\(|fbevents\.js/i.test(html);
+  const hasMetaCapi = /graph\.facebook\.com.*events/i.test(html);
+  const hasTTD = /thetradedesk\.com|adsrvr\.org/i.test(html);
+  const hasLiveramp = /rlcdn\.com|liveramp/i.test(html);
+  const hasId5 = /id5-sync\.com/i.test(html);
+  const hasCriteo = /criteo\.net|criteo\.com/i.test(html);
+  const hasPrebid = /prebid\.js|pbjs\.que/i.test(html);
+  const hasPpid = /ppid|publisher.*id/i.test(html);
+  
+  let cmpVendor: string | null = null;
+  if (/onetrust|optanon/i.test(html)) cmpVendor = 'OneTrust';
+  else if (/cookiebot/i.test(html)) cmpVendor = 'Cookiebot';
+  
+  const tcfCompliant = /__tcfapi|__cmp/i.test(html);
+  const loadsPreConsent = !cmpVendor && (hasGoogleAnalytics || hasMetaPixel);
+  
+  // Estimate cookies based on vendors
+  let estimatedCookies = 0;
+  if (hasGoogleAnalytics) estimatedCookies += 3;
+  if (hasGtm) estimatedCookies += 2;
+  if (hasMetaPixel) estimatedCookies += 4;
+  if (hasCriteo) estimatedCookies += 5;
+  if (hasLiveramp) estimatedCookies += 3;
+  if (hasTTD) estimatedCookies += 3;
+  
+  const addressabilityGap = calculateAddressabilityGap(hasGoogleAnalytics, hasMetaPixel, hasPpid, hasLiveramp, hasId5, estimatedCookies);
+  
+  return {
+    status: 'completed',
+    error_message: 'Static fetch used - cookie data may be incomplete',
+    scan_method: 'static_fetch',
+    total_cookies: estimatedCookies,
+    first_party_cookies: Math.round(estimatedCookies * 0.3),
+    third_party_cookies: Math.round(estimatedCookies * 0.7),
+    max_cookie_duration_days: 365,
+    session_cookies: Math.round(estimatedCookies * 0.2),
+    persistent_cookies: Math.round(estimatedCookies * 0.8),
+    safari_blocked_cookies: Math.round(estimatedCookies * 0.7),
+    has_google_analytics: hasGoogleAnalytics,
+    has_gtm: hasGtm,
+    has_gcm: hasGcm,
+    has_meta_pixel: hasMetaPixel,
+    has_meta_capi: hasMetaCapi,
+    has_ttd: hasTTD,
+    has_liveramp: hasLiveramp,
+    has_id5: hasId5,
+    has_criteo: hasCriteo,
+    has_ppid: hasPpid,
+    cmp_vendor: cmpVendor,
+    tcf_compliant: tcfCompliant,
+    loads_pre_consent: loadsPreConsent,
+    has_prebid: hasPrebid,
+    has_header_bidding: hasPrebid,
+    has_conversion_api: hasMetaCapi,
+    detected_ssps: [],
+    addressability_gap_pct: addressabilityGap,
+    estimated_safari_loss_pct: 35,
+    id_bloat_severity: 'medium',
+    privacy_risk_level: 'moderate',
+    competitive_positioning: 'at-risk',
+    cookies_raw: [],
+    vendors_raw: {
+      google_analytics: hasGoogleAnalytics,
+      gtm: hasGtm,
+      gcm: hasGcm,
+      meta_pixel: hasMetaPixel,
+      meta_capi: hasMetaCapi,
+      ttd: hasTTD,
+      liveramp: hasLiveramp,
+      id5: hasId5,
+      criteo: hasCriteo,
+      prebid: hasPrebid,
+    },
+    network_requests_summary: {
+      total_requests: 0,
+      third_party_domains: 0,
+      ad_tech_requests: 0,
+      total_vendors: (hasGoogleAnalytics ? 1 : 0) + (hasMetaPixel ? 1 : 0),
+    },
+  };
 }
+
+function createFailedResult(errorMessage: string): ScanResult {
+  return {
+    status: 'failed',
+    error_message: errorMessage,
+    scan_method: 'none',
+    total_cookies: 0,
+    first_party_cookies: 0,
+    third_party_cookies: 0,
+    max_cookie_duration_days: 0,
+    session_cookies: 0,
+    persistent_cookies: 0,
+    safari_blocked_cookies: 0,
+    has_google_analytics: false,
+    has_gtm: false,
+    has_gcm: false,
+    has_meta_pixel: false,
+    has_meta_capi: false,
+    has_ttd: false,
+    has_liveramp: false,
+    has_id5: false,
+    has_criteo: false,
+    has_ppid: false,
+    cmp_vendor: null,
+    tcf_compliant: false,
+    loads_pre_consent: false,
+    has_prebid: false,
+    has_header_bidding: false,
+    has_conversion_api: false,
+    detected_ssps: [],
+    addressability_gap_pct: 52,
+    estimated_safari_loss_pct: 30,
+    id_bloat_severity: 'medium',
+    privacy_risk_level: 'moderate',
+    competitive_positioning: 'at-risk',
+    cookies_raw: [],
+    vendors_raw: {},
+    network_requests_summary: {
+      total_requests: 0,
+      third_party_domains: 0,
+      ad_tech_requests: 0,
+      total_vendors: 0,
+    },
+  };
+}
+
+// ============================================================================
+// SCORING FUNCTIONS
+// ============================================================================
 
 function calculateAddressabilityGap(
   hasGA: boolean,
@@ -849,38 +953,37 @@ function calculateAddressabilityGap(
   hasId5: boolean,
   thirdPartyCookies: number
 ): number {
-  // Base gap from industry averages
-  let gap = 52;
+  let gap = 52; // Baseline
   
-  // PPID reduces gap significantly
   if (hasPpid) gap -= 15;
+  if (hasLiveramp) gap -= 10;
+  if (hasId5) gap -= 8;
+  if (!hasGA && !hasMeta) gap += 10;
+  if (thirdPartyCookies > 20) gap += 5;
   
-  // ID partners help
-  if (hasLiveramp) gap -= 8;
-  if (hasId5) gap -= 5;
-  
-  // Heavy 3P cookie reliance increases gap
-  if (thirdPartyCookies > 20) gap += 10;
-  else if (thirdPartyCookies > 10) gap += 5;
-  
-  // No modern ID solution increases gap
-  if (!hasPpid && !hasLiveramp && !hasId5) gap += 12;
-  
-  return Math.max(20, Math.min(80, gap));
+  return Math.max(10, Math.min(80, gap));
 }
 
 function calculateIdBloat(
   hasLiveramp: boolean,
   hasId5: boolean,
   hasCriteo: boolean,
-  hasTtd: boolean,
+  hasTTD: boolean,
   thirdPartyCookies: number
 ): 'low' | 'medium' | 'high' | 'critical' {
-  const idVendors = [hasLiveramp, hasId5, hasCriteo, hasTtd].filter(Boolean).length;
+  let score = 0;
   
-  if (idVendors >= 3 || thirdPartyCookies > 30) return 'critical';
-  if (idVendors >= 2 || thirdPartyCookies > 20) return 'high';
-  if (idVendors >= 1 || thirdPartyCookies > 10) return 'medium';
+  if (hasLiveramp) score += 2;
+  if (hasId5) score += 2;
+  if (hasCriteo) score += 2;
+  if (hasTTD) score += 2;
+  if (thirdPartyCookies > 30) score += 3;
+  else if (thirdPartyCookies > 15) score += 2;
+  else if (thirdPartyCookies > 5) score += 1;
+  
+  if (score >= 8) return 'critical';
+  if (score >= 5) return 'high';
+  if (score >= 2) return 'medium';
   return 'low';
 }
 
@@ -888,38 +991,38 @@ function calculatePrivacyRisk(
   loadsPreConsent: boolean,
   noTcf: boolean,
   thirdPartyCookies: number,
-  maxCookieDuration: number
-): 'low' | 'moderate' | 'elevated' | 'high-risk' {
+  maxCookieDays: number
+): 'low' | 'moderate' | 'high' | 'critical' {
   let score = 0;
   
   if (loadsPreConsent) score += 3;
   if (noTcf) score += 2;
   if (thirdPartyCookies > 20) score += 2;
-  if (maxCookieDuration > 365) score += 2;
-  if (maxCookieDuration > 730) score += 1;
+  if (maxCookieDays > 365) score += 2;
+  else if (maxCookieDays > 180) score += 1;
   
-  if (score >= 6) return 'high-risk';
-  if (score >= 4) return 'elevated';
+  if (score >= 6) return 'critical';
+  if (score >= 4) return 'high';
   if (score >= 2) return 'moderate';
   return 'low';
 }
 
 function calculateCompetitivePosition(
-  hasConversionApi: boolean,
+  hasCapi: boolean,
   hasPpid: boolean,
   hasHeaderBidding: boolean,
   addressabilityGap: number
-): 'leader' | 'competitive' | 'at-risk' | 'lagging' {
+): 'walled-garden-parity' | 'middle-pack' | 'at-risk' | 'commoditized' {
   let score = 0;
   
-  if (hasConversionApi) score += 3;
+  if (hasCapi) score += 3;
   if (hasPpid) score += 3;
   if (hasHeaderBidding) score += 2;
-  if (addressabilityGap < 40) score += 2;
-  if (addressabilityGap < 30) score += 1;
+  if (addressabilityGap < 30) score += 2;
+  else if (addressabilityGap > 50) score -= 2;
   
-  if (score >= 8) return 'leader';
-  if (score >= 5) return 'competitive';
-  if (score >= 2) return 'at-risk';
-  return 'lagging';
+  if (score >= 7) return 'walled-garden-parity';
+  if (score >= 4) return 'middle-pack';
+  if (score >= 1) return 'at-risk';
+  return 'commoditized';
 }

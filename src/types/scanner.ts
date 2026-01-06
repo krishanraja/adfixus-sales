@@ -3,7 +3,7 @@
 export type ScanStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type DomainStatus = 'success' | 'failed' | 'timeout' | 'blocked';
 export type IdBloatSeverity = 'low' | 'medium' | 'high' | 'critical';
-export type PrivacyRiskLevel = 'compliant' | 'moderate' | 'high-risk';
+export type PrivacyRiskLevel = 'compliant' | 'moderate' | 'high-risk' | 'low' | 'high' | 'critical';
 export type CompetitivePosition = 'walled-garden-parity' | 'middle-pack' | 'at-risk' | 'commoditized';
 export type PublisherVertical = 'news' | 'entertainment' | 'auto' | 'finance' | 'lifestyle' | 'other';
 export type RankTrend = 'growing' | 'stable' | 'declining';
@@ -155,10 +155,15 @@ export interface VendorData {
 }
 
 export interface NetworkSummary {
-  totalRequests: number;
-  thirdPartyRequests: number;
-  trackingRequests: number;
-  adRequests: number;
+  totalRequests?: number;
+  thirdPartyRequests?: number;
+  trackingRequests?: number;
+  adRequests?: number;
+  // New fields from v3.0.0
+  total_requests?: number;
+  third_party_domains?: number;
+  ad_tech_requests?: number;
+  total_vendors?: number;
 }
 
 export interface PainPoint {
