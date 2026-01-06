@@ -1,4 +1,4 @@
-// Version: 2.0.0 - Force redeploy 2026-01-05
+// Version: 2.1.0 - Fix CORS headers - Force redeploy 2026-01-06
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
@@ -91,10 +91,37 @@ interface TrancoData {
 }
 
 serve(async (req) => {
-  // CRITICAL: Handle OPTIONS preflight with explicit 200 status
+  // CRITICAL: Handle OPTIONS preflight FIRST - before any other code
+  // This must be the absolute first check to ensure CORS works
   if (req.method === 'OPTIONS') {
-    console.log('[scan-domain] Handling CORS preflight');
-    return new Response(null, { status: 200, headers: corsHeaders });
+    try {
+      console.log('[scan-domain] Handling CORS preflight request');
+      console.log('[scan-domain] OPTIONS request origin:', req.headers.get('origin') || 'none');
+      
+      // Create explicit Headers object to ensure proper format
+      const headers = new Headers();
+      headers.set('Access-Control-Allow-Origin', '*');
+      headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+      headers.set('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+      
+      console.log('[scan-domain] Returning OPTIONS response with CORS headers');
+      return new Response(null, { 
+        status: 200, 
+        headers: headers 
+      });
+    } catch (optionsError) {
+      // Even if OPTIONS handler fails, return CORS headers
+      console.error('[scan-domain] Error in OPTIONS handler:', optionsError);
+      const errorHeaders = new Headers();
+      errorHeaders.set('Access-Control-Allow-Origin', '*');
+      errorHeaders.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      errorHeaders.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+      return new Response(null, { 
+        status: 200, 
+        headers: errorHeaders 
+      });
+    }
   }
 
   try {
@@ -171,9 +198,17 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('[scan-domain] Error:', error);
+    
+    // Ensure CORS headers are always included in error responses
+    const errorHeaders = new Headers();
+    errorHeaders.set('Access-Control-Allow-Origin', '*');
+    errorHeaders.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    errorHeaders.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+    errorHeaders.set('Content-Type', 'application/json');
+    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: errorHeaders }
     );
   }
 });
