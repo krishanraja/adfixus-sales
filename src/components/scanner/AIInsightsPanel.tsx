@@ -6,7 +6,6 @@ import { Sparkles, RefreshCw, ChevronDown, ChevronUp, Brain, Lightbulb, Target, 
 import { cn } from '@/lib/utils';
 import type { DomainResult, PublisherContext } from '@/types/scanner';
 import { supabase } from '@/integrations/supabase/client';
-import adfixusIcon from '@/assets/adfixus-logo.png';
 
 interface AIInsightsPanelProps {
   results: DomainResult[];
@@ -141,7 +140,7 @@ export function AIInsightsPanel({ results, context, scanId }: AIInsightsPanelPro
                   <div className="relative">
                     <div className="h-16 w-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
                     <img 
-                      src={adfixusIcon} 
+                      src="/adfixus%20icon.png" 
                       alt="AdFixus" 
                       className="h-6 w-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
                     />

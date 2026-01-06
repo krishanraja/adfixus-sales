@@ -8,6 +8,7 @@ import { formatTrafficNumber } from '@/utils/trafficEstimation';
 import { BenchmarkComparison } from '@/components/scanner/BenchmarkComparison';
 import { PortfolioTrafficSummary } from '@/components/scanner/PortfolioTrafficSummary';
 import { AIInsightsPanel } from '@/components/scanner/AIInsightsPanel';
+import { ChangeDetectionPanel } from '@/components/scanner/ChangeDetectionPanel';
 import { RankTrendBadge } from '@/components/scanner/RankTrendBadge';
 import { TrafficSparkline } from '@/components/scanner/TrafficSparkline';
 import { AnimatedCounter } from '@/components/scanner/AnimatedCounter';
@@ -37,7 +38,6 @@ import {
 } from 'lucide-react';
 import type { DomainResult, CompetitivePosition, PublisherContext } from '@/types/scanner';
 import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
-import adfixusIcon from '@/assets/adfixus-logo.png';
 
 const MEETING_URL = 'https://outlook.office.com/book/SalesTeambooking@adfixus.com';
 
@@ -93,16 +93,20 @@ export default function ScannerResults() {
     }
   };
 
+  // Define isProcessing BEFORE it's used in conditional rendering
+  const isProcessing = scan?.status === 'processing' || scan?.status === 'pending';
+  const progress = scan ? (scan.completed_domains / scan.total_domains) * 100 : 0;
+
   // Only show full-screen loading during initial auth/data fetch
   // NOT during scan processing (that has its own UI)
-  if (authLoading || (isLoading && !scan)) {
+  if (authLoading || (isLoading && !scan && !isProcessing)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="relative mx-auto mb-6">
             <div className="h-20 w-20 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
             <img 
-              src={adfixusIcon} 
+              src="/adfixus%20icon.png" 
               alt="AdFixus" 
               className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
             />
@@ -132,9 +136,6 @@ export default function ScannerResults() {
       </div>
     );
   }
-
-  const isProcessing = scan?.status === 'processing' || scan?.status === 'pending';
-  const progress = scan ? (scan.completed_domains / scan.total_domains) * 100 : 0;
 
   const getPositionColor = (position: CompetitivePosition) => {
     switch (position) {
@@ -211,7 +212,7 @@ export default function ScannerResults() {
                     <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
                     <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
                     <img 
-                      src={adfixusIcon} 
+                      src="/adfixus%20icon.png" 
                       alt="AdFixus" 
                       className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
                     />
@@ -645,6 +646,11 @@ export default function ScannerResults() {
                               )}
                             </div>
                           </div>
+                        </div>
+                        
+                        {/* Change Detection Panel */}
+                        <div className="mt-4">
+                          <ChangeDetectionPanel scanId={scanId || ''} domain={result.domain} />
                         </div>
                       </div>
                     )}

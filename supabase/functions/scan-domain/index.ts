@@ -15,6 +15,9 @@ const SCANNER_SUPABASE_SERVICE_KEY = Deno.env.get('SCANNER_SUPABASE_SERVICE_KEY'
 // Browserless API for dynamic scanning
 const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY') || '';
 
+// Browse AI API for enhanced scanning and change detection
+const BROWSE_AI_API_KEY = Deno.env.get('BROWSE_AI_API_KEY') || '';
+
 // Tranco API for traffic estimation
 const TRANCO_API_KEY = Deno.env.get('TRANCO_API_KEY') || '';
 
@@ -247,23 +250,23 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
   let completedCount = 0;
 
   try {
-    console.log(`[scan-domain] Starting to process ${domains.length} domains for scan ${scanId}`);
-    
     for (const domain of domains) {
       try {
-        console.log(`[scan-domain] Scanning domain: ${domain}`);
-        
         // Fetch Tranco rank first (with rate limiting)
         const trancoData = await fetchTrancoData(domain);
-        console.log(`[scan-domain] Tranco data for ${domain}:`, trancoData);
         
         // Small delay for Tranco API rate limiting (1 query/second)
         await new Promise(resolve => setTimeout(resolve, 1100));
         
         const result = await scanDomain(domain);
+        
+        // Validate result has required fields
+        if (!result || typeof result.status === 'undefined') {
+          throw new Error(`Invalid result object from scanDomain: ${JSON.stringify(result)}`);
+        }
       
       // Insert result with Tranco data
-      await supabase.from('domain_results').insert({
+      const { data: insertData, error: insertError } = await supabase.from('domain_results').insert({
         scan_id: scanId,
         domain,
         status: result.status,
@@ -311,18 +314,38 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         rank_change_30d: trancoData.rankChange30d,
       });
 
+      if (insertError) {
+        console.error(`[scan-domain] Database insertion failed for ${domain}:`, insertError);
+        throw new Error(`Failed to insert result: ${insertError.message}`);
+      }
+      
+      if (!insertData || insertData.length === 0) {
+        throw new Error('Database insertion returned no data');
+      }
+
       completedCount++;
       
       // Update scan progress
-      await supabase
+      const { error: updateError } = await supabase
         .from('domain_scans')
         .update({ completed_domains: completedCount })
         .eq('id', scanId);
+      
+      if (updateError) {
+        console.error(`[scan-domain] Failed to update scan progress:`, updateError);
+      }
 
     } catch (err) {
-      console.error(`[scan-domain] Error scanning ${domain}:`, err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : undefined;
+      console.error(`[scan-domain] Error scanning ${domain}:`, {
+        message: errorMessage,
+        stack: errorStack,
+        error: err,
+      });
       
-      await supabase.from('domain_results').insert({
+      // Try to insert failed result
+      const { data: failInsertData, error: failInsertError } = await supabase.from('domain_results').insert({
         scan_id: scanId,
         domain,
         status: 'failed',
@@ -357,11 +380,19 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         competitive_positioning: 'at-risk',
       });
 
+      if (failInsertError) {
+        console.error(`[scan-domain] Failed to insert error result:`, failInsertError);
+      }
+
       completedCount++;
-      await supabase
+      const { error: failUpdateError } = await supabase
         .from('domain_scans')
         .update({ completed_domains: completedCount })
         .eq('id', scanId);
+      
+      if (failUpdateError) {
+        console.error(`[scan-domain] Failed to update scan progress after error for ${scanId}:`, failUpdateError);
+      }
       }
     }
 
@@ -370,8 +401,6 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
       .from('domain_scans')
       .update({ status: 'completed' })
       .eq('id', scanId);
-
-    console.log(`[scan-domain] Scan ${scanId} completed successfully`);
   } catch (err) {
     console.error(`[scan-domain] Fatal error processing scan ${scanId}:`, err);
     // Update scan status to failed
@@ -500,12 +529,58 @@ async function scanDomain(domain: string) {
     try {
       return await scanWithBrowserless(url, domain);
     } catch (err) {
-      console.log(`[scan-domain] Browserless failed for ${domain}, falling back to static:`, err);
+      // Fall through to static fetch
     }
   }
   
   // Fallback to static analysis
-  return await scanWithFetch(url, domain);
+  try {
+    return await scanWithFetch(url, domain);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[scan-domain] All scanning methods failed for ${domain}:`, errorMsg);
+    // Return error result instead of throwing - this ensures we always return a valid result object
+    return {
+      status: 'failed' as const,
+      error_message: `All scanning methods failed. Last error: ${errorMsg}`,
+      total_cookies: 0,
+      first_party_cookies: 0,
+      third_party_cookies: 0,
+      max_cookie_duration_days: 0,
+      session_cookies: 0,
+      persistent_cookies: 0,
+      safari_blocked_cookies: 0,
+      has_google_analytics: false,
+      has_gtm: false,
+      has_gcm: false,
+      has_meta_pixel: false,
+      has_meta_capi: false,
+      has_ttd: false,
+      has_liveramp: false,
+      has_id5: false,
+      has_criteo: false,
+      has_ppid: false,
+      cmp_vendor: null,
+      tcf_compliant: false,
+      loads_pre_consent: false,
+      has_prebid: false,
+      has_header_bidding: false,
+      has_conversion_api: false,
+      detected_ssps: [],
+      addressability_gap_pct: 52,
+      estimated_safari_loss_pct: 30,
+      id_bloat_severity: 'medium' as const,
+      privacy_risk_level: 'moderate' as const,
+      competitive_positioning: 'at-risk' as const,
+      cookies_raw: [],
+      vendors_raw: {},
+      network_requests_summary: {
+        total_vendors: 0,
+        ad_tech_requests: 0,
+        analytics_requests: 0,
+      },
+    };
+  }
 }
 
 async function scanWithBrowserless(url: string, domain: string) {
@@ -525,7 +600,8 @@ async function scanWithBrowserless(url: string, domain: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`Browserless error: ${response.status}`);
+    const errorText = await response.text().catch(() => 'Unable to read error response');
+    throw new Error(`Browserless error: ${response.status} - ${errorText.substring(0, 200)}`);
   }
 
   const html = await response.text();
@@ -551,6 +627,41 @@ async function scanWithBrowserless(url: string, domain: string) {
   return analyzeResults(html, cookies, domain);
 }
 
+async function scanWithBrowseAI(url: string, domain: string) {
+  console.log(`[scan-domain] scanWithBrowseAI: Fetching ${url} via Browse AI...`);
+  
+  // Browse AI API for running robots
+  // Note: This requires a robot to be set up in Browse AI dashboard first
+  // The robot should be configured to scrape the target URL and extract HTML/cookies
+  // For now, we'll use a simplified approach that can be enhanced later
+  
+  try {
+    // Browse AI typically requires:
+    // 1. A robot ID (created in Browse AI dashboard)
+    // 2. Running the robot via POST /v2/robots/{robotId}/tasks
+    // 3. Polling for results or using webhooks
+    
+    // For this implementation, we'll use Browse AI's direct scraping capabilities
+    // if available, or fall back to creating a task for an existing robot
+    
+    // Simplified implementation: Use Browse AI's API to get page content
+    // In production, you should:
+    // 1. Create a robot in Browse AI dashboard that scrapes pages
+    // 2. Store the robot ID in environment variables or database
+    // 3. Run the robot via API: POST /v2/robots/{robotId}/tasks
+    // 4. Extract HTML and cookies from the result
+    
+    // For now, we'll throw an error to indicate Browse AI needs configuration
+    // This allows the fallback chain to work while Browse AI is being set up
+    throw new Error('Browse AI robot not configured - please set up a robot in Browse AI dashboard and configure robot ID');
+    
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[scan-domain] Browse AI API error for ${url}:`, errorMsg);
+    throw err;
+  }
+}
+
 async function scanWithFetch(url: string, domain: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
@@ -565,7 +676,8 @@ async function scanWithFetch(url: string, domain: string) {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errorText = await response.text().catch(() => 'Unable to read error response');
+      throw new Error(`HTTP ${response.status} - ${errorText.substring(0, 200)}`);
     }
 
     const html = await response.text();
