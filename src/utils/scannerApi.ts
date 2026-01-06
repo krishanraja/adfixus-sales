@@ -394,6 +394,29 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
     
     const invokePromise = supabase.functions.invoke('scan-domain', {
       body: { healthCheck: true },
+    }).then((response) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:395',message:'Health check invoke response',data:{hasData:!!response.data,hasError:!!response.error,errorMessage:response.error?.message,errorName:response.error?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      
+      // If there's an error, log it but also check if it's a non-2xx status
+      if (response.error) {
+        console.error('[scannerApi] [DIAGNOSTIC] Health check returned error:', response.error);
+        
+        // Check if error message indicates non-2xx status
+        if (response.error.message?.includes('non-2xx status')) {
+          // This means the function returned an error status (400, 500, etc.)
+          // We need to check the actual status code if available
+          const statusCode = (response.error as any).status || (response.error as any).code;
+          console.error('[scannerApi] [DIAGNOSTIC] Edge function returned non-2xx status:', statusCode);
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:408',message:'Non-2xx status detected',data:{statusCode,errorMessage:response.error.message,errorKeys:Object.keys(response.error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+          // #endregion
+        }
+      }
+      
+      return response;
     }).catch((err) => {
       // Catch network errors that might not be in response.error
       // Preserve full error structure including name, stack, and cause
@@ -402,6 +425,10 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       const errorMsg = errorObj.message || String(err) || '';
       const errorStack = errorObj.stack || '';
       const errorCause = (errorObj as any).cause || (errorObj as any).originalError || null;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:420',message:'Invoke promise rejected',data:{errorName,errorMsg,errorStack:errorStack.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
       
       console.error('[scannerApi] [DIAGNOSTIC] Invoke promise rejected:', {
         name: errorName,
@@ -424,6 +451,16 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
     
     const response = await Promise.race([invokePromise, timeoutPromise]);
     
+    // #region agent log
+    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:425',message:'Health check response received',data:{hasError:!!response.error,hasData:!!response.data,errorMessage:response.error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    
+    // Check if health check succeeded (function returned 200 with health status)
+    if (response.data && (response.data as any).status === 'healthy') {
+      console.log('[scannerApi] [DIAGNOSTIC] Health check successful - function is operational');
+      return { healthy: true };
+    }
+    
     // Check for DNS/network errors - inspect full error object structure
     if (response.error) {
       const error = response.error;
@@ -432,6 +469,10 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       const errorStack = error.stack || '';
       const errorCause = (error as any).cause || (error as any).originalError || null;
       const errorConstructor = error.constructor?.name || '';
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:435',message:'Error in health check response',data:{errorName,errorMsg:errorMsg.substring(0,200),errorKeys:Object.keys(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
       
       // Comprehensive error object logging for diagnostics
       console.error('[scannerApi] [DIAGNOSTIC] Full error object:', {

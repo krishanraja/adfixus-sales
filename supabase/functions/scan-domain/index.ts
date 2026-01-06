@@ -1,4 +1,4 @@
-// Version: 2.2.0 - Fix CORS headers (use plain object not Headers) - Force redeploy 2026-01-06
+// Version: 2.3.0 - Fix CORS headers (return empty string body) - Force redeploy 2026-01-06
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
@@ -107,10 +107,19 @@ serve(async (req) => {
       };
       
       console.log('[scan-domain] Returning OPTIONS response with CORS headers');
-      return new Response(null, { 
+      console.log('[scan-domain] Headers being set:', JSON.stringify(headers));
+      
+      // Return empty body with explicit status and headers
+      // Some platforms require a body even for OPTIONS
+      const response = new Response('', { 
         status: 200, 
         headers: headers 
       });
+      
+      // Log what headers are actually in the response object
+      console.log('[scan-domain] Response headers after creation:', Array.from(response.headers.entries()));
+      
+      return response;
     } catch (optionsError) {
       // Even if OPTIONS handler fails, return CORS headers
       console.error('[scan-domain] Error in OPTIONS handler:', optionsError);
@@ -119,7 +128,7 @@ serve(async (req) => {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
       };
-      return new Response(null, { 
+      return new Response('', { 
         status: 200, 
         headers: errorHeaders 
       });
@@ -130,7 +139,17 @@ serve(async (req) => {
     const origin = req.headers.get('origin') || 'unknown';
     console.log('[scan-domain] Request received from:', origin);
     
-    const { domains, context }: ScanRequest = await req.json();
+    // Handle health check requests
+    const body = await req.json().catch(() => ({}));
+    if (body.healthCheck === true) {
+      console.log('[scan-domain] Health check request received');
+      return new Response(
+        JSON.stringify({ status: 'healthy', message: 'Edge function is operational' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { domains, context }: ScanRequest = body;
     console.log('[scan-domain] Domains:', domains);
     console.log('[scan-domain] Context:', context);
 
