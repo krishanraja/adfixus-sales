@@ -211,6 +211,14 @@ serve(async (req) => {
     // Process domains (async - don't wait for completion)
     processDomains(supabase, scanId, domains).catch(err => {
       console.error('[scan-domain] Background processing error:', err);
+      // Update scan status to failed if processing crashes
+      supabase
+        .from('domain_scans')
+        .update({ status: 'failed' })
+        .eq('id', scanId)
+        .catch(updateErr => {
+          console.error('[scan-domain] Failed to update scan status to failed:', updateErr);
+        });
     });
 
     return new Response(
@@ -238,18 +246,21 @@ serve(async (req) => {
 async function processDomains(supabase: any, scanId: string, domains: string[]) {
   let completedCount = 0;
 
-  for (const domain of domains) {
-    try {
-      console.log(`[scan-domain] Scanning domain: ${domain}`);
-      
-      // Fetch Tranco rank first (with rate limiting)
-      const trancoData = await fetchTrancoData(domain);
-      console.log(`[scan-domain] Tranco data for ${domain}:`, trancoData);
-      
-      // Small delay for Tranco API rate limiting (1 query/second)
-      await new Promise(resolve => setTimeout(resolve, 1100));
-      
-      const result = await scanDomain(domain);
+  try {
+    console.log(`[scan-domain] Starting to process ${domains.length} domains for scan ${scanId}`);
+    
+    for (const domain of domains) {
+      try {
+        console.log(`[scan-domain] Scanning domain: ${domain}`);
+        
+        // Fetch Tranco rank first (with rate limiting)
+        const trancoData = await fetchTrancoData(domain);
+        console.log(`[scan-domain] Tranco data for ${domain}:`, trancoData);
+        
+        // Small delay for Tranco API rate limiting (1 query/second)
+        await new Promise(resolve => setTimeout(resolve, 1100));
+        
+        const result = await scanDomain(domain);
       
       // Insert result with Tranco data
       await supabase.from('domain_results').insert({
@@ -351,16 +362,31 @@ async function processDomains(supabase: any, scanId: string, domains: string[]) 
         .from('domain_scans')
         .update({ completed_domains: completedCount })
         .eq('id', scanId);
+      }
     }
+
+    // Mark scan as completed
+    await supabase
+      .from('domain_scans')
+      .update({ status: 'completed' })
+      .eq('id', scanId);
+
+    console.log(`[scan-domain] Scan ${scanId} completed successfully`);
+  } catch (err) {
+    console.error(`[scan-domain] Fatal error processing scan ${scanId}:`, err);
+    // Update scan status to failed
+    await supabase
+      .from('domain_scans')
+      .update({ 
+        status: 'failed',
+        completed_domains: completedCount 
+      })
+      .eq('id', scanId)
+      .catch(updateErr => {
+        console.error('[scan-domain] Failed to update scan status to failed:', updateErr);
+      });
+    throw err; // Re-throw to be caught by outer catch
   }
-
-  // Mark scan as completed
-  await supabase
-    .from('domain_scans')
-    .update({ status: 'completed' })
-    .eq('id', scanId);
-
-  console.log(`[scan-domain] Scan ${scanId} completed`);
 }
 
 // Fetch Tranco rank and estimate traffic with 30-day trend analysis
