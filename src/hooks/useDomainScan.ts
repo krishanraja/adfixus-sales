@@ -1,6 +1,6 @@
 // Domain Scan Hook
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   createScan, 
   getScanStatus, 
@@ -33,36 +33,58 @@ export function useDomainScan(): UseDomainScanResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [context, setContext] = useState<PublisherContext | undefined>();
+  
+  // CRITICAL FIX: Track mounted state to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+  
+  // CRITICAL FIX: Use refs to track scan state without triggering re-subscriptions
+  const scanIdRef = useRef<string | null>(null);
+  const scanStatusRef = useRef<string | null>(null);
+  
+  // Track mounted state
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Update summary when results change
   useEffect(() => {
-    if (results.length > 0) {
+    if (results.length > 0 && isMountedRef.current) {
       const newSummary = generateScanSummary(results, context);
       setSummary(newSummary);
     }
   }, [results, context]);
 
   // Subscribe to real-time updates when we have a scan
-  // Includes polling fallback for reliability
+  // CRITICAL FIX: Only depend on scanIdRef changes, not scan?.status to prevent loops
   useEffect(() => {
-    if (!scan?.id || scan.status === 'completed' || scan.status === 'failed') {
+    const currentScanId = scanIdRef.current;
+    const currentStatus = scanStatusRef.current;
+    
+    if (!currentScanId || currentStatus === 'completed' || currentStatus === 'failed') {
       return;
     }
 
-    console.log('[useDomainScan] Setting up real-time subscriptions for:', scan.id);
+    console.log('[useDomainScan] Setting up real-time subscriptions for:', currentScanId);
 
     let unsubscribeScan: (() => void) | null = null;
     let unsubscribeResults: (() => void) | null = null;
     let pollInterval: NodeJS.Timeout | null = null;
+    let isCleanedUp = false; // Local cleanup flag for this effect instance
 
     try {
       // Set up real-time subscriptions
-      unsubscribeScan = subscribeScanUpdates(scan.id, (updatedScan) => {
+      unsubscribeScan = subscribeScanUpdates(currentScanId, (updatedScan) => {
+        if (isCleanedUp || !isMountedRef.current) return; // Guard against unmount
         console.log('[useDomainScan] Scan updated via subscription:', updatedScan.status);
+        scanStatusRef.current = updatedScan.status;
         setScan(updatedScan);
       });
 
-      unsubscribeResults = subscribeResultUpdates(scan.id, (newResult) => {
+      unsubscribeResults = subscribeResultUpdates(currentScanId, (newResult) => {
+        if (isCleanedUp || !isMountedRef.current) return; // Guard against unmount
         console.log('[useDomainScan] New result via subscription:', newResult.domain);
         setResults(prev => {
           // Avoid duplicates
@@ -75,11 +97,24 @@ export function useDomainScan(): UseDomainScanResult {
 
       // Polling fallback: poll every 2.5 seconds to ensure UI updates even if subscriptions fail
       pollInterval = setInterval(async () => {
+        // CRITICAL FIX: Check cleanup and mount state before any async work
+        if (isCleanedUp || !isMountedRef.current) return;
+        
+        // Also check if scan is already completed
+        if (scanStatusRef.current === 'completed' || scanStatusRef.current === 'failed') {
+          console.log('[useDomainScan] Scan already finished, stopping poll');
+          if (pollInterval) clearInterval(pollInterval);
+          return;
+        }
+        
         try {
           const [currentScan, currentResults] = await Promise.all([
-            getScanStatus(scan.id),
-            getScanResults(scan.id),
+            getScanStatus(currentScanId),
+            getScanResults(currentScanId),
           ]);
+
+          // CRITICAL FIX: Check again after async operation
+          if (isCleanedUp || !isMountedRef.current) return;
 
           if (currentScan) {
             // Update scan if status or progress changed
@@ -93,6 +128,7 @@ export function useDomainScan(): UseDomainScanResult {
               
               if (hasChanged) {
                 console.log('[useDomainScan] Scan updated via polling:', currentScan.status);
+                scanStatusRef.current = currentScan.status;
                 return currentScan;
               }
               return prevScan;
@@ -126,6 +162,7 @@ export function useDomainScan(): UseDomainScanResult {
 
     return () => {
       console.log('[useDomainScan] Cleaning up subscriptions and polling');
+      isCleanedUp = true; // Mark as cleaned up before async cleanup
       if (unsubscribeScan) {
         unsubscribeScan();
       }
@@ -136,7 +173,7 @@ export function useDomainScan(): UseDomainScanResult {
         clearInterval(pollInterval);
       }
     };
-  }, [scan?.id, scan?.status]);
+  }, [scan?.id]); // CRITICAL FIX: Only depend on scan ID, not status
 
   const startScan = useCallback(async (
     domains: string[], 
@@ -146,13 +183,22 @@ export function useDomainScan(): UseDomainScanResult {
     console.log('[useDomainScan] Domains:', domains);
     console.log('[useDomainScan] Context:', publisherContext);
     
+    if (!isMountedRef.current) return null;
+    
     setIsLoading(true);
     setError(null);
     setResults([]);
     setSummary(null);
     setContext(publisherContext);
+    
+    // Reset refs for new scan
+    scanIdRef.current = null;
+    scanStatusRef.current = null;
 
     const { scanId, error: scanError } = await createScan(domains, publisherContext);
+    
+    // Check mounted state after async operation
+    if (!isMountedRef.current) return null;
     
     if (scanError || !scanId) {
       console.error('[useDomainScan] Scan failed:', scanError);
@@ -178,8 +224,15 @@ export function useDomainScan(): UseDomainScanResult {
 
     // Fetch initial scan status
     const initialScan = await getScanStatus(scanId);
+    
+    // Check mounted state after async operation
+    if (!isMountedRef.current) return scanId;
+    
     if (initialScan) {
       console.log('[useDomainScan] Initial scan status:', initialScan.status);
+      // CRITICAL: Update refs BEFORE setting state to trigger subscription effect correctly
+      scanIdRef.current = scanId;
+      scanStatusRef.current = initialScan.status;
       setScan(initialScan);
     }
 
@@ -189,13 +242,30 @@ export function useDomainScan(): UseDomainScanResult {
 
   const loadScan = useCallback(async (scanId: string) => {
     console.log('[useDomainScan] Loading scan:', scanId);
+    
+    if (!isMountedRef.current) return;
+    
     setIsLoading(true);
     setError(null);
+    
+    // Reset refs for new scan load
+    scanIdRef.current = null;
+    scanStatusRef.current = null;
 
+    // CRITICAL FIX: Race condition protection
+    const loadId = scanId; // Capture current load ID
+    
     const [scanData, resultsData] = await Promise.all([
       getScanStatus(scanId),
       getScanResults(scanId),
     ]);
+
+    // Check if still mounted and this is still the current load operation
+    if (!isMountedRef.current) return;
+    if (loadId !== scanId) {
+      console.log('[useDomainScan] Stale load operation, ignoring results');
+      return;
+    }
 
     if (!scanData) {
       console.error('[useDomainScan] Scan not found:', scanId);
@@ -205,6 +275,10 @@ export function useDomainScan(): UseDomainScanResult {
     }
 
     console.log('[useDomainScan] Loaded scan:', scanData.status, 'with', resultsData.length, 'results');
+    
+    // CRITICAL: Update refs BEFORE setting state
+    scanIdRef.current = scanId;
+    scanStatusRef.current = scanData.status;
     
     setScan(scanData);
     setResults(resultsData);

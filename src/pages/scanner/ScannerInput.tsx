@@ -30,7 +30,8 @@ import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
 export default function ScannerInput() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: authLoading, logout } = useScannerAuth();
-  const { startScan, isLoading: scanLoading } = useDomainScan();
+  // FIXED: Only call useDomainScan() once to avoid disconnected state
+  const { startScan, isLoading: scanLoading, error: scanError } = useDomainScan();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,7 +42,6 @@ export default function ScannerInput() {
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticResult | null>(null);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
-  const { error: scanError } = useDomainScan();
 
   // Run comprehensive diagnostics
   const runDiagnostics = useCallback(async () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useScannerAuth } from '@/hooks/useScannerAuth';
 import { useDomainScan } from '@/hooks/useDomainScan';
@@ -34,7 +34,8 @@ import {
   FileText,
   FileSpreadsheet,
   BarChart3,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import type { DomainResult, CompetitivePosition, PublisherContext } from '@/types/scanner';
 import adfixusLogo from '@/assets/adfixus-logo-scanner.png';
@@ -47,17 +48,35 @@ export default function ScannerResults() {
   const { isAuthenticated, isLoading: authLoading } = useScannerAuth();
   const { scan, results, isLoading, error, loadScan } = useDomainScan();
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
+  
+  // CRITICAL FIX: Track if we've already loaded this scan to prevent duplicate calls
+  const loadedScanIdRef = useRef<string | null>(null);
+  const hasNavigatedAwayRef = useRef(false);
 
+  // Handle auth redirect
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
+      hasNavigatedAwayRef.current = true;
       navigate('/');
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
+  // Load scan data - separate effect to avoid dependency issues
+  useEffect(() => {
+    // Don't load if auth is still loading or user isn't authenticated
+    if (authLoading || !isAuthenticated || hasNavigatedAwayRef.current) {
       return;
     }
 
-    if (scanId && isAuthenticated) {
-      loadScan(scanId);
+    // Don't reload if we already loaded this scan ID
+    if (!scanId || loadedScanIdRef.current === scanId) {
+      return;
     }
-  }, [scanId, authLoading, isAuthenticated, navigate, loadScan]);
+
+    console.log('[ScannerResults] Loading scan:', scanId);
+    loadedScanIdRef.current = scanId;
+    loadScan(scanId);
+  }, [scanId, authLoading, isAuthenticated, loadScan]);
 
   const toggleDomain = (domain: string) => {
     setExpandedDomains(prev => {
@@ -93,41 +112,102 @@ export default function ScannerResults() {
     }
   };
 
-  // Define isProcessing BEFORE it's used in conditional rendering
+  // Define view states clearly - only ONE state can be active at a time
   const isProcessing = scan?.status === 'processing' || scan?.status === 'pending';
-  const progress = scan ? (scan.completed_domains / scan.total_domains) * 100 : 0;
+  const isCompleted = scan?.status === 'completed';
+  const isFailed = scan?.status === 'failed';
+  const progress = scan ? Math.min((scan.completed_domains / Math.max(scan.total_domains, 1)) * 100, 100) : 0;
 
-  // Only show full-screen loading during initial auth/data fetch
-  // NOT during scan processing (that has its own UI)
-  if (authLoading || (isLoading && !scan && !isProcessing)) {
+  // Determine the current view state (mutually exclusive)
+  type ViewState = 'auth_loading' | 'initial_loading' | 'processing' | 'error' | 'no_results' | 'results';
+  
+  const getViewState = (): ViewState => {
+    if (authLoading) return 'auth_loading';
+    if (error) return 'error';
+    if (isLoading && !scan) return 'initial_loading';
+    if (isProcessing) return 'processing';
+    if (isCompleted && results.length === 0) return 'no_results';
+    if (isCompleted && results.length > 0) return 'results';
+    // Fallback to initial loading if scan exists but not completed
+    if (scan && !isCompleted && !isProcessing) return 'processing';
+    return 'initial_loading';
+  };
+
+  const viewState = getViewState();
+
+  // UNIFIED LOADING SCREEN - Beautiful, single loading experience
+  if (viewState === 'auth_loading' || viewState === 'initial_loading') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative mx-auto mb-6">
-            <div className="h-20 w-20 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-            <img 
-              src="/adfixus%20icon.png" 
-              alt="AdFixus" 
-              className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
-            />
+      <div className="min-h-screen bg-background flex items-center justify-center overflow-hidden">
+        {/* Ambient background */}
+        <div className="absolute inset-0 hero-gradient pointer-events-none opacity-60" />
+        
+        <div className="relative text-center px-6">
+          {/* Animated logo container */}
+          <div className="relative mx-auto mb-8 w-32 h-32">
+            {/* Outer ring - slow rotation */}
+            <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-[spin_8s_linear_infinite]" />
+            
+            {/* Middle ring - medium rotation */}
+            <div className="absolute inset-2 rounded-full border-2 border-dashed border-primary/30 animate-[spin_4s_linear_infinite_reverse]" />
+            
+            {/* Inner ring - fast rotation */}
+            <div className="absolute inset-4 rounded-full border-4 border-primary/40 border-t-primary animate-spin" />
+            
+            {/* Center logo */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <img 
+                src="/adfixus%20icon.png" 
+                alt="AdFixus" 
+                className="h-12 w-12 object-contain animate-pulse" 
+              />
+            </div>
           </div>
-          <p className="text-muted-foreground animate-pulse">AI is analyzing your portfolio...</p>
+          
+          <h2 className="text-2xl font-bold text-foreground mb-3">
+            {viewState === 'auth_loading' ? 'Authenticating...' : 'Loading Analysis'}
+          </h2>
+          
+          <p className="text-muted-foreground max-w-sm mx-auto">
+            {viewState === 'auth_loading' 
+              ? 'Verifying your credentials'
+              : 'Retrieving your scan results'
+            }
+          </p>
+          
+          {/* Subtle loading dots */}
+          <div className="flex justify-center gap-1.5 mt-6">
+            <span className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  // ERROR STATE - Clean error display
+  if (viewState === 'error') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full glass-card border-destructive/30">
-          <CardContent className="pt-6 text-center">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="h-8 w-8 text-destructive" />
+        {/* Ambient background */}
+        <div className="absolute inset-0 hero-gradient pointer-events-none opacity-40" />
+        
+        <Card className="relative max-w-md w-full glass-card border-destructive/30 overflow-hidden">
+          {/* Error accent bar */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-destructive/50 via-destructive to-destructive/50" />
+          
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="h-10 w-10 text-destructive" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">Error Loading Scan</h2>
-            <p className="text-muted-foreground mb-6">{error}</p>
-            <Button onClick={() => navigate('/scanner/input')} variant="outline">
+            <h2 className="text-2xl font-bold text-foreground mb-3">Error Loading Scan</h2>
+            <p className="text-muted-foreground mb-8 whitespace-pre-wrap">{error}</p>
+            <Button 
+              onClick={() => navigate('/scanner/input')} 
+              variant="outline"
+              className="border-border/50 hover:bg-secondary/50"
+            >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Scanner
             </Button>
@@ -201,71 +281,143 @@ export default function ScannerResults() {
         </div>
       </header>
 
-      {/* Processing State */}
-      {isProcessing && (
-        <section className="relative py-12 px-4">
-          <div className="container mx-auto max-w-4xl">
-            <Card className="glass-card border-primary/20">
-              <CardContent className="pt-8 pb-8">
-                <div className="text-center mb-8">
-                  <div className="relative mx-auto w-20 h-20 mb-6">
-                    <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                    <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                    <img 
-                      src="/adfixus%20icon.png" 
-                      alt="AdFixus" 
-                      className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain" 
-                    />
+      {/* PROCESSING STATE - Beautiful scan progress UI */}
+      {viewState === 'processing' && (
+        <section className="relative py-16 px-4">
+          <div className="container mx-auto max-w-3xl">
+            <Card className="glass-card border-primary/20 overflow-hidden">
+              {/* Top accent gradient */}
+              <div className="h-1.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+              
+              <CardContent className="pt-10 pb-10">
+                {/* Animated scanner visual */}
+                <div className="text-center mb-10">
+                  <div className="relative mx-auto w-28 h-28 mb-8">
+                    {/* Pulse effect */}
+                    <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping opacity-30" />
+                    
+                    {/* Outer ring */}
+                    <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-[spin_6s_linear_infinite]" />
+                    
+                    {/* Progress ring */}
+                    <svg className="absolute inset-0 w-full h-full -rotate-90">
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="50"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        className="text-primary/20"
+                      />
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="50"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeDasharray={`${progress * 3.14} 314`}
+                        className="text-primary transition-all duration-500 ease-out"
+                      />
+                    </svg>
+                    
+                    {/* Center content */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-primary">
+                        {Math.round(progress)}%
+                      </span>
+                    </div>
                   </div>
-                  <h2 className="text-2xl font-bold text-foreground mb-2">AI Analysis in Progress</h2>
-                  <p className="text-muted-foreground">
-                    Scanning {scan?.completed_domains || 0} of {scan?.total_domains || 0} domains
+                  
+                  <h2 className="text-3xl font-bold text-foreground mb-3">
+                    AI Analysis in Progress
+                  </h2>
+                  
+                  <p className="text-lg text-muted-foreground">
+                    Scanning <span className="text-primary font-semibold">{scan?.completed_domains || 0}</span> of{' '}
+                    <span className="text-foreground font-semibold">{scan?.total_domains || 0}</span> domains
                   </p>
                 </div>
                 
-                <Progress value={progress} className="h-2 mb-6" />
-                
-                <div className="space-y-2 stagger-fade">
-                  {results.map((result) => (
-                    <div 
-                      key={result.id} 
-                      className="flex items-center justify-between text-sm px-4 py-3 bg-secondary/30 rounded-lg border border-border/50"
-                    >
-                      <span className="text-foreground font-medium">{result.domain}</span>
-                      {result.status === 'success' ? (
-                        <Badge className="bg-success/20 text-success border-success/30">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Complete
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-destructive/20 text-destructive border-destructive/30">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Failed
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
+                {/* Progress bar */}
+                <div className="mb-8">
+                  <Progress value={progress} className="h-3" />
                 </div>
+                
+                {/* Scan steps indicator */}
+                <div className="flex justify-center gap-6 text-sm text-muted-foreground mb-8">
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    Analyzing cookies
+                  </span>
+                  <span className="text-border">•</span>
+                  <span>Detecting vendors</span>
+                  <span className="text-border">•</span>
+                  <span>Calculating revenue impact</span>
+                </div>
+                
+                {/* Domain results list */}
+                {results.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Completed Scans
+                    </h3>
+                    <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                      {results.map((result, index) => (
+                        <div 
+                          key={result.id} 
+                          className="flex items-center justify-between text-sm px-4 py-3 bg-secondary/30 rounded-lg border border-border/50 animate-in fade-in slide-in-from-bottom-2"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Globe className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-foreground font-medium">{result.domain}</span>
+                          </div>
+                          {result.status === 'success' || result.status === 'completed' ? (
+                            <Badge className="bg-success/20 text-success border-success/30">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Complete
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-destructive/20 text-destructive border-destructive/30">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Failed
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </section>
       )}
 
-      {/* Empty State - Scan completed but no results */}
-      {!isProcessing && scan?.status === 'completed' && results.length === 0 && (
-        <section className="relative py-12 px-4">
-          <div className="container mx-auto max-w-4xl">
-            <Card className="glass-card border-border/50">
-              <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-                  <AlertTriangle className="h-8 w-8 text-destructive" />
+      {/* NO RESULTS STATE - Clean empty state */}
+      {viewState === 'no_results' && (
+        <section className="relative py-16 px-4">
+          <div className="container mx-auto max-w-md">
+            <Card className="glass-card border-warning/30 overflow-hidden">
+              {/* Warning accent bar */}
+              <div className="h-1 bg-gradient-to-r from-warning/30 via-warning to-warning/30" />
+              
+              <CardContent className="pt-10 pb-10 text-center">
+                <div className="w-20 h-20 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-6">
+                  <AlertTriangle className="h-10 w-10 text-warning" />
                 </div>
-                <h2 className="text-xl font-semibold text-foreground mb-2">No Results Found</h2>
-                <p className="text-muted-foreground mb-6">
-                  The scan completed but no domain results were found. This may indicate all domains failed to scan.
+                <h2 className="text-2xl font-bold text-foreground mb-3">No Results Found</h2>
+                <p className="text-muted-foreground mb-8">
+                  The scan completed but no domain results were found. This may indicate all domains failed to scan or were unreachable.
                 </p>
-                <Button onClick={() => navigate('/scanner/input')} variant="outline">
+                <Button 
+                  onClick={() => navigate('/scanner/input')} 
+                  variant="outline"
+                  className="border-border/50 hover:bg-secondary/50"
+                >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Start New Scan
                 </Button>
@@ -275,8 +427,8 @@ export default function ScannerResults() {
         </section>
       )}
 
-      {/* Results Content */}
-      {!isProcessing && scan?.status === 'completed' && results.length > 0 && revenueImpact && (
+      {/* RESULTS CONTENT - Main results display */}
+      {viewState === 'results' && revenueImpact && (
         <>
           {/* Executive Summary */}
           <section className="relative py-10 px-4 border-b border-border/50">
