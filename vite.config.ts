@@ -7,9 +7,21 @@ function validateEnvVars(): Plugin {
   return {
     name: 'validate-env-vars',
     buildStart() {
-      // Only validate in production builds, not in development
-      // Vercel sets these during build, so we validate them
-      if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+      try {
+        // Only validate in production/Vercel builds
+        const isProduction = process.env.NODE_ENV === 'production';
+        const isVercel = !!process.env.VERCEL;
+        
+        if (!isProduction && !isVercel) {
+          // Skip validation in local development
+          console.log('[build] Skipping env var validation (development mode)');
+          return;
+        }
+        
+        console.log('[build] Validating environment variables...');
+        console.log('[build] NODE_ENV:', process.env.NODE_ENV);
+        console.log('[build] VERCEL:', process.env.VERCEL);
+        
         const requiredVars = [
           'VITE_SUPABASE_URL',
           'VITE_SUPABASE_PUBLISHABLE_KEY'
@@ -18,51 +30,55 @@ function validateEnvVars(): Plugin {
         const missing = requiredVars.filter(v => !process.env[v]);
         
         if (missing.length > 0) {
-          throw new Error(
-            `Missing required environment variables: ${missing.join(', ')}\n` +
+          const errorMsg = `Missing required environment variables: ${missing.join(', ')}\n` +
             `Please set these in Vercel Dashboard → Project Settings → Environment Variables\n` +
-            `Required for: Production, Preview, and Development environments`
-          );
+            `Required for: Production, Preview, and Development environments`;
+          console.error('[build]', errorMsg);
+          throw new Error(errorMsg);
         }
-      }
-      
-      // Validate URL format
-      const url = process.env.VITE_SUPABASE_URL;
-      if (url) {
-        // Normalize URL for validation
-        let normalizedUrl = url.trim().replace(/\/+$/, '');
-        if (!normalizedUrl.startsWith('https://')) {
-          if (normalizedUrl.startsWith('http://')) {
-            normalizedUrl = normalizedUrl.replace('http://', 'https://');
-          } else {
-            normalizedUrl = `https://${normalizedUrl}`;
+        
+        // Validate URL format (only if URL is provided)
+        const url = process.env.VITE_SUPABASE_URL;
+        if (url) {
+          // Normalize URL for validation
+          let normalizedUrl = url.trim().replace(/\/+$/, '');
+          if (!normalizedUrl.startsWith('https://')) {
+            if (normalizedUrl.startsWith('http://')) {
+              normalizedUrl = normalizedUrl.replace('http://', 'https://');
+            } else {
+              normalizedUrl = `https://${normalizedUrl}`;
+            }
+          }
+          
+          // Validate format
+          const supabasePattern = /^https:\/\/[a-z0-9-]+\.supabase\.co$/;
+          if (!supabasePattern.test(normalizedUrl)) {
+            const errorMsg = `Invalid VITE_SUPABASE_URL format: ${url}\n` +
+              `Expected format: https://[project-id].supabase.co\n` +
+              `Example: https://lshyhtgvqdmrakrbcgox.supabase.co\n` +
+              `Note: URL will be normalized to: ${normalizedUrl}`;
+            console.error('[build]', errorMsg);
+            throw new Error(errorMsg);
+          }
+          
+          // Warn if URL was normalized
+          if (url !== normalizedUrl) {
+            console.warn(`[build] VITE_SUPABASE_URL was normalized: "${url}" → "${normalizedUrl}"`);
           }
         }
         
-        // Validate format
-        const supabasePattern = /^https:\/\/[a-z0-9-]+\.supabase\.co$/;
-        if (!supabasePattern.test(normalizedUrl)) {
-          throw new Error(
-            `Invalid VITE_SUPABASE_URL format: ${url}\n` +
-            `Expected format: https://[project-id].supabase.co\n` +
-            `Example: https://lshyhtgvqdmrakrbcgox.supabase.co\n` +
-            `Note: URL will be normalized to: ${normalizedUrl}`
-          );
+        // Validate key length (warning only, not fatal)
+        const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        if (key && key.length < 50) {
+          console.warn(`[build] VITE_SUPABASE_PUBLISHABLE_KEY appears invalid (too short: ${key.length} chars)`);
         }
         
-        // Warn if URL was normalized
-        if (url !== normalizedUrl) {
-          console.warn(`[build] VITE_SUPABASE_URL was normalized: "${url}" → "${normalizedUrl}"`);
-        }
+        console.log('[build] Environment variables validated successfully');
+      } catch (error) {
+        // Log the error with full context
+        console.error('[build] Validation error:', error);
+        throw error;
       }
-      
-      // Validate key length
-      const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      if (key && key.length < 50) {
-        console.warn(`[build] VITE_SUPABASE_PUBLISHABLE_KEY appears invalid (too short: ${key.length} chars)`);
-      }
-      
-      console.log('[build] Environment variables validated successfully');
     }
   };
 }
