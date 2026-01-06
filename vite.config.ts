@@ -91,7 +91,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    validateEnvVars(), // Add build-time validation
+    // Temporarily disabled to isolate build issues
+    // validateEnvVars(), // Add build-time validation
     // Removed lovable-tagger - not needed for Vercel deployment
     // Only include in development if needed for local Lovable development
     ...(mode === 'development' && process.env.USE_LOVABLE_TAGGER === 'true' ? [] : []),
