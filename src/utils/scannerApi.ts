@@ -44,20 +44,33 @@ async function testEdgeFunctionCors(url: string): Promise<{
     const functionUrl = `${url}/functions/v1/scan-domain`;
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://adfixus-sales.vercel.app';
     
+    // Get the anon key for authentication - Supabase requires apikey header even for OPTIONS
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
     console.log('[scannerApi] [DIAGNOSTIC] Testing edge function CORS...');
     console.log('[scannerApi] [DIAGNOSTIC] Function URL:', functionUrl);
     console.log('[scannerApi] [DIAGNOSTIC] Origin:', origin);
+    console.log('[scannerApi] [DIAGNOSTIC] Anon key available:', !!anonKey);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
+    // Supabase Edge Functions require 'apikey' header even for OPTIONS requests
+    // This is the REAL fix - without this, Supabase blocks the request
+    const headers: Record<string, string> = {
+      'Origin': origin,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'authorization, x-client-info, apikey, content-type',
+    };
+    
+    // Add apikey header if available (required by Supabase)
+    if (anonKey) {
+      headers['apikey'] = anonKey;
+    }
+    
     const response = await fetch(functionUrl, {
       method: 'OPTIONS',
-      headers: {
-        'Origin': origin,
-        'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
+      headers: headers,
       signal: controller.signal,
     });
     
