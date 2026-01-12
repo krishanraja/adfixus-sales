@@ -199,16 +199,26 @@ export function generatePainPoints(
   
   // Safari/Firefox Addressability Gap
   // Calculate based on addressability_gap_pct OR safari_blocked_cookies
-  const avgGap = results.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / results.length;
+  // Exclude failed domains (status !== 'success') and domains with null gap from calculations
+  const validResults = results.filter(r => 
+    r.status === 'success' && 
+    r.addressability_gap_pct !== null && 
+    r.addressability_gap_pct !== undefined
+  );
+  const avgGap = validResults.length > 0
+    ? validResults.reduce((sum, r) => sum + (r.addressability_gap_pct || 0), 0) / validResults.length
+    : 0;
   
   if (avgGap > 10) {
     const affectedDomains = results
       .filter(r => r.addressability_gap_pct > 10 || r.safari_blocked_cookies > 0)
       .map(r => r.domain);
     
-    const estimatedLoss = effectiveImpressions > 0
+    // Calculate monthly loss, then convert to annual for consistency
+    const monthlyLoss = effectiveImpressions > 0
       ? calculateMonthlyRevenueLoss(effectiveImpressions, avgGap, cpm)
       : undefined;
+    const estimatedLoss = monthlyLoss !== undefined ? monthlyLoss * 12 : undefined;
     
     painPoints.push({
       id: 'safari-blindness',
@@ -320,7 +330,15 @@ export function generateOpportunities(
   const effectiveImpressions = context?.monthlyImpressions || totalEstimatedImpressions;
   
   // Safari Recovery - show even without impressions data
-  const avgGap = results.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / results.length;
+  // Exclude failed domains from calculation
+  const validResults = results.filter(r => 
+    r.status === 'success' && 
+    r.addressability_gap_pct !== null && 
+    r.addressability_gap_pct !== undefined
+  );
+  const avgGap = validResults.length > 0
+    ? validResults.reduce((sum, r) => sum + (r.addressability_gap_pct || 0), 0) / validResults.length
+    : 0;
   if (avgGap > 10) {
     const monthlyGain = effectiveImpressions > 0 
       ? calculateMonthlyRevenueLoss(effectiveImpressions, avgGap, cpm) 
@@ -422,8 +440,15 @@ export function generateScanSummary(
   const painPoints = generatePainPoints(results, context);
   const opportunities = generateOpportunities(results, context);
   
-  // Calculate averages
-  const avgAddressabilityGap = results.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / results.length;
+  // Calculate averages - exclude failed domains
+  const validResults = results.filter(r => 
+    r.status === 'success' && 
+    r.addressability_gap_pct !== null && 
+    r.addressability_gap_pct !== undefined
+  );
+  const avgAddressabilityGap = validResults.length > 0
+    ? validResults.reduce((sum, r) => sum + (r.addressability_gap_pct || 0), 0) / validResults.length
+    : 0;
   
   // Determine worst-case severity
   const severityOrder: IdBloatSeverity[] = ['low', 'medium', 'high', 'critical'];

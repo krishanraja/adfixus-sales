@@ -898,6 +898,11 @@ export function subscribeResultUpdates(
   }
 }
 
+// Domain validation regex - matches valid domain format
+// Allows: example.com, sub.example.com, example.co.uk, etc.
+// Does not allow: localhost, IP addresses, invalid formats
+const DOMAIN_REGEX = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+
 export function parseDomains(input: string): string[] {
   return input
     .split(/[\n,]/)
@@ -908,9 +913,20 @@ export function parseDomains(input: string): string[] {
       let cleaned = domain.replace(/^https?:\/\//, '');
       // Remove path if present
       cleaned = cleaned.split('/')[0];
+      // Remove port if present
+      cleaned = cleaned.split(':')[0];
       // Remove www. prefix
       cleaned = cleaned.replace(/^www\./, '');
       return cleaned;
+    })
+    .filter(domain => {
+      // Validate domain format
+      // Allow localhost for development/testing
+      if (domain === 'localhost' || domain.startsWith('localhost:')) {
+        return true;
+      }
+      // Validate against regex
+      return DOMAIN_REGEX.test(domain);
     })
     .filter((domain, index, self) => self.indexOf(domain) === index) // Remove duplicates
     .slice(0, 20); // Limit to 20 domains

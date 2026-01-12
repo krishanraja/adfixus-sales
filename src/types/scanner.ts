@@ -96,8 +96,9 @@ export interface DomainResult {
   detected_ssps: string[];
   
   // Revenue impact scores
-  addressability_gap_pct: number;
-  estimated_safari_loss_pct: number;
+  // Can be null for failed scans to prevent skewing portfolio calculations
+  addressability_gap_pct: number | null;
+  estimated_safari_loss_pct: number | null;
   id_bloat_severity: IdBloatSeverity;
   privacy_risk_level: PrivacyRiskLevel;
   competitive_positioning: CompetitivePosition;

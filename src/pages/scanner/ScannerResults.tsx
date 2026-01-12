@@ -630,9 +630,15 @@ export default function ScannerResults() {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right hidden sm:block">
-                          <span className="text-sm font-medium text-foreground">
-                            {Math.round(result.addressability_gap_pct)}% gap
-                          </span>
+                          {result.addressability_gap_pct !== null && result.addressability_gap_pct !== undefined ? (
+                            <span className="text-sm font-medium text-foreground">
+                              {Math.round(result.addressability_gap_pct)}% gap
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              N/A
+                            </span>
+                          )}
                           {result.estimated_monthly_impressions && (
                             <span className="text-sm text-muted-foreground flex items-center gap-1 justify-end mt-1">
                               <BarChart3 className="h-3 w-3" />

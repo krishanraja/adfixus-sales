@@ -1,4 +1,4 @@
-// Version: 3.0.0 - Complete rewrite using Browserless /function API for comprehensive scanning
+// Version: 3.1.0 - Fixed addressability gap and Safari loss calculations to use actual data instead of heuristics
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
@@ -21,6 +21,9 @@ const TRANCO_API_KEY = Deno.env.get('TRANCO_API_KEY') || '';
 // Traffic estimation constants (power-law formula from CrUX research)
 const PAGEVIEW_COEFFICIENT = 7.73e12;
 const PAGEVIEW_EXPONENT = -1.06;
+
+// Industry benchmarks (2026)
+const SAFARI_MARKET_SHARE = 0.52; // Safari + Firefox combined market share
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -352,7 +355,8 @@ async function processDomains(supabase: ReturnType<typeof createClient>, scanId:
     } catch (err) {
       console.error(`[scan-domain] Error processing ${domain}:`, err instanceof Error ? err.stack : err);
       
-      // Insert failed result
+      // Insert failed result - use null for calculated fields to prevent skewing portfolio averages
+      // Frontend should exclude failed domains from calculations
       const { error: failedInsertError } = await supabase.from('domain_results').insert({
         scan_id: scanId,
         domain,
@@ -361,11 +365,13 @@ async function processDomains(supabase: ReturnType<typeof createClient>, scanId:
         total_cookies: 0,
         first_party_cookies: 0,
         third_party_cookies: 0,
-        addressability_gap_pct: 52,
-        estimated_safari_loss_pct: 30,
-        id_bloat_severity: 'medium',
-        privacy_risk_level: 'moderate',
-        competitive_positioning: 'at-risk',
+        // Use null instead of default values to prevent skewing portfolio calculations
+        // Frontend will exclude failed domains from averages
+        addressability_gap_pct: null,
+        estimated_safari_loss_pct: null,
+        id_bloat_severity: 'low', // Use 'low' as neutral value, not 'medium'
+        privacy_risk_level: 'compliant', // Use 'compliant' as neutral value
+        competitive_positioning: 'middle-pack', // Use neutral value instead of 'at-risk'
       });
       
       if (failedInsertError) {
@@ -599,10 +605,31 @@ export default async function ({ page, context }) {
   const isFirstPartyCookie = (cookieDomain) => {
     // Remove leading dot from cookie domain
     const cleanCookieDomain = cookieDomain.replace(/^\\./, '');
-    // Check if cookie domain matches target domain or is a subdomain
-    return cleanCookieDomain === targetDomain || 
-           cleanCookieDomain.endsWith('.' + targetDomain) ||
-           targetDomain.endsWith('.' + cleanCookieDomain);
+    
+    // Exact match
+    if (cleanCookieDomain === targetDomain) {
+      return true;
+    }
+    
+    // Subdomain match: cookie domain is a subdomain of target domain
+    // e.g., targetDomain = "example.com", cookieDomain = "sub.example.com"
+    if (cleanCookieDomain.endsWith('.' + targetDomain)) {
+      return true;
+    }
+    
+    // Parent domain match: target domain is a subdomain of cookie domain
+    // e.g., targetDomain = "sub.example.com", cookieDomain = "example.com"
+    // But only if cookie domain is a valid parent (not just a TLD)
+    if (targetDomain.endsWith('.' + cleanCookieDomain)) {
+      // Additional validation: cookie domain must have at least one dot (not just TLD)
+      // This prevents false positives like targetDomain="example.com", cookieDomain=".com"
+      const cookieParts = cleanCookieDomain.split('.');
+      if (cookieParts.length >= 2) {
+        return true;
+      }
+    }
+    
+    return false;
   };
   
   const firstPartyCookies = cookies.filter(c => isFirstPartyCookie(c.domain));
@@ -758,19 +785,33 @@ function analyzeNetworkResults(data: BrowserlessResult, domain: string): ScanRes
     }
   }
   
-  // Calculate scores
-  const addressabilityGap = calculateAddressabilityGap(
-    hasGoogleAnalytics, hasMetaPixel, hasPpid, hasLiveramp, hasId5, cookieAnalysis?.thirdParty || 0
-  );
+  // Calculate addressability gap based on ACTUAL Safari blocking
+  // Formula: (safari_blocked_cookies / total_cookies) * safari_market_share * 100
+  const totalCookies = cookieAnalysis?.total || 0;
+  const safariBlockedCookies = cookieAnalysis?.safariBlocked || 0;
   
-  // Safari ITP impact: third-party cookies fully blocked + first-party capped at 7 days
-  // Base loss from third-party blocking + additional loss from cookie capping
-  const thirdPartyBlocked = cookieAnalysis?.safariBlocked || 0;
-  const firstPartyCapped = cookieAnalysis?.safariCapped || 0;
-  const safariLoss = Math.min(
-    25 + (thirdPartyBlocked * 1.5) + (firstPartyCapped * 0.5), 
-    50
-  );
+  let addressabilityGap: number;
+  if (totalCookies === 0) {
+    // If no cookies, assume baseline gap based on market share
+    addressabilityGap = SAFARI_MARKET_SHARE * 100;
+  } else {
+    const blockedPct = safariBlockedCookies / totalCookies;
+    addressabilityGap = blockedPct * SAFARI_MARKET_SHARE * 100;
+  }
+  // Clamp between 10% and 80% for reasonable bounds
+  addressabilityGap = Math.max(10, Math.min(80, addressabilityGap));
+  
+  // Calculate Safari loss based on ACTUAL market share impact
+  // Formula: (safari_blocked_cookies / total_cookies) * safari_market_share * 100
+  let safariLoss: number;
+  if (totalCookies === 0) {
+    safariLoss = SAFARI_MARKET_SHARE * 100;
+  } else {
+    const blockedPct = safariBlockedCookies / totalCookies;
+    safariLoss = blockedPct * SAFARI_MARKET_SHARE * 100;
+  }
+  // Clamp between 0% and 52% (max market share)
+  safariLoss = Math.max(0, Math.min(SAFARI_MARKET_SHARE * 100, safariLoss));
   
   const idBloatSeverity = calculateIdBloat(
     hasLiveramp, hasId5, hasCriteo, hasTTD, cookieAnalysis?.thirdParty || 0
@@ -869,7 +910,27 @@ function analyzeHtmlOnly(html: string, domain: string): ScanResult {
   if (hasLiveramp) estimatedCookies += 3;
   if (hasTTD) estimatedCookies += 3;
   
-  const addressabilityGap = calculateAddressabilityGap(hasGoogleAnalytics, hasMetaPixel, hasPpid, hasLiveramp, hasId5, estimatedCookies);
+  // Calculate addressability gap based on estimated Safari blocking
+  // For HTML-only fallback, estimate that 70% of cookies are third-party (blocked by Safari)
+  const estimatedThirdPartyCookies = Math.round(estimatedCookies * 0.7);
+  let addressabilityGap: number;
+  if (estimatedCookies === 0) {
+    addressabilityGap = SAFARI_MARKET_SHARE * 100;
+  } else {
+    const blockedPct = estimatedThirdPartyCookies / estimatedCookies;
+    addressabilityGap = blockedPct * SAFARI_MARKET_SHARE * 100;
+  }
+  addressabilityGap = Math.max(10, Math.min(80, addressabilityGap));
+  
+  // Calculate Safari loss using same formula
+  let safariLoss: number;
+  if (estimatedCookies === 0) {
+    safariLoss = SAFARI_MARKET_SHARE * 100;
+  } else {
+    const blockedPct = estimatedThirdPartyCookies / estimatedCookies;
+    safariLoss = blockedPct * SAFARI_MARKET_SHARE * 100;
+  }
+  safariLoss = Math.max(0, Math.min(SAFARI_MARKET_SHARE * 100, safariLoss));
   
   return {
     status: 'completed',
@@ -900,7 +961,7 @@ function analyzeHtmlOnly(html: string, domain: string): ScanResult {
     has_conversion_api: hasMetaCapi,
     detected_ssps: [],
     addressability_gap_pct: addressabilityGap,
-    estimated_safari_loss_pct: 35,
+    estimated_safari_loss_pct: safariLoss,
     id_bloat_severity: 'medium',
     privacy_risk_level: 'moderate',
     competitive_positioning: 'at-risk',
@@ -955,11 +1016,12 @@ function createFailedResult(errorMessage: string): ScanResult {
     has_header_bidding: false,
     has_conversion_api: false,
     detected_ssps: [],
-    addressability_gap_pct: 52,
-    estimated_safari_loss_pct: 30,
-    id_bloat_severity: 'medium',
-    privacy_risk_level: 'moderate',
-    competitive_positioning: 'at-risk',
+    // Use null for calculated fields - frontend should exclude failed domains from calculations
+    addressability_gap_pct: null as any, // Will be stored as null in DB
+    estimated_safari_loss_pct: null as any, // Will be stored as null in DB
+    id_bloat_severity: 'low', // Use neutral value
+    privacy_risk_level: 'compliant', // Use neutral value
+    competitive_positioning: 'middle-pack', // Use neutral value
     cookies_raw: [],
     vendors_raw: {},
     network_requests_summary: {
@@ -975,6 +1037,10 @@ function createFailedResult(errorMessage: string): ScanResult {
 // SCORING FUNCTIONS
 // ============================================================================
 
+// DEPRECATED: This heuristic-based calculation is no longer used.
+// Addressability gap is now calculated based on actual Safari blocking:
+// (safari_blocked_cookies / total_cookies) * SAFARI_MARKET_SHARE * 100
+// Keeping this function for reference but it should not be called.
 function calculateAddressabilityGap(
   hasGA: boolean,
   hasMeta: boolean,
@@ -983,6 +1049,7 @@ function calculateAddressabilityGap(
   hasId5: boolean,
   thirdPartyCookies: number
 ): number {
+  console.warn('[scan-domain] DEPRECATED: calculateAddressabilityGap should not be used. Use actual Safari blocking calculation instead.');
   let gap = 52; // Baseline
   
   if (hasPpid) gap -= 15;

@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, Minus, BarChart3, DollarSign, AlertTriangle, 
 import { AnimatedCounter } from './AnimatedCounter';
 import { ConfidenceBreakdown } from './ConfidenceBreakdown';
 import type { DomainResult, PublisherContext } from '@/types/scanner';
-import { VERTICAL_CPMS } from '@/utils/revenueImpactScoring';
+import { VERTICAL_CPMS, calculateMonthlyRevenueLoss } from '@/utils/revenueImpactScoring';
 
 interface PortfolioTrafficSummaryProps {
   results: DomainResult[];
@@ -19,8 +19,14 @@ export function PortfolioTrafficSummary({ results, context }: PortfolioTrafficSu
     0
   );
   
-  const avgAddressabilityGap = results.length > 0
-    ? results.reduce((sum, r) => sum + r.addressability_gap_pct, 0) / results.length
+  // Calculate average addressability gap - exclude failed domains
+  const validResults = results.filter(r => 
+    r.status === 'success' && 
+    r.addressability_gap_pct !== null && 
+    r.addressability_gap_pct !== undefined
+  );
+  const avgAddressabilityGap = validResults.length > 0
+    ? validResults.reduce((sum, r) => sum + (r.addressability_gap_pct || 0), 0) / validResults.length
     : 0;
   
   const cpm = context?.publisherVertical
@@ -28,7 +34,12 @@ export function PortfolioTrafficSummary({ results, context }: PortfolioTrafficSu
     : VERTICAL_CPMS.other;
   
   const estimatedMonthlyRevenue = Math.round((totalMonthlyImpressions / 1000) * cpm);
-  const estimatedAnnualLoss = Math.round(estimatedMonthlyRevenue * (avgAddressabilityGap / 100) * 12);
+  
+  // Use the same calculation as pain points (with CPM penalty)
+  const monthlyLoss = totalMonthlyImpressions > 0 && avgAddressabilityGap > 0
+    ? calculateMonthlyRevenueLoss(totalMonthlyImpressions, avgAddressabilityGap, cpm)
+    : 0;
+  const estimatedAnnualLoss = Math.round(monthlyLoss * 12);
   
   // Trend breakdown
   const growingDomains = results.filter(r => r.rank_trend === 'growing').length;

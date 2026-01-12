@@ -163,6 +163,8 @@ export default function ScannerInput() {
     }
   };
 
+  const [isStartingScan, setIsStartingScan] = useState(false);
+
   const handleStartScan = async () => {
     const domains = parseDomains(domainInput);
     
@@ -184,16 +186,43 @@ export default function ScannerInput() {
       return;
     }
 
-    const scanId = await startScan(domains, context);
-    
-    if (scanId) {
-      navigate(`/scanner/results/${scanId}`);
-    } else {
+    setIsStartingScan(true);
+
+    try {
+      console.log('[ScannerInput] Starting scan with domains:', domains);
+      console.log('[ScannerInput] Context:', context);
+      
+      const scanId = await startScan(domains, context);
+      
+      console.log('[ScannerInput] Scan result - scanId:', scanId);
+      console.log('[ScannerInput] Scan error from hook:', scanError);
+      
+      if (scanId) {
+        console.log('[ScannerInput] Navigating to results page:', `/scanner/results/${scanId}`);
+        navigate(`/scanner/results/${scanId}`);
+      } else {
+        const errorMessage = scanError || 'Failed to start domain scan. Please check the console for details.';
+        console.error('[ScannerInput] Scan failed - no scanId returned. Error:', errorMessage);
+        console.error('[ScannerInput] Full error details:', { scanError, scanId, domains, context });
+        toast({
+          title: 'Scan failed',
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 10000, // Show for 10 seconds
+        });
+      }
+    } catch (error) {
+      console.error('[ScannerInput] Exception during scan:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      console.error('[ScannerInput] Exception details:', { error, message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
       toast({
-        title: 'Scan failed',
-        description: 'Failed to start domain scan. Please try again.',
+        title: 'Scan error',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 10000,
       });
+    } finally {
+      setIsStartingScan(false);
     }
   };
 
@@ -593,10 +622,10 @@ export default function ScannerInput() {
             <Button
               size="lg"
               onClick={handleStartScan}
-              disabled={parsedDomains.length === 0 || scanLoading || serviceStatus === 'unavailable'}
+              disabled={parsedDomains.length === 0 || scanLoading || isStartingScan || serviceStatus === 'unavailable'}
               className="btn-gradient px-12 py-7 text-lg font-semibold animate-glow-pulse disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {scanLoading ? (
+              {scanLoading || isStartingScan ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-3" />
                   Initializing AI Scan...
