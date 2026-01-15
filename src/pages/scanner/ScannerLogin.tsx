@@ -103,7 +103,7 @@ export default function ScannerLogin() {
                   </div>
                 ))}
               </div>
-              <span>Trusted by 500+ publishers globally</span>
+              <span>Trusted by 35+ publishers globally</span>
             </div>
           </div>
         </div>
