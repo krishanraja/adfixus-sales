@@ -3,7 +3,7 @@
 export type ScanStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type DomainStatus = 'success' | 'failed' | 'timeout' | 'blocked';
 export type IdBloatSeverity = 'low' | 'medium' | 'high' | 'critical';
-export type PrivacyRiskLevel = 'compliant' | 'moderate' | 'high-risk' | 'low' | 'high' | 'critical';
+export type PrivacyRiskLevel = 'low' | 'moderate' | 'high' | 'critical' | 'compliant' | 'high-risk';
 export type CompetitivePosition = 'walled-garden-parity' | 'middle-pack' | 'at-risk' | 'commoditized';
 export type PublisherVertical = 'news' | 'entertainment' | 'auto' | 'finance' | 'lifestyle' | 'other';
 export type RankTrend = 'growing' | 'stable' | 'declining';

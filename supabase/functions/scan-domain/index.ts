@@ -23,7 +23,171 @@ const PAGEVIEW_COEFFICIENT = 7.73e12;
 const PAGEVIEW_EXPONENT = -1.06;
 
 // Industry benchmarks (2026)
-const SAFARI_MARKET_SHARE = 0.52; // Safari + Firefox combined market share
+const SAFARI_MARKET_SHARE = 0.35; // Safari market share (per REVENUE_CALCULATION_LOGIC.md)
+
+// ============================================================================
+// COMPREHENSIVE VENDOR DETECTION PATTERNS
+// From AdTech Vendor Analysis PDF - SSPs, DSPs, Universal IDs
+// ============================================================================
+
+// SSP (Supply-Side Platform) Detection Patterns
+const SSP_PATTERNS = {
+  magnite: { 
+    cookies: ['khaos', 'ruid', 'audit', 'ses', 'vis', 'ruids'], 
+    domains: ['rubiconproject.com', 'tremorhub.com', 'magnite.com'],
+    name: 'Magnite/Rubicon'
+  },
+  pubmatic: { 
+    cookies: ['KADUSERCOOKIE', 'KRTBCOOKIE', 'PUBRETARGET', 'PugT', 'PUBMDCID'], 
+    domains: ['pubmatic.com', 'ads.pubmatic.com'],
+    name: 'PubMatic'
+  },
+  openx: { 
+    cookies: ['i', 'pd', 'OX_dnt', 'oxc', 'OX_plg'], 
+    domains: ['openx.net', 'openx.com', 'servedbyopenx.com'],
+    name: 'OpenX'
+  },
+  triplelift: { 
+    cookies: ['TLUID', 'TLUIDP', 'tltuid', 'tlThird'], 
+    domains: ['3lift.com', 'triplelift.com'],
+    name: 'TripleLift'
+  },
+  indexExchange: { 
+    cookies: ['CMPS', 'CMST', 'CMRUM3', 'CMPRO'], 
+    domains: ['casalemedia.com', 'indexexchange.com'],
+    name: 'Index Exchange'
+  },
+  sharethrough: { 
+    cookies: ['stx_user_id', 'STR_UID'], 
+    domains: ['sharethrough.com'],
+    name: 'Sharethrough'
+  },
+  sovrn: { 
+    cookies: ['ljt_reader', 'ljt_c'], 
+    domains: ['sovrn.com', 'lijit.com'],
+    name: 'Sovrn'
+  },
+  gumgum: { 
+    cookies: ['__gumgum_tcl'], 
+    domains: ['gumgum.com'],
+    name: 'GumGum'
+  },
+  yieldmo: { 
+    cookies: ['ymuid', 'ymo'], 
+    domains: ['yieldmo.com'],
+    name: 'Yieldmo'
+  },
+  unruly: { 
+    cookies: ['unruly_data'], 
+    domains: ['unruly.co', 'unrulygroup.com'],
+    name: 'Unruly'
+  },
+  googleAds: {
+    cookies: ['IDE', 'DSID', '__gads', '__gpi', '__gac'],
+    domains: ['doubleclick.net', 'googletag.net', 'googleadservices.com', 'google-analytics.com'],
+    name: 'Google Ad Manager'
+  },
+};
+
+// DSP (Demand-Side Platform) Detection Patterns
+const DSP_PATTERNS = {
+  appnexus: { 
+    cookies: ['uuid2', 'anj', 'XANDR_PANID', 'icu', 'anj_uuid'], 
+    domains: ['adnxs.com', 'xandr.com', 'appnexus.com'],
+    name: 'AppNexus/Xandr'
+  },
+  tradeDesk: { 
+    cookies: ['TDID', 'TTDOptOutOfDataSale', 'TTDOptOut'], 
+    domains: ['adsrvr.org', 'thetradedesk.com'],
+    name: 'The Trade Desk'
+  },
+  criteo: { 
+    cookies: ['uid', 'dis', 'optout', 'cto_bundle', 'cto_tld_test'], 
+    domains: ['criteo.com', 'criteo.net'],
+    name: 'Criteo'
+  },
+  mediamath: { 
+    cookies: ['uuidc', 'mt_mop', 'mt_misc', 'uuid', 'mt_svcs'], 
+    domains: ['mathtag.com', 'mediamath.com'],
+    name: 'MediaMath'
+  },
+  dv360: { 
+    cookies: ['IDE', 'ar_debug', 'wd', 'NID', 'test_cookie'], 
+    domains: ['doubleclick.net', 'googlesyndication.com'],
+    name: 'DV360/Google'
+  },
+  beeswax: { 
+    cookies: ['bwid'], 
+    domains: ['beeswax.com'],
+    name: 'Beeswax'
+  },
+  amobee: { 
+    cookies: ['aid', 'TId'], 
+    domains: ['amobee.com', 'turn.com'],
+    name: 'Amobee'
+  },
+  amazon: { 
+    cookies: ['ad-id', 'ad-privacy', 'amazon-adsystem'], 
+    domains: ['amazon-adsystem.com', 'amazonadserver.com'],
+    name: 'Amazon DSP'
+  },
+};
+
+// Universal ID / ID Solution Detection Patterns
+const UNIVERSAL_ID_PATTERNS = {
+  liveramp: { 
+    cookies: ['pxrc', 'rlas3', 'ats', 'pb_li_oids', '_lr_env_src_ats'],
+    domains: ['rlcdn.com', 'liveramp.com', 'pippio.com'],
+    name: 'LiveRamp ATS',
+    idPattern: /^XY[a-zA-Z0-9]{20,}/
+  },
+  id5: { 
+    cookies: ['id5id', 'id5id_nb', 'id5id.1st', 'id5.1st'], 
+    domains: ['id5-sync.com', 'id5.io'],
+    name: 'ID5'
+  },
+  uid2: { 
+    localStorage: ['uid2_token', '__uid2_advertising_token', 'uid2-sdk'],
+    domains: ['uidapi.com', 'unifiedid.com'],
+    name: 'UID2/EUID',
+    cookies: []
+  },
+  thirtyThreeAcross: { 
+    cookies: ['33acrossId', '33x_lexId', '33x', '33xd'], 
+    domains: ['33across.com', '33across.io'],
+    name: '33Across'
+  },
+  zeotap: { 
+    cookies: ['zeotap_id', 'zeuid'], 
+    domains: ['zeotap.com'],
+    name: 'Zeotap'
+  },
+  lotame: { 
+    cookies: ['panorama_id', 'crwdcntrl.net', 'lotcc'], 
+    domains: ['crwdcntrl.net', 'lotame.com'],
+    name: 'Lotame Panorama'
+  },
+  sharedId: { 
+    cookies: ['pubcid', '_pubcid', '_sharedid'], 
+    domains: [],
+    name: 'Shared ID'
+  },
+  fabrick: { 
+    cookies: ['fabrickId'], 
+    domains: ['neustar.biz', 'fabrick.io'],
+    name: 'Fabrick ID'
+  },
+  merkle: { 
+    cookies: ['merkid', '_merkid'], 
+    domains: ['merkleinc.com'],
+    name: 'Merkle ID'
+  },
+  netId: { 
+    cookies: ['netid', 'netId'], 
+    domains: ['netid.de'],
+    name: 'NetID'
+  },
+};
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -227,7 +391,8 @@ serve(async (req) => {
     console.log('[scan-domain] Scan created:', scanId);
 
     // Process domains in background
-    processDomains(supabase, scanId, domains).catch(err => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    processDomains(supabase as any, scanId, domains).catch(err => {
       console.error('[scan-domain] Background processing error:', err);
       supabase.from('domain_scans').update({ status: 'failed' }).eq('id', scanId);
     });
@@ -370,7 +535,7 @@ async function processDomains(supabase: ReturnType<typeof createClient>, scanId:
         addressability_gap_pct: null,
         estimated_safari_loss_pct: null,
         id_bloat_severity: 'low', // Use 'low' as neutral value, not 'medium'
-        privacy_risk_level: 'compliant', // Use 'compliant' as neutral value
+        privacy_risk_level: 'low', // Use 'low' as neutral value
         competitive_positioning: 'middle-pack', // Use neutral value instead of 'at-risk'
       });
       
@@ -768,20 +933,62 @@ function analyzeNetworkResults(data: BrowserlessResult, domain: string): ScanRes
   // Pre-consent tracking
   const loadsPreConsent = !cmpVendor && (hasGoogleAnalytics || hasMetaPixel || hasCriteo);
   
-  // SSP detection from third-party domains
+  // Enhanced SSP detection using comprehensive patterns
   const detectedSsps: string[] = [];
-  const sspPatterns = [
-    { name: 'Google Ad Manager', pattern: /googletag|doubleclick\.net|securepubads/i },
-    { name: 'Rubicon', pattern: /rubiconproject\.com/i },
-    { name: 'PubMatic', pattern: /pubmatic\.com/i },
-    { name: 'OpenX', pattern: /openx\.net/i },
-    { name: 'AppNexus', pattern: /adnxs\.com/i },
-    { name: 'Index Exchange', pattern: /casalemedia\.com/i },
-  ];
+  const allDomains = [...(thirdPartyDomains || [])];
+  const allCookieNames = (cookies || []).map(c => c.name.toLowerCase());
   
-  for (const ssp of sspPatterns) {
-    if ((thirdPartyDomains || []).some(d => ssp.pattern.test(d))) {
-      detectedSsps.push(ssp.name);
+  // Check SSP patterns against domains and cookies
+  for (const [key, ssp] of Object.entries(SSP_PATTERNS)) {
+    const domainMatch = allDomains.some(d => 
+      ssp.domains.some(pattern => d.toLowerCase().includes(pattern.replace('.', '')))
+    );
+    const cookieMatch = ssp.cookies.some(cookie => 
+      allCookieNames.some(name => name.toLowerCase().includes(cookie.toLowerCase()))
+    );
+    if (domainMatch || cookieMatch) {
+      if (!detectedSsps.includes(ssp.name)) {
+        detectedSsps.push(ssp.name);
+      }
+    }
+  }
+  
+  // Check DSP patterns - also add to detected SSPs for visibility
+  for (const [key, dsp] of Object.entries(DSP_PATTERNS)) {
+    const domainMatch = allDomains.some(d => 
+      dsp.domains.some(pattern => d.toLowerCase().includes(pattern.replace('.', '')))
+    );
+    const cookieMatch = dsp.cookies.some(cookie => 
+      allCookieNames.some(name => name.toLowerCase().includes(cookie.toLowerCase()))
+    );
+    if (domainMatch || cookieMatch) {
+      if (!detectedSsps.includes(dsp.name)) {
+        detectedSsps.push(dsp.name);
+      }
+    }
+  }
+  
+  // Enhanced Universal ID detection
+  let enhancedLiveramp = hasLiveramp;
+  let enhancedId5 = hasId5;
+  let enhancedTtd = hasTTD;
+  
+  for (const [key, uid] of Object.entries(UNIVERSAL_ID_PATTERNS)) {
+    const domainMatch = allDomains.some(d => 
+      uid.domains.some(pattern => d.toLowerCase().includes(pattern.replace('.', '')))
+    );
+    const cookieMatch = uid.cookies?.some(cookie => 
+      allCookieNames.some(name => name.toLowerCase().includes(cookie.toLowerCase()))
+    );
+    
+    if (domainMatch || cookieMatch) {
+      if (key === 'liveramp') enhancedLiveramp = true;
+      if (key === 'id5') enhancedId5 = true;
+      if (key === 'tradeDesk') enhancedTtd = true;
+      // Add UID solutions to SSP list for reporting
+      if (!detectedSsps.includes(uid.name)) {
+        detectedSsps.push(uid.name);
+      }
     }
   }
   
@@ -814,7 +1021,7 @@ function analyzeNetworkResults(data: BrowserlessResult, domain: string): ScanRes
   safariLoss = Math.max(0, Math.min(SAFARI_MARKET_SHARE * 100, safariLoss));
   
   const idBloatSeverity = calculateIdBloat(
-    hasLiveramp, hasId5, hasCriteo, hasTTD, cookieAnalysis?.thirdParty || 0
+    enhancedLiveramp, enhancedId5, hasCriteo, enhancedTtd, cookieAnalysis?.thirdParty || 0
   );
   
   const privacyRisk = calculatePrivacyRisk(
@@ -841,9 +1048,9 @@ function analyzeNetworkResults(data: BrowserlessResult, domain: string): ScanRes
     has_gcm: hasGcm,
     has_meta_pixel: hasMetaPixel,
     has_meta_capi: hasMetaCapi,
-    has_ttd: hasTTD,
-    has_liveramp: hasLiveramp,
-    has_id5: hasId5,
+    has_ttd: enhancedTtd,
+    has_liveramp: enhancedLiveramp,
+    has_id5: enhancedId5,
     has_criteo: hasCriteo,
     has_ppid: hasPpid,
     cmp_vendor: cmpVendor,
@@ -865,9 +1072,9 @@ function analyzeNetworkResults(data: BrowserlessResult, domain: string): ScanRes
       gcm: hasGcm,
       meta_pixel: hasMetaPixel,
       meta_capi: hasMetaCapi,
-      ttd: hasTTD,
-      liveramp: hasLiveramp,
-      id5: hasId5,
+      ttd: enhancedTtd,
+      liveramp: enhancedLiveramp,
+      id5: enhancedId5,
       criteo: hasCriteo,
       prebid: hasPrebid,
     },
@@ -1020,7 +1227,7 @@ function createFailedResult(errorMessage: string): ScanResult {
     addressability_gap_pct: null as any, // Will be stored as null in DB
     estimated_safari_loss_pct: null as any, // Will be stored as null in DB
     id_bloat_severity: 'low', // Use neutral value
-    privacy_risk_level: 'compliant', // Use neutral value
+    privacy_risk_level: 'low', // Use neutral value
     competitive_positioning: 'middle-pack', // Use neutral value
     cookies_raw: [],
     vendors_raw: {},

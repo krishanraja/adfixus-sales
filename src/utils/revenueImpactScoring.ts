@@ -14,17 +14,22 @@ import type {
 } from '@/types/scanner';
 
 // Industry benchmarks (2026)
+// Updated based on REVENUE_CALCULATION_LOGIC.md for realistic incremental opportunity calculations
 export const BENCHMARKS = {
   avgPublisherCookies: 47,
   avgThirdPartyRatio: 0.58,
-  safariMarketShare: 0.52, // Safari + Firefox combined
+  safariMarketShare: 0.35, // Safari (not including Firefox) - per REVENUE_CALCULATION_LOGIC.md
   idSolutionAdoption: 0.62,
   cmpAdoption: 0.78,
   tcfCompliantRate: 0.34,
-  cpmUpliftAddressable: 0.45, // 45% CPM lift for addressable vs contextual
-  safariCpmPenalty: 0.30, // 30% lower CPM on unaddressable Safari traffic
+  // Revenue calculation constants - per REVENUE_CALCULATION_LOGIC.md
+  baselineAddressability: 0.65, // 65% of total is already addressable
+  targetSafariImprovement: 0.20, // 20% Safari addressability improvement with AFxID
+  cpmUpliftAddressable: 0.25, // 25% CPM lift for newly addressable (not 45%)
   conversionApiBudgetCapture: 0.61, // Walled gardens capture 61% of spend via CAPI
   idGraphTechTax: 0.35, // 30-50% margin loss to middlemen
+  // Maximum realistic loss cap - prevents unrealistic numbers like $79M for NBC News
+  maxRealisticLossPercent: 0.07, // 7% of total revenue (Safari 35% × 20% improvement = 7%)
 };
 
 // CPM benchmarks by vertical
@@ -130,14 +135,41 @@ export function calculateAddressabilityGapPct(
   return blockedPct * BENCHMARKS.safariMarketShare * 100;
 }
 
+/**
+ * Calculate incremental revenue opportunity (not total loss)
+ * 
+ * This uses the corrected formula from REVENUE_CALCULATION_LOGIC.md:
+ * - Only calculates the INCREMENTAL opportunity from improving Safari addressability
+ * - Uses realistic 20% improvement target (not 100% recovery)
+ * - Applies 25% CPM uplift on newly addressable inventory
+ * - Caps total at 7% of total revenue to prevent unrealistic numbers
+ */
 export function calculateMonthlyRevenueLoss(
   monthlyImpressions: number,
   addressabilityGapPct: number,
   cpm: number
 ): number {
-  const lostImpressions = monthlyImpressions * (addressabilityGapPct / 100);
-  const revenueLoss = (lostImpressions / 1000) * cpm * BENCHMARKS.safariCpmPenalty;
-  return Math.round(revenueLoss);
+  // Calculate Safari impressions
+  const safariImpressions = monthlyImpressions * BENCHMARKS.safariMarketShare;
+  
+  // Calculate impressions that would become newly addressable with AFxID
+  // This is the INCREMENTAL improvement, not total loss
+  const newlyAddressable = safariImpressions * BENCHMARKS.targetSafariImprovement;
+  
+  // Base revenue from newly addressable inventory
+  const baseRevenue = (newlyAddressable / 1000) * cpm;
+  
+  // Additional CPM uplift on newly addressable (25% premium)
+  const cpmUplift = baseRevenue * BENCHMARKS.cpmUpliftAddressable;
+  
+  // Total incremental opportunity
+  const incrementalOpportunity = baseRevenue + cpmUplift;
+  
+  // Cap at realistic percentage of total potential revenue
+  const totalPotentialRevenue = (monthlyImpressions / 1000) * cpm;
+  const maxRealisticLoss = totalPotentialRevenue * BENCHMARKS.maxRealisticLossPercent;
+  
+  return Math.round(Math.min(incrementalOpportunity, maxRealisticLoss));
 }
 
 export function calculateReadinessGrade(

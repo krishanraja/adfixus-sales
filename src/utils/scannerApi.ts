@@ -449,14 +449,14 @@ export async function checkEdgeFunctionHealth(): Promise<{ healthy: boolean; err
       };
     });
     
-    const response = await Promise.race([invokePromise, timeoutPromise]);
+    const response = await Promise.race([invokePromise, timeoutPromise]) as { data?: any; error?: any };
     
     // #region agent log
-    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:425',message:'Health check response received',data:{hasError:!!response.error,hasData:!!response.data,errorMessage:response.error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7251/ingest/c102af5e-f9a7-4b7f-9234-fb71ccdc4a0a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scannerApi.ts:425',message:'Health check response received',data:{hasError:!!response.error,hasData:!!(response as any).data,errorMessage:response.error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
     // #endregion
     
     // Check if health check succeeded (function returned 200 with health status)
-    if (response.data && (response.data as any).status === 'healthy') {
+    if ('data' in response && response.data && (response.data as any).status === 'healthy') {
       console.log('[scannerApi] [DIAGNOSTIC] Health check successful - function is operational');
       return { healthy: true };
     }
