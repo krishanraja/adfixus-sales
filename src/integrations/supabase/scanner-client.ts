@@ -18,7 +18,8 @@ if (!scannerConfig.valid && import.meta.env.DEV) {
 }
 
 // Singleton pattern - ensure client is only created once
-let scannerSupabaseInstance: ReturnType<typeof createClient> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let scannerSupabaseInstance: any = null;
 
 function createScannerSupabaseClient() {
   try {

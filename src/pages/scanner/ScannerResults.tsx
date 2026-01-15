@@ -375,7 +375,7 @@ export default function ScannerResults() {
                             <Globe className="h-4 w-4 text-muted-foreground" />
                             <span className="text-foreground font-medium">{result.domain}</span>
                           </div>
-                          {result.status === 'success' || result.status === 'completed' ? (
+                          {result.status === 'success' ? (
                             <Badge className="bg-success/20 text-success border-success/30">
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Complete

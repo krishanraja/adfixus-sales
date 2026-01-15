@@ -22,6 +22,7 @@ interface MonitorRequest {
 }
 
 interface DomainSnapshot {
+  id: string;
   scan_id: string;
   domain: string;
   snapshot_data: {
